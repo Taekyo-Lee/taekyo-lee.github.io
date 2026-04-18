@@ -22,6 +22,3 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
-
-# Claude handoff / local notes
-CLAUDE.md
