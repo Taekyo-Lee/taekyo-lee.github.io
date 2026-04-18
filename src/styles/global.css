@@ -7,6 +7,9 @@
 :root {
 	--accent: #2337ff;
 	--accent-dark: #000d8a;
+	--claude: #cc785c;
+	--claude-dark: #a0543c;
+	--claude-soft: #fff5f0;
 	--black: 15, 18, 25;
 	--gray: 96, 115, 159;
 	--gray-light: 229, 233, 240;

@@ -1,0 +1,227 @@
+---
+// AI Coding Agent의 3 ERA 타임라인
+// "Agent의 역할이 바뀌면, 사는 곳도 바뀐다" 섹션용
+---
+
+<div class="eras">
+	<div class="era era--past">
+		<div class="era__col1">
+			<div class="era__head">
+				<span class="era__tag">ERA 1</span>
+				<span class="era__when">ChatGPT 이래</span>
+			</div>
+			<div class="era__role">코드 조각 생성기</div>
+		</div>
+		<div class="era__body">
+			<p>"이 알고리즘 파이썬으로 짜줘"<br />"이 함수 리팩터링 해줘"</p>
+			<p class="era__note">copy → paste → copy → paste</p>
+		</div>
+		<div class="era__foot">
+			<span class="era__foot-k">Lives in</span>
+			<span class="era__foot-v">Web</span>
+			<span class="era__foot-mini">ChatGPT · claude.ai</span>
+		</div>
+	</div>
+
+	<div class="era__arrow" aria-hidden="true">↓</div>
+
+	<div class="era era--mid">
+		<div class="era__col1">
+			<div class="era__head">
+				<span class="era__tag">ERA 2</span>
+				<span class="era__when">~ 몇 달 전</span>
+			</div>
+			<div class="era__role">Coding Agent</div>
+		</div>
+		<div class="era__body">
+			<p>개별 코드가 아니라 <strong>프로젝트 전체</strong> 를 함께 개발</p>
+			<p class="era__note">Agent 가 내 코드 옆으로 이동하는 건 자연스러운 수순</p>
+		</div>
+		<div class="era__foot">
+			<span class="era__foot-k">Lives in</span>
+			<span class="era__foot-v">IDE / Code Editor</span>
+			<span class="era__foot-mini">Copilot · Cursor · Claude Code ext.</span>
+		</div>
+	</div>
+
+	<div class="era__arrow" aria-hidden="true">↓</div>
+
+	<div class="era era--current">
+		<div class="era__col1">
+			<div class="era__head">
+				<span class="era__tag era__tag--emph">ERA 3 · NOW</span>
+				<span class="era__when era__when--emph">지금</span>
+			</div>
+			<div class="era__role">Agent <span class="era__role-emph">Harness</span></div>
+		</div>
+		<div class="era__body">
+			<p>더 이상 '코딩' 만을 위한 agent 가 아니다</p>
+			<p class="era__note era__note--emph">
+				컴퓨터 앞에 앉아 <strong>키보드와 마우스로 하는 모든 작업</strong> 의 대행자
+			</p>
+		</div>
+		<div class="era__foot">
+			<span class="era__foot-k era__foot-k--emph">Lives in</span>
+			<span class="era__foot-v era__foot-v--emph">Terminal</span>
+			<span class="era__foot-mini era__foot-mini--emph">
+				컴퓨터와 가장 가까운 layer
+			</span>
+		</div>
+	</div>
+</div>
+
+<style>
+	.eras {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.25rem;
+		margin: 2rem 0;
+	}
+	.era {
+		width: 100%;
+		background: white;
+		border: 1px solid rgb(var(--gray-light));
+		border-radius: 12px;
+		padding: 1rem 1.25rem;
+		display: grid;
+		grid-template-columns: 150px 1fr 180px;
+		gap: 1.2rem;
+		align-items: center;
+		box-shadow: 0 1px 3px rgba(var(--gray), 0.1);
+	}
+	.era--past {
+		background: linear-gradient(90deg, rgba(96, 115, 159, 0.09), white 55%);
+		border-left: 3px solid rgba(96, 115, 159, 0.4);
+	}
+	.era--mid {
+		background: linear-gradient(90deg, rgba(204, 120, 92, 0.04), white 55%);
+		border-left: 3px solid rgba(204, 120, 92, 0.3);
+	}
+	.era--current {
+		border: 2px solid var(--claude);
+		background: linear-gradient(90deg, rgba(204, 120, 92, 0.07), white 55%);
+	}
+
+	.era__col1 {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+	}
+	.era__head {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+	}
+	.era__tag {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.68rem;
+		color: rgb(var(--gray));
+		letter-spacing: 0.15em;
+		font-weight: 700;
+	}
+	.era__tag--emph {
+		color: var(--claude);
+	}
+	.era__when {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.68rem;
+		color: rgb(var(--gray));
+	}
+	.era__when--emph {
+		color: var(--claude);
+	}
+	.era__role {
+		font-size: 1.1rem;
+		font-weight: 800;
+		letter-spacing: -0.01em;
+		color: rgb(var(--black));
+		line-height: 1.2;
+	}
+	.era__role-emph {
+		color: var(--claude);
+	}
+
+	.era__body {
+		font-size: 0.88rem;
+		line-height: 1.55;
+		color: rgb(var(--gray-dark));
+	}
+	.era__body p {
+		margin: 0 0 0.25rem 0;
+		font-size: 0.88rem;
+	}
+	.era__body strong {
+		color: var(--claude-dark);
+		font-weight: 700;
+	}
+	.era__note {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.72rem;
+		color: rgb(var(--gray));
+	}
+	.era__note--emph {
+		font-family: inherit;
+		font-size: 0.88rem;
+		color: rgb(var(--gray-dark));
+	}
+
+	.era__foot {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		padding-left: 1rem;
+		border-left: 1px solid rgb(var(--gray-light));
+		text-align: right;
+	}
+	.era__foot-k {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.62rem;
+		color: rgb(var(--gray));
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}
+	.era__foot-k--emph {
+		color: var(--claude);
+	}
+	.era__foot-v {
+		font-size: 0.92rem;
+		font-weight: 700;
+		color: rgb(var(--black));
+	}
+	.era__foot-v--emph {
+		color: var(--claude);
+	}
+	.era__foot-mini {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.65rem;
+		color: rgb(var(--gray));
+	}
+	.era__foot-mini--emph {
+		font-family: inherit;
+		color: var(--claude-dark);
+		font-weight: 700;
+		font-size: 0.75rem;
+	}
+
+	.era__arrow {
+		font-size: 1.4rem;
+		color: var(--claude);
+		line-height: 1;
+		padding: 0.15rem 0;
+	}
+
+	@media (max-width: 620px) {
+		.era {
+			grid-template-columns: 1fr;
+			gap: 0.5rem;
+		}
+		.era__foot {
+			padding-left: 0;
+			border-left: 0;
+			border-top: 1px dashed rgb(var(--gray-light));
+			padding-top: 0.5rem;
+			text-align: left;
+		}
+	}
+</style>

@@ -1,0 +1,186 @@
+---
+// GUI (Web + IDE Extension) vs CLI (Terminal) 비교
+// "저의 여정: GUI에서 CLI로" 섹션용
+---
+
+<div class="gc">
+	<div class="gc__side gc__side--gui">
+		<div class="gc__head">
+			<span class="gc__label">GUI</span>
+			<span class="gc__period">~ 몇 달 전까지</span>
+		</div>
+		<div class="gc__sub">
+			<div class="gc__sub-title">Web</div>
+			<div class="gc__sub-desc">ChatGPT · claude.ai</div>
+			<div class="gc__sub-note">copy &amp; paste 로 소통</div>
+		</div>
+		<div class="gc__sub">
+			<div class="gc__sub-title">IDE Extension</div>
+			<div class="gc__sub-desc">VS Code + Copilot / Claude Code ext.</div>
+			<div class="gc__sub-note">편집기 안에서 대화</div>
+		</div>
+		<div class="gc__role">
+			<span class="gc__role-k">Role</span>
+			<span class="gc__role-v">Coding Agent</span>
+		</div>
+	</div>
+
+	<div class="gc__arrow" aria-hidden="true">→</div>
+
+	<div class="gc__side gc__side--cli">
+		<div class="gc__head">
+			<span class="gc__label gc__label--emph">CLI</span>
+			<span class="gc__period gc__period--emph">NOW</span>
+		</div>
+		<div class="gc__sub gc__sub--hero">
+			<div class="gc__sub-title">Terminal</div>
+			<div class="gc__code">$ claude</div>
+			<div class="gc__sub-note">
+				키보드와 마우스로 하는<br />모든 작업을 대행
+			</div>
+		</div>
+		<div class="gc__role">
+			<span class="gc__role-k">Role</span>
+			<span class="gc__role-v gc__role-v--emph">Agent Harness</span>
+		</div>
+	</div>
+</div>
+
+<style>
+	.gc {
+		display: flex;
+		align-items: stretch;
+		gap: 0.75rem;
+		margin: 2rem 0;
+	}
+	.gc__side {
+		flex: 1;
+		background: white;
+		border: 1px solid rgb(var(--gray-light));
+		border-radius: 14px;
+		padding: 1.25rem 1rem;
+		display: flex;
+		flex-direction: column;
+		box-shadow: 0 1px 3px rgba(var(--gray), 0.1);
+	}
+	.gc__side--gui {
+		background: linear-gradient(180deg, rgba(96, 115, 159, 0.09), white 55%);
+		border-left: 3px solid rgba(96, 115, 159, 0.4);
+	}
+	.gc__side--cli {
+		border: 2px solid var(--claude);
+		background: linear-gradient(180deg, rgba(204, 120, 92, 0.08), white 70%);
+	}
+	.gc__head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		margin-bottom: 0.85rem;
+		padding-bottom: 0.6rem;
+		border-bottom: 1px solid rgb(var(--gray-light));
+	}
+	.gc__label {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 1.2rem;
+		font-weight: 700;
+		color: rgb(var(--gray));
+		letter-spacing: 0.05em;
+	}
+	.gc__label--emph {
+		color: var(--claude);
+	}
+	.gc__period {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.68rem;
+		color: rgb(var(--gray));
+		letter-spacing: 0.1em;
+	}
+	.gc__period--emph {
+		color: var(--claude);
+		font-weight: 700;
+	}
+	.gc__sub {
+		background: rgb(var(--gray-light), 0.45);
+		border-radius: 8px;
+		padding: 0.7rem 0.85rem;
+		margin-bottom: 0.5rem;
+	}
+	.gc__side--cli .gc__sub {
+		background: var(--claude-soft);
+	}
+	.gc__sub--hero {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		text-align: center;
+		padding: 1.25rem 0.85rem;
+	}
+	.gc__sub-title {
+		font-size: 0.92rem;
+		font-weight: 700;
+		color: rgb(var(--black));
+		margin-bottom: 0.15rem;
+	}
+	.gc__sub-desc {
+		font-size: 0.78rem;
+		color: rgb(var(--gray-dark));
+		line-height: 1.45;
+	}
+	.gc__sub-note {
+		font-size: 0.7rem;
+		color: rgb(var(--gray));
+		margin-top: 0.15rem;
+	}
+	.gc__code {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 1.15rem;
+		color: var(--claude-dark);
+		font-weight: 700;
+		margin: 0.4rem 0 0.5rem;
+	}
+	.gc__arrow {
+		display: flex;
+		align-items: center;
+		color: var(--claude);
+		font-size: 1.8rem;
+		font-weight: 300;
+	}
+	.gc__role {
+		margin-top: auto;
+		padding-top: 0.7rem;
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		border-top: 1px dashed rgb(var(--gray-light));
+	}
+	.gc__role-k {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.62rem;
+		color: rgb(var(--gray));
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}
+	.gc__role-v {
+		font-size: 0.95rem;
+		font-weight: 800;
+		letter-spacing: -0.01em;
+		color: rgb(var(--black));
+	}
+	.gc__role-v--emph {
+		color: var(--claude);
+	}
+
+	@media (max-width: 560px) {
+		.gc {
+			flex-direction: column;
+			gap: 0.5rem;
+		}
+		.gc__arrow {
+			transform: rotate(90deg);
+			justify-content: center;
+			padding: 0.3rem 0;
+		}
+	}
+</style>

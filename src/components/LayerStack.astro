@@ -1,0 +1,181 @@
+---
+// Proximity model: agent가 컴퓨터에 가까울수록 강하다는 시각화
+// "왜 Claude Code는 터미널에 있을까?" 포스트용
+---
+
+<figure class="layer-stack">
+	<div class="layer-stack__inner">
+		<div class="layer-stack__layers">
+			<div class="layer layer--web">
+				<span class="layer__name">Web UI</span>
+				<span class="layer__sub">ChatGPT · claude.ai</span>
+			</div>
+			<div class="layer layer--ext">
+				<span class="layer__name">IDE Extension</span>
+				<span class="layer__sub">Copilot · Cursor · Claude Code ext.</span>
+			</div>
+			<div class="layer layer--term">
+				<span class="layer__name">Terminal</span>
+				<span class="layer__sub">$ claude</span>
+			</div>
+			<div class="layer layer--pc">
+				<span class="layer__name">Computer</span>
+				<span class="layer__sub">OS · Filesystem · Hardware</span>
+			</div>
+		</div>
+
+		<div class="layer-stack__axis" aria-hidden="true">
+			<div class="axis__end">
+				<span class="axis__label">멀다</span>
+				<span class="axis__arrow">↑</span>
+			</div>
+			<div class="axis__line"></div>
+			<div class="axis__end">
+				<span class="axis__arrow">↓</span>
+				<span class="axis__label axis__label--emph">가깝다</span>
+			</div>
+		</div>
+	</div>
+	<figcaption class="layer-stack__caption">
+		Terminal 은 <strong>컴퓨터 바로 위의 층</strong> 입니다.
+	</figcaption>
+</figure>
+
+<style>
+	.layer-stack {
+		margin: 2rem 0;
+		padding: 0;
+	}
+	.layer-stack__inner {
+		display: flex;
+		gap: 1rem;
+		align-items: stretch;
+	}
+	.layer-stack__layers {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+	.layer {
+		background: white;
+		border: 1px solid rgb(var(--gray-light));
+		border-radius: 10px;
+		padding: 0.85rem 1.2rem;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 1rem;
+		box-shadow: 0 1px 2px rgba(var(--gray), 0.1);
+	}
+	.layer__name {
+		font-size: 1.05rem;
+		font-weight: 700;
+		color: rgb(var(--black));
+		letter-spacing: -0.01em;
+	}
+	.layer__sub {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.72rem;
+		color: rgb(var(--gray));
+	}
+	/* Progressive color: 쿨 → 웜 으로 컴퓨터에 가까워짐 */
+	.layer--web {
+		background: linear-gradient(90deg, rgba(96, 115, 159, 0.1), white 55%);
+		border-left: 3px solid rgba(96, 115, 159, 0.35);
+		opacity: 0.7;
+	}
+	.layer--ext {
+		background: linear-gradient(90deg, rgba(204, 120, 92, 0.04), white 55%);
+		border-left: 3px solid rgba(204, 120, 92, 0.25);
+		opacity: 0.88;
+	}
+	/* Terminal — 강조 */
+	.layer--term {
+		border: 2px solid var(--claude);
+		background: linear-gradient(90deg, rgba(204, 120, 92, 0.12), white 70%);
+		padding: 0.95rem 1.2rem;
+	}
+	.layer--term .layer__name {
+		color: var(--claude);
+		font-size: 1.12rem;
+	}
+	.layer--term .layer__sub {
+		color: var(--claude-dark);
+		font-weight: 700;
+	}
+	/* Computer — 어두운 블록 */
+	.layer--pc {
+		background: rgb(var(--gray-dark));
+		border-color: rgb(var(--gray-dark));
+	}
+	.layer--pc .layer__name {
+		color: white;
+	}
+	.layer--pc .layer__sub {
+		color: rgb(var(--gray-light));
+	}
+
+	/* Axis */
+	.layer-stack__axis {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding: 0.3rem 0;
+		width: 52px;
+		flex-shrink: 0;
+	}
+	.axis__end {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.25rem;
+	}
+	.axis__label {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.7rem;
+		color: rgb(var(--gray));
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+	}
+	.axis__label--emph {
+		color: var(--claude);
+		font-weight: 700;
+	}
+	.axis__arrow {
+		font-size: 1.3rem;
+		color: rgb(var(--gray));
+		line-height: 1;
+	}
+	.axis__line {
+		flex: 1;
+		width: 2px;
+		background: linear-gradient(180deg, rgb(var(--gray)), var(--claude));
+		min-height: 30px;
+		margin: 0.4rem 0;
+		border-radius: 2px;
+	}
+
+	.layer-stack__caption {
+		margin: 1.2rem 0 0 0;
+		text-align: center;
+		font-size: 0.95rem;
+		color: rgb(var(--gray-dark));
+	}
+	.layer-stack__caption strong {
+		color: var(--claude-dark);
+	}
+
+	/* 모바일에서는 sub 텍스트 숨기고 이름만 */
+	@media (max-width: 560px) {
+		.layer__sub {
+			display: none;
+		}
+		.layer-stack__inner {
+			gap: 0.5rem;
+		}
+		.layer-stack__axis {
+			width: 36px;
+		}
+	}
+</style>
