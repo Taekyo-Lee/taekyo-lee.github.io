@@ -1,5 +1,6 @@
 {
   "name": "taekyo-lee.github.io",
+  "private": true,
   "type": "module",
   "version": "0.0.1",
   "engines": {
