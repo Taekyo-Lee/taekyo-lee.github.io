@@ -20,6 +20,3 @@ pnpm-debug.log*
 
 # Editor folders
 .idea/
-
-# Local handoff docs (Claude Code)
-CLAUDE.md
