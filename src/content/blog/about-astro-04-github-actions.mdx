@@ -3,7 +3,7 @@ title: '(4/5) GitHub Actions: 푸시가 일을 시키는 구조'
 description: 'GitHub Actions 는 repo에서 어떤 일이 일어났을 때 스크립트를 자동으로 돌려주는 도구입니다. 워크플로/잡/스텝의 세 층, 트리거, 러너, 권한, artifact — 이번 글은 그 구조 자체를 봅니다.'
 pubDate: 'Apr 27 2026'
 category: about-astro
-# heroImage: '../../assets/about-astro-04.jpg'
+heroImage: '../../assets/hero-astro.svg'
 ---
 
 이전 두 글에서 부품의 역할이 정해졌습니다. **Astro 가 빌드하고, GitHub Pages 가 그 결과를 서빙한다.** 그런데 아직 비어 있는 자리가 있습니다. **누가 빌드를 시키는가?** 저자는 노트북에서 astro build 를 돌리지 않고, GitHub Pages 도 직접 빌드하지는 않습니다. 그 사이에 들어가는 게 **GitHub Actions** 입니다.
