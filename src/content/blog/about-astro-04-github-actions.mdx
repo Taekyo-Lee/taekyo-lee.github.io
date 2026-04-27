@@ -1,0 +1,147 @@
+---
+title: '(4/5) GitHub Actions: 푸시가 일을 시키는 구조'
+description: 'GitHub Actions 는 repo에서 어떤 일이 일어났을 때 스크립트를 자동으로 돌려주는 도구입니다. 워크플로/잡/스텝의 세 층, 트리거, 러너, 권한, artifact — 이번 글은 그 구조 자체를 봅니다.'
+pubDate: 'Apr 27 2026'
+category: about-astro
+# heroImage: '../../assets/about-astro-04.jpg'
+---
+
+이전 두 글에서 부품의 역할이 정해졌습니다. **Astro 가 빌드하고, GitHub Pages 가 그 결과를 서빙한다.** 그런데 아직 비어 있는 자리가 있습니다. **누가 빌드를 시키는가?** 저자는 노트북에서 `astro build` 를 돌리지 않고, GitHub Pages 도 직접 빌드하지는 않습니다. 그 사이에 들어가는 게 **GitHub Actions** 입니다.
+
+이 글은 그 구조를 봅니다. 다음 글에서 실제 워크플로 파일을 한 줄씩 읽기 전에, 단어들과 층 구조를 정리하는 자리입니다.
+
+## 이게 사실 CI/CD 라는 개념입니다
+
+GitHub Actions 의 본질은, **repo에서 어떤 이벤트가 일어났을 때 스크립트를 자동으로 돌려주는 서비스** 입니다. Jenkins, CircleCI, GitLab CI 와 같은 카테고리입니다. GitHub 가 자기 안에 그 기능을 빌트인으로 넣은 형태로 보면 됩니다.
+
+용어 두 개를 정리하고 갑니다.
+
+- **CI (Continuous Integration)**: push 가 일어날 때마다 테스트, 린트, 빌드를 자동으로 돌려서 깨진 것을 일찍 잡아내는 관행.
+- **CD (Continuous Deployment)**: 그렇게 검증된 빌드를 자동으로 운영에 배포하는 관행.
+
+정적 블로그의 파이프라인은 사실상 **CD 위주** 입니다. 자동 테스트 스위트를 따로 붙이지 않는 경우가 많아서 CI 적인 검증은 거의 없고, 핵심은 **build → deploy** 두 단계의 자동화입니다.
+
+## 워크플로 / 잡 / 스텝 — 세 층
+
+GitHub Actions 는 `.github/workflows/` 안의 `.yml` 파일들을 읽어서 동작합니다. 파일 한 개가 **워크플로** 한 개고, 그 안은 세 층으로 중첩돼 있습니다.
+
+```
+워크플로 (deploy.yml)
+├── 트리거 (on: push, workflow_dispatch, ...)   ← "언제 돌릴 것인가?"
+├── 잡: build                                   ← 독립 실행 단위 (자기 VM 한 대)
+│   ├── 스텝 1: checkout (repo 클론)
+│   ├── 스텝 2: Node 설치
+│   ├── 스텝 3: npm install
+│   └── 스텝 4: astro build → artifact 업로드
+└── 잡: deploy                                  ← 별개의 잡
+    └── 스텝 1: Pages 로 artifact 푸시
+```
+
+각각의 자리.
+
+- **워크플로**: `.yml` 파일 한 개. 트리거, 잡, 설정이 다 들어 있습니다.
+- **잡 (Job)**: 워크플로 안의 실행 단위. **잡 하나마다 새 러너 (VM) 한 대가 떠서 돌고, 끝나면 폐기됩니다.** 잡끼리 파일을 공유하려면 명시적인 artifact 가 필요합니다.
+- **스텝 (Step)**: 잡 안에서 순차로 실행되는 액션. 같은 잡 안의 형제 스텝들은 같은 러너 위에서 돌기 때문에 파일과 환경 변수가 그대로 이어집니다.
+
+파이썬 비유. 워크플로가 `tox.ini` 자리고, 각 잡이 `[testenv:...]` 같은 격리된 환경, 스텝이 그 안의 명령어 한 줄 한 줄에 가깝습니다. 차이가 있다면, GitHub Actions 는 잡마다 **매번 새 VM 을 띄우고 끝나면 버린다** 는 점입니다.
+
+## 트리거 — 언제 돌리나
+
+`on:` 블록이 워크플로가 발화하는 시점을 정합니다. 자주 쓰이는 옵션들.
+
+| 트리거 | 발화 조건 |
+|---|---|
+| `push` | 지정 브랜치에 push 가 일어났을 때 |
+| `pull_request` | PR 이 열리거나 갱신될 때 |
+| `schedule` | cron 식 시간 간격으로 |
+| `workflow_dispatch` | GitHub UI 의 "Run workflow" 버튼으로 수동 실행 |
+| `release` | GitHub release 가 게시될 때 |
+
+블로그 배포 워크플로는 보통 `push: branches: [main]` 과 `workflow_dispatch` 를 같이 씁니다. **main 으로 push 가 들어오면 자동으로 돌고, 필요하면 수동으로도 돌릴 수 있는 워크플로** 라는 뜻입니다.
+
+## 러너 — 이건 어디서 도는가
+
+`runs-on: ubuntu-latest` 한 줄이 "최신 우분투 VM 한 대를 띄워서, 이 잡을 그 위에서 돌려라" 라는 지시입니다. **잡 하나마다 러너 한 대가 새로 만들어지고, 잡이 끝나면 사라집니다.** 이 단순한 사실이 굉장히 많은 결과를 만들어냅니다.
+
+- 모든 잡이 깨끗한 상태에서 시작합니다 (재현성에 좋습니다).
+- 이전 빌드의 데이터를 가져오고 싶다면 **artifact** 나 **cache** 를 명시적으로 써야 합니다.
+- 빌드 환경이 로컬 노트북과 다를 수 있습니다. 차이를 줄이려면 `package.json` 의 `engines` 와 워크플로의 `node-version:` 으로 정확한 버전을 핀 박아야 합니다.
+
+`ubuntu-latest` 외에 `windows-latest`, `macos-latest` 도 있긴 하지만, 정적 사이트 빌드는 거의 다 우분투를 씁니다.
+
+## 액션 — 재사용 가능한 스텝
+
+스텝 안의 `uses:` 는 **액션 (action)** 이라고 부르는 미리 패키징된 재사용 단위를 끌어옵니다.
+
+```yaml
+- uses: actions/checkout@v4
+```
+
+- `actions/checkout@v4` = 공식 `checkout` 액션의 4번 버전.
+- 이 한 줄이 "러너 위에 repo를 클론" 이라는 수십 줄의 자잘한 작업을 대체합니다.
+- `@v4` 가 버전 핀입니다. 업스트림 자동 업그레이드 때문에 어느 날 갑자기 워크플로가 깨지는 일을 막아줍니다.
+
+파이썬 비유. PyPI 에서 package를 가져오듯, GitHub Actions Marketplace 에 액션 생태계가 있습니다. 프레임워크 전용 액션도 풍부합니다. Astro 의 경우 `withastro/action@v3` 가 그런 예입니다.
+
+## 권한 — 러너가 무엇을 할 수 있는가
+
+```yaml
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+```
+
+기본적으로 러너 안의 코드는 repo에 대한 **읽기 권한** 만 갖습니다. Pages 에 배포하려면 `pages: write` 를 명시적으로 줘야 합니다. `id-token: write` 는 OIDC 를 켜는 권한인데, 이게 있어야 러너가 "이 배포는 정말로 이 repo의 Actions 에서 나왔습니다" 라는 걸 Pages 에 증명할 수 있습니다.
+
+원칙은 **최소 권한**. 필요한 만큼만 줍니다.
+
+## 동시성 — 두 배포가 동시에 시작하면 어떻게 되는가
+
+```yaml
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+```
+
+빠르게 두 번 push 하면 워크플로가 두 번 트리거됩니다. 그런데 Pages 입장에서는 "최신 버전이 라이브에 있으면 된다" 가 전부입니다. 두 배포가 병렬로 돌면 서로 꼬일 위험이 있습니다.
+
+- `group: "pages"` — 같은 그룹 이름 아래에 줄을 세웁니다.
+- `cancel-in-progress: false` — 진행 중인 배포는 그대로 끝까지 보내고, 새로 들어온 건 줄에서 기다립니다. (이 값을 `true` 로 두면 진행 중이던 배포를 취소하고 새 걸 시작하는데, 배포에는 위험한 선택입니다.)
+
+## 잡 의존성과 artifact
+
+```yaml
+jobs:
+  build:
+    # ...
+  deploy:
+    needs: build      # build 가 성공한 뒤에만 실행
+    # ...
+```
+
+- `needs: build` 가 순서를 강제합니다. build 가 실패하면 deploy 는 아예 돌지 않습니다.
+- build 가 만들어낸 `dist/` 가 deploy 까지 도달해야 하는데, **두 잡이 서로 다른 러너 위에서 돕니다. 파일시스템이 공유되지 않습니다.** 해결책은 build 에서 artifact 로 업로드, deploy 에서 다운로드.
+- 다행히 `withastro/action@v3` 가 내부에서 `dist/` 를 Pages 가 기대하는 정확한 포맷으로 업로드해주고, `actions/deploy-pages@v4` 는 그 artifact 를 자동으로 가져가서 배포합니다. artifact 이름을 손으로 엮을 일이 없습니다.
+
+## 로그는 어디서 보는가
+
+push 가 끝나면, repo의 **Actions 탭** 에 워크플로 실행 기록이 한 줄씩 쌓입니다.
+
+- 실행을 클릭 → 각 잡을 펼치기 → 각 스텝의 raw 로그까지.
+- 실패한 경우 정확히 어느 스텝에서 깨졌는지 한눈에 보입니다.
+- `workflow_dispatch` 트리거가 있으면, UI 에 "Run workflow" 버튼이 떠서 수동으로 다시 돌릴 수 있습니다.
+
+URL 패턴은 `https://github.com/<user>/<repo>/actions` 입니다. 빌드가 한 번 깨졌다 싶으면 이 페이지부터 여는 게 정공법입니다.
+
+## 정리
+
+- GitHub Actions = repo 이벤트에 반응해서 스크립트를 돌려주는 CI/CD.
+- 모양은 워크플로 (파일) → 트리거 + 잡들 → 잡 안의 스텝들.
+- 잡마다 **새 우분투 러너** 한 대. 잡 사이에 파일을 넘기려면 artifact.
+- `uses:` 가 미리 만들어둔 액션을 끌어옵니다. Astro + Pages 조합에서는 `withastro/action@v3` + `actions/deploy-pages@v4` 두 개를 합치는 게 표준입니다.
+- 권한은 최소 권한 원칙. 배포에 필요한 `pages: write`, `id-token: write` 만.
+
+---
+
+다음 글에서는 실제 `deploy.yml` 39줄을 한 줄씩 읽어봅니다. 개념을 깔았으니, 이번에는 코드를 보는 자리입니다.
