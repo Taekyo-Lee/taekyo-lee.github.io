@@ -59,12 +59,17 @@ const { title, description, pubDate, updatedDate, heroImage, category } = Astro.
 				display: inline-block;
 				padding: 0.2em 0.8em;
 				margin-bottom: 0.75em;
-				background: rgb(var(--accent), 0.1);
-				color: rgb(var(--accent));
+				background: var(--cat-bg, rgb(var(--accent), 0.1));
+				color: var(--cat-fg, rgb(var(--accent)));
 				border-radius: 999px;
 				font-size: 0.8rem;
 				font-weight: 600;
 				letter-spacing: 0.03em;
+				text-decoration: none;
+				transition: background 0.15s ease;
+			}
+			.category:hover {
+				background: var(--cat-bg-hover, rgb(var(--accent), 0.18));
 			}
 		</style>
 	</head>
@@ -78,7 +83,13 @@ const { title, description, pubDate, updatedDate, heroImage, category } = Astro.
 				</div>
 				<div class="prose">
 					<div class="title">
-						{category && <span class="category">{CATEGORY_LABELS[category]}</span>}
+						{
+							category && (
+								<a class:list={['category', `cat-${category}`]} href={`/category/${category}/`}>
+									{CATEGORY_LABELS[category]}
+								</a>
+							)
+						}
 						<div class="date">
 							<FormattedDate date={pubDate} />
 							{
