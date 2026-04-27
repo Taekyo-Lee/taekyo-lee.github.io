@@ -8,4 +8,5 @@ export const CATEGORY_LABELS: Record<string, string> = {
 	'claude-code': 'Claude Code',
 	'ai-agent': 'AI Agent',
 	essays: 'Essays',
+	'about-astro': 'About Astro',
 };
