@@ -1,0 +1,84 @@
+---
+// alice 예시 — repo 이름이 결과 URL 을 어떻게 만드는지 한눈에.
+// 본문 prose 와 위쪽 PagesSiteModes 가 맥락을 잡아주므로 최소 텍스트만.
+---
+
+<div class="cmp">
+	<div class="card card--user">
+		<code class="card__in">alice.github.io</code>
+		<span class="card__arrow" aria-hidden="true">↓</span>
+		<code class="card__out">https://alice.github.io/</code>
+	</div>
+	<div class="card card--project">
+		<code class="card__in">my-blog</code>
+		<span class="card__arrow" aria-hidden="true">↓</span>
+		<code class="card__out">
+			https://alice.github.io<span class="card__out-tail">/my-blog/</span>
+		</code>
+	</div>
+</div>
+
+<style>
+	.cmp {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1rem;
+		margin: 2rem 0;
+	}
+	.card {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.4rem;
+		background: white;
+		border: 1px solid rgb(var(--gray-light));
+		border-top-width: 4px;
+		border-radius: 10px;
+		padding: 1rem 1rem 1.1rem 1rem;
+		box-shadow: 0 1px 3px rgba(var(--gray), 0.08);
+		text-align: center;
+	}
+	.card--user {
+		border-top-color: var(--accent);
+		background: linear-gradient(180deg, rgba(35, 55, 255, 0.04), white 60%);
+	}
+	.card--project {
+		border-top-color: var(--claude);
+		background: linear-gradient(180deg, rgba(204, 120, 92, 0.05), white 60%);
+	}
+	.card__in,
+	.card__out {
+		display: inline-block;
+		background: rgb(var(--gray-light), 0.7);
+		padding: 0.2em 0.55em;
+		border-radius: 5px;
+		font-size: 0.88rem;
+		color: rgb(var(--black));
+		max-width: 100%;
+		word-break: break-all;
+	}
+	.card__arrow {
+		font-size: 0.85rem;
+		color: rgb(var(--gray));
+		line-height: 1;
+	}
+	.card--user .card__out {
+		color: var(--accent);
+		font-weight: 600;
+	}
+	.card--project .card__out {
+		color: var(--claude-dark);
+		font-weight: 600;
+	}
+	.card__out-tail {
+		background: rgba(204, 120, 92, 0.22);
+		padding: 0.05em 0.2em;
+		border-radius: 3px;
+	}
+
+	@media (max-width: 620px) {
+		.cmp {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>
