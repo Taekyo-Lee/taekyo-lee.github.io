@@ -14,7 +14,7 @@ const blog = defineCollection({
 			pubDate: z.coerce.date(),
 			updatedDate: z.coerce.date().optional(),
 			heroImage: z.optional(image()),
-			category: z.enum(['claude-code', 'ai-agent', 'essays']),
+			category: z.enum(['claude-code', 'ai-agent', 'essays', 'about-astro']),
 		}),
 });
 
