@@ -75,7 +75,7 @@ on:
 ```
 
 - main 으로 push → 자동 실행.
-- `workflow_dispatch` → GitHub UI 의 "Run workflow" 버튼으로 수동 실행 가능.
+- workflow_dispatch → GitHub UI 의 "Run workflow" 버튼으로 수동 실행 가능.
 - 다른 브랜치 (예: 피처 브랜치) 로의 push 는 **이 워크플로를 발화시키지 않습니다**. 일부러 그렇게 설계된 것입니다. 이 워크플로는 "배포 전용" 입니다.
 
 ### 권한
@@ -111,7 +111,7 @@ jobs:
 ```
 
 - 새 우분투 러너 한 대 위에서 시작.
-- 첫 스텝. `actions/checkout@v4` 가 러너 위에 repo를 클론합니다. 이걸 안 하면 러너에는 코드가 한 줄도 없습니다.
+- 첫 스텝. actions/checkout@v4 가 러너 위에 repo를 클론합니다. 이걸 안 하면 러너에는 코드가 한 줄도 없습니다.
 
 ```yaml
       - name: Install, build, and upload your site
@@ -122,16 +122,16 @@ jobs:
 
 **이 스텝 한 줄이 거의 모든 빌드 작업을 합니다.**
 
-`withastro/action@v3` 는 Astro 팀이 직접 운영하는 공식 액션입니다. 안에서 이런 일들이 차례로 일어납니다.
+withastro/action@v3 는 Astro 팀이 직접 운영하는 공식 액션입니다. 안에서 이런 일들이 차례로 일어납니다.
 
-1. Node.js 22 를 설치합니다 (`node-version: 22` 에 따라).
-2. 락파일 (`package-lock.json`) 을 발견하고 `npm ci` 를 돌립니다. (`npm ci` 는 락파일 기반의 엄격하고 재현 가능한 설치입니다. CI 에서는 `npm install` 보다 이 명령이 정공법입니다.)
-3. `npm run build` 를 돌립니다. 그 안에서 `astro build` 가 발화돼서 `dist/` 가 만들어집니다.
-4. `dist/` 를 **Pages artifact 포맷** 으로 패키징해서 업로드합니다.
+1. Node.js 22 를 설치합니다 (node-version: 22 에 따라).
+2. 락파일 (package-lock.json) 을 발견하고 npm ci 를 돌립니다. (npm ci 는 락파일 기반의 엄격하고 재현 가능한 설치입니다. CI 에서는 npm install 보다 이 명령이 정공법입니다.)
+3. npm run build 를 돌립니다. 그 안에서 astro build 가 발화돼서 dist/ 가 만들어집니다.
+4. dist/ 를 **Pages artifact 포맷** 으로 패키징해서 업로드합니다.
 
-요컨대, 로컬에서 `npm install && npm run build` 하고 그 결과물을 호스트에 올리는 일을 한 줄로 압축한 것입니다.
+요컨대, 로컬에서 npm install && npm run build 하고 그 결과물을 호스트에 올리는 일을 한 줄로 압축한 것입니다.
 
-`node-version: 22` 인 이유. `package.json` 이 `"engines": { "node": ">=22.12.0" }` 으로 선언돼 있다면 빌드 환경도 거기에 맞춰져야 합니다. 안 맞으면 로컬과 CI 사이에 미묘한 빌드 차이가 생길 수 있습니다.
+node-version: 22 인 이유. package.json 이 `"engines": { "node": ">=22.12.0" }` 으로 선언돼 있다면 빌드 환경도 거기에 맞춰져야 합니다. 안 맞으면 로컬과 CI 사이에 미묘한 빌드 차이가 생길 수 있습니다.
 
 ### Deploy 잡
 
@@ -141,7 +141,7 @@ jobs:
     runs-on: ubuntu-latest
 ```
 
-- `needs: build` — build 가 성공해야만 실행됩니다. 실패하면 이 잡은 스킵.
+- needs: build — build 가 성공해야만 실행됩니다. 실패하면 이 잡은 스킵.
 - build 잡과 **다른 러너** 위에서 돕니다. 그런데 별도의 다운로드 스텝이 필요 없습니다. artifact 인계는 Pages 가 알아서 해줍니다.
 
 ```yaml
@@ -150,8 +150,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 ```
 
-- GitHub 의 "environments" 기능. repo Settings → Environments 에 `github-pages` 라는 특수 환경이 있고, Pages 배포는 반드시 그걸 거쳐야 합니다.
-- `url:` 은 편의 설정. Actions 탭에 라이브 배포 URL 이 표시되도록 해줍니다. `steps.deployment.outputs.page_url` 은 바로 아래 스텝의 출력값을 참조합니다.
+- GitHub 의 "environments" 기능. repo Settings → Environments 에 github-pages 라는 특수 환경이 있고, Pages 배포는 반드시 그걸 거쳐야 합니다.
+- url: 은 편의 설정. Actions 탭에 라이브 배포 URL 이 표시되도록 해줍니다. steps.deployment.outputs.page_url 은 바로 아래 스텝의 출력값을 참조합니다.
 
 ```yaml
     steps:
@@ -160,8 +160,8 @@ jobs:
         uses: actions/deploy-pages@v4
 ```
 
-- `id: deployment` 가 이 스텝에 이름표를 붙여서, 위쪽 `environment.url` 에서 참조할 수 있게 해줍니다 (`page_url` 같은 출력값 접근).
-- `actions/deploy-pages@v4` 는 build 잡이 올린 artifact 를 알아서 찾아서 게시합니다. 파라미터가 거의 필요 없는 이유는, Pages artifact 의 규약이 GitHub 쪽에 표준화돼 있기 때문입니다.
+- id: deployment 가 이 스텝에 이름표를 붙여서, 위쪽 environment.url 에서 참조할 수 있게 해줍니다 (page_url 같은 출력값 접근).
+- actions/deploy-pages@v4 는 build 잡이 올린 artifact 를 알아서 찾아서 게시합니다. 파라미터가 거의 필요 없는 이유는, Pages artifact 의 규약이 GitHub 쪽에 표준화돼 있기 때문입니다.
 
 ## 흐름을 다시 한 번
 
@@ -188,29 +188,29 @@ https://<username>.github.io 에 새 HTML 이 뜸 (보통 1~2분 안에)
 
 ## 자주 마주치는 오해들
 
-**"main 에 올린 `.mdx` 가 그대로 웹에 서빙되나요?"**
+**"main 에 올린 .mdx 가 그대로 웹에 서빙되나요?"**
 
-아닙니다. main 브랜치에는 `.mdx` 소스만 있습니다. 실제로 서빙되는 건 그 소스에서 `astro build` 가 만들어낸 **HTML** 입니다.
+아닙니다. main 브랜치에는 .mdx 소스만 있습니다. 실제로 서빙되는 건 그 소스에서 astro build 가 만들어낸 **HTML** 입니다.
 
-**"`gh-pages` 브랜치가 안 보이는데요."**
+**"gh-pages 브랜치가 안 보이는데요."**
 
 그건 옛날 방식입니다. 이 워크플로는 artifact 방식을 쓰기 때문에, 별도 브랜치가 필요 없습니다.
 
-**"Actions 에서는 실패라는데 노트북에서는 `npm run build` 가 잘 돕니다."**
+**"Actions 에서는 실패라는데 노트북에서는 npm run build 가 잘 돕니다."**
 
-흔한 원인 두 가지. (1) 로컬 Node 버전이 `node-version: 22` 와 맞지 않거나. (2) 락파일이 stale 인데 로컬은 캐시된 설치 위에서 돌고 있고, CI 는 그 락파일 기준으로 새로 설치하는 경우. 락파일을 새로 갱신해서 commit하면 보통 풀립니다.
+흔한 원인 두 가지. (1) 로컬 Node 버전이 node-version: 22 와 맞지 않거나. (2) 락파일이 stale 인데 로컬은 캐시된 설치 위에서 돌고 있고, CI 는 그 락파일 기준으로 새로 설치하는 경우. 락파일을 새로 갱신해서 commit하면 보통 풀립니다.
 
 **"배포는 성공했는데 옛날 페이지가 그대로 보여요."**
 
 후보 세 가지.
 
-1. Astro View Transitions 의 클라이언트 캐시. 하드 리프레시 (`Ctrl+Shift+R`).
+1. Astro View Transitions 의 클라이언트 캐시. 하드 리프레시 (Ctrl+Shift+R).
 2. GitHub Pages CDN 캐시. 보통 몇 분 안에 풀립니다.
 3. 사실은 빌드가 실패한 경우. Actions 탭 확인.
 
 ## 정리
 
-워크플로는 짧습니다 (39줄). 그 안에서 호출되는 공식 액션들 (`actions/checkout`, `withastro/action`, `actions/deploy-pages`) 이 무대 뒤에서 무거운 일을 다 합니다. 저자 입장에서 해야 할 일은 단순합니다. **`.mdx` 를 작성하고, main 으로 push.** 나머지는 이 39줄의 YAML 이 GitHub 인프라에게 자동으로 시킵니다.
+워크플로는 짧습니다 (39줄). 그 안에서 호출되는 공식 액션들 (actions/checkout, withastro/action, actions/deploy-pages) 이 무대 뒤에서 무거운 일을 다 합니다. 저자 입장에서 해야 할 일은 단순합니다. **.mdx 를 작성하고, main 으로 push.** 나머지는 이 39줄의 YAML 이 GitHub 인프라에게 자동으로 시킵니다.
 
 파이프라인 동작을 바꾸고 싶다면, 이 한 파일만 고치면 됩니다. 모든 자동화 로직이 선언적으로 한 군데 모여 있다는 게 이 구성의 강점입니다.
 
