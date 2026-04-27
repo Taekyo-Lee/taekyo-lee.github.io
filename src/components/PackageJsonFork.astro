@@ -1,0 +1,245 @@
+---
+// "그럼 왜 로컬 package.json 도 astro 를 의존성으로 들고 있나요?" 섹션의 다이어그램.
+// 한 매니페스트가 로컬과 CI 양쪽으로 갈라져 설치되는 흐름.
+---
+
+<div class="fork">
+	<div class="source">
+		<div class="source__files">
+			<code>package.json</code>
+			<span class="source__plus">+</span>
+			<code>package-lock.json</code>
+		</div>
+		<p class="source__decl">"Astro 6.1.7 등을 설치하라"</p>
+	</div>
+
+	<div class="branches" aria-hidden="true">
+		<div class="branches__inner">
+			<span class="branches__h" />
+			<span class="branches__v branches__v--left" />
+			<span class="branches__v branches__v--right" />
+			<span class="branches__arrow branches__arrow--left">▼</span>
+			<span class="branches__arrow branches__arrow--right">▼</span>
+		</div>
+	</div>
+
+	<div class="targets">
+		<div class="target target--local">
+			<span class="target__lane">로컬 머신</span>
+			<code class="target__cmd">npm install</code>
+			<p class="target__path">→ <code>node_modules/astro/</code></p>
+			<ul class="target__use">
+				<li><code>npm run dev</code></li>
+				<li>에디터 도구</li>
+				<li>가끔 로컬 빌드 점검</li>
+			</ul>
+		</div>
+		<div class="target target--ci">
+			<span class="target__lane">CI 러너 (일회성)</span>
+			<code class="target__cmd">npm ci</code>
+			<p class="target__path">→ <code>node_modules/astro/</code></p>
+			<ul class="target__use">
+				<li>워크플로 안에서</li>
+				<li><code>astro build</code> 가 사용</li>
+			</ul>
+		</div>
+	</div>
+</div>
+
+<style>
+	.fork {
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		margin: 2rem 0;
+	}
+
+	/* 매니페스트 카드 */
+	.source {
+		align-self: center;
+		max-width: 28rem;
+		width: 100%;
+		text-align: center;
+		background: white;
+		border: 1px solid rgb(var(--gray-light));
+		border-top: 4px solid rgb(var(--gray-dark));
+		border-radius: 10px;
+		padding: 0.85rem 1rem;
+		box-shadow: 0 1px 3px rgba(var(--gray), 0.08);
+	}
+	.source__files {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		gap: 0.45rem;
+		flex-wrap: wrap;
+		margin-bottom: 0.4rem;
+	}
+	.source__files code {
+		background: rgb(var(--gray-light), 0.7);
+		padding: 0.15em 0.5em;
+		border-radius: 4px;
+		font-size: 0.9rem;
+		color: rgb(var(--black));
+	}
+	.source__plus {
+		color: rgb(var(--gray));
+		font-weight: 700;
+	}
+	.source__decl {
+		margin: 0;
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.78rem;
+		color: rgb(var(--gray));
+	}
+
+	/* 분기 화살표 */
+	.branches {
+		height: 3.2rem;
+		display: flex;
+		justify-content: center;
+	}
+	.branches__inner {
+		position: relative;
+		width: 70%;
+		max-width: 32rem;
+		height: 100%;
+	}
+	.branches__h {
+		position: absolute;
+		top: 0;
+		left: 25%;
+		right: 25%;
+		height: 2px;
+		background: rgb(var(--gray-light));
+	}
+	.branches__v {
+		position: absolute;
+		top: 0;
+		bottom: 0.6rem;
+		width: 2px;
+		background: rgb(var(--gray-light));
+	}
+	.branches__v--left {
+		left: calc(25% - 1px);
+	}
+	.branches__v--right {
+		right: calc(25% - 1px);
+	}
+	.branches__arrow {
+		position: absolute;
+		bottom: 0;
+		font-size: 0.7rem;
+		line-height: 1;
+		color: rgb(var(--gray));
+		transform: translateX(-50%);
+	}
+	.branches__arrow--left {
+		left: 25%;
+	}
+	.branches__arrow--right {
+		left: 75%;
+	}
+
+	/* 타겟 카드들 */
+	.targets {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1rem;
+	}
+	.target {
+		background: white;
+		border: 1px solid rgb(var(--gray-light));
+		border-left-width: 4px;
+		border-radius: 10px;
+		padding: 0.85rem 1rem 1rem 1rem;
+		box-shadow: 0 1px 3px rgba(var(--gray), 0.08);
+	}
+	.target--local {
+		border-left-color: var(--accent);
+		background: linear-gradient(90deg, rgba(35, 55, 255, 0.04), white 55%);
+	}
+	.target--ci {
+		border-left-color: #1f2328;
+		background: linear-gradient(90deg, rgba(31, 35, 40, 0.04), white 55%);
+	}
+	.target__lane {
+		display: block;
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.68rem;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: rgb(var(--gray));
+		margin-bottom: 0.4rem;
+	}
+	.target--local .target__lane {
+		color: var(--accent);
+	}
+	.target--ci .target__lane {
+		color: #1f2328;
+	}
+	.target__cmd {
+		display: inline-block;
+		background: rgb(var(--gray-light), 0.7);
+		padding: 0.15em 0.5em;
+		border-radius: 4px;
+		font-size: 0.9rem;
+		color: rgb(var(--black));
+		margin-bottom: 0.35rem;
+	}
+	.target__path {
+		margin: 0 0 0.5rem 0;
+		font-size: 0.85rem;
+		color: rgb(var(--gray-dark));
+	}
+	.target__path code {
+		background: transparent;
+		padding: 0;
+		font-size: 0.85rem;
+	}
+	.target__use {
+		margin: 0;
+		padding-left: 1.1rem;
+		font-size: 0.85rem;
+		line-height: 1.6;
+		color: rgb(var(--gray-dark));
+	}
+	.target__use li {
+		margin-bottom: 0.1rem;
+	}
+	.target__use code {
+		background: rgb(var(--gray-light), 0.7);
+		padding: 0.05em 0.4em;
+		border-radius: 3px;
+		font-size: 0.82rem;
+	}
+
+	@media (max-width: 620px) {
+		.targets {
+			grid-template-columns: 1fr;
+		}
+		.branches {
+			height: 2.4rem;
+		}
+		.branches__inner {
+			width: 50%;
+		}
+		.branches__h {
+			left: 0;
+			right: 0;
+		}
+		.branches__v--left {
+			left: calc(0% - 1px);
+		}
+		.branches__v--right {
+			right: calc(0% - 1px);
+		}
+		.branches__arrow--left {
+			left: 0%;
+		}
+		.branches__arrow--right {
+			left: 100%;
+		}
+	}
+</style>
