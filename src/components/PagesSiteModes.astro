@@ -1,0 +1,100 @@
+---
+// User / Organization 사이트 vs Project 사이트 — 사양 매핑.
+// 본문 prose 가 자세히 설명하므로 최소한의 텍스트만.
+---
+
+<div class="modes">
+	<div class="mode mode--user">
+		<span class="mode__tag">(a) User / Organization</span>
+		<code class="mode__in">&lt;username&gt;.github.io</code>
+		<span class="mode__arrow" aria-hidden="true">↓</span>
+		<code class="mode__out">https://&lt;username&gt;.github.io</code>
+	</div>
+	<div class="mode mode--project">
+		<span class="mode__tag">(b) Project</span>
+		<code class="mode__in">그 외 어떤 이름이든</code>
+		<span class="mode__arrow" aria-hidden="true">↓</span>
+		<code class="mode__out">
+			https://&lt;username&gt;.github.io<span class="mode__out-tail">/&lt;repo&gt;/</span>
+		</code>
+	</div>
+</div>
+
+<style>
+	.modes {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1rem;
+		margin: 2rem 0;
+	}
+	.mode {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.4rem;
+		background: white;
+		border: 1px solid rgb(var(--gray-light));
+		border-top-width: 4px;
+		border-radius: 10px;
+		padding: 1rem 1rem 1.1rem 1rem;
+		box-shadow: 0 1px 3px rgba(var(--gray), 0.08);
+		text-align: center;
+	}
+	.mode--user {
+		border-top-color: var(--accent);
+		background: linear-gradient(180deg, rgba(35, 55, 255, 0.04), white 60%);
+	}
+	.mode--project {
+		border-top-color: var(--claude);
+		background: linear-gradient(180deg, rgba(204, 120, 92, 0.05), white 60%);
+	}
+	.mode__tag {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.72rem;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		color: rgb(var(--gray));
+		margin-bottom: 0.2rem;
+	}
+	.mode--user .mode__tag {
+		color: var(--accent);
+	}
+	.mode--project .mode__tag {
+		color: var(--claude);
+	}
+	.mode__in,
+	.mode__out {
+		display: inline-block;
+		background: rgb(var(--gray-light), 0.7);
+		padding: 0.2em 0.55em;
+		border-radius: 5px;
+		font-size: 0.88rem;
+		color: rgb(var(--black));
+		max-width: 100%;
+		word-break: break-all;
+	}
+	.mode__arrow {
+		font-size: 0.85rem;
+		color: rgb(var(--gray));
+		line-height: 1;
+	}
+	.mode--user .mode__out {
+		color: var(--accent);
+		font-weight: 600;
+	}
+	.mode--project .mode__out {
+		color: var(--claude-dark);
+		font-weight: 600;
+	}
+	.mode__out-tail {
+		background: rgba(204, 120, 92, 0.22);
+		padding: 0.05em 0.2em;
+		border-radius: 3px;
+	}
+
+	@media (max-width: 620px) {
+		.modes {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>
