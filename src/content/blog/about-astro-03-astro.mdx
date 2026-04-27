@@ -1,0 +1,131 @@
+---
+title: '(3/5) Astro: MkDocs 가 컴포넌트를 갖게 된다면'
+description: 'Astro 는 SSG 라는 점에서 Sphinx, MkDocs 와 같은 자리에 있습니다. 거기서 한 발 더 나가, 마크다운 본문 안에 UI 컴포넌트를 끼워 넣을 수 있다는 게 차이입니다. 시리즈에서 가장 중요한 부품을 정리합니다.'
+pubDate: 'Apr 27 2026'
+category: about-astro
+# heroImage: '../../assets/about-astro-03.jpg'
+---
+
+정적 블로그를 만들 때 가장 먼저 정해야 하는 건 **무엇으로 빌드할 것인가** 입니다. Jekyll, Hugo, Sphinx, MkDocs 같은 기존 도구도 마크다운을 깔끔한 HTML 로 바꿔줍니다. 다만 본문 한가운데에 인터랙티브한 시각 요소를 끼워 넣고 싶을 때 한계가 옵니다. 이미지로 박아 넣거나, 외부 페이지로 빠져나가거나. 둘 다 글의 흐름을 끊습니다.
+
+Astro 가 그 자리에서 한 발 더 나간 도구입니다. 단순 정리하면, **마크다운으로 글을 쓰되, 필요한 자리에 컴포넌트를 직접 박아 넣을 수 있는 툴.**
+
+## 정적 사이트 생성기 자리에서 시작합니다
+
+먼저 Astro 가 어떤 카테고리에 속하는지부터. Sphinx 나 MkDocs 를 써본 적이 있다면, 그 자리가 **정적 사이트 생성기 (Static Site Generator, SSG)** 라는 걸 알 것입니다. SSG 는 빌드 시점에 모든 페이지를 미리 HTML 로 찍어내는 프로그램입니다.
+
+| 도구 | 입력 | 출력 |
+|---|---|---|
+| **Sphinx** | `.rst` + `conf.py` | `_build/html/` |
+| **MkDocs** | `.md` + `mkdocs.yml` | `site/` |
+| **Astro** | `.astro`, `.mdx`, `.md` + `astro.config.mjs` | `dist/` |
+
+같은 패턴입니다. **소스를 넣으면 배포 가능한 웹사이트가 떨어진다.** 출력이 그냥 파일들로 된 폴더라서, 어디든 호스팅할 수 있습니다. GitHub Pages, Netlify, S3, 직접 운영하는 nginx — 다 됩니다.
+
+## Astro 가 Sphinx/MkDocs 와 다른 두 가지
+
+여기까지면 그냥 "JavaScript 로 된 MkDocs" 정도입니다. Astro 가 그 자리에서 한 걸음 더 나가는 부분이 두 가지입니다.
+
+**(a) 컴포넌트 기반.** Astro 는 React 나 Vue 처럼 UI 를 컴포넌트로 쪼갤 수 있습니다. `Header.astro`, `Footer.astro`, `ClosingHero.astro` 처럼 재사용 단위로 분리할 수 있고, 더 중요한 건 **`.mdx` 글 안에서 그 컴포넌트들을 import 해서 본문 흐름에 직접 박아 넣을 수 있다** 는 것. 글 한가운데에 인터랙티브한 시각 요소를 넣을 때 필요한 자리가 정확히 이 자리입니다.
+
+**(b) Islands 아키텍처 (기본은 HTML, JS 는 필요한 곳에만).** Astro 의 기본 출력은 **순수 HTML** 입니다. SPA 프레임워크들처럼 빈 페이지를 보내고 JS 로 채우는 방식이 아닙니다. 정말 인터랙티비티가 필요한 컴포넌트만 자기 JS 번들을 갖습니다 — 그 각각이 "island" 한 개입니다. 블로그처럼 본문이 거의 정적인 사이트에서는, 페이지 로드가 굉장히 빠릅니다.
+
+파이썬 엔지니어 관점에서 한마디로 줄이면. **MkDocs 가 본문 안에 컴포넌트를 import 할 수 있게 되고, 거기서 다큐먼트 사이트라는 한정된 용도를 벗어나 일반 웹 프레임워크로 확장된 도구.** 그게 Astro 입니다.
+
+## `.mdx` 가 정확히 뭔가요
+
+`.md` (Markdown) 는 익숙할 것입니다. `.mdx` 는 **"Markdown + import 가능한 JSX 컴포넌트"** 입니다.
+
+```mdx
+---
+title: '글 제목'
+pubDate: 'Apr 27 2026'
+category: about-astro
+---
+
+import ClosingHero from '../../components/ClosingHero.astro';
+
+# 글 제목
+
+여기는 평범한 마크다운 본문입니다.
+
+<ClosingHero />  {/* 본문 한가운데 박힌 Astro 컴포넌트 */}
+
+마크다운이 다시 이어집니다…
+```
+
+위쪽 `---` 사이에 들어간 YAML 블록이 **frontmatter** 라고 부르는 메타데이터입니다. Astro 는 `content.config.ts` 에 적힌 Zod 스키마로 이걸 검증합니다. 예를 들어 `category` 필드가 정해진 enum 안에 있는지 빌드 시점에 체크할 수 있습니다. 오타를 내면 빌드가 실패하면서 어떤 파일의 어떤 값이 잘못됐는지 알려줍니다.
+
+본문은 일반 마크다운인데, 그 사이사이에 `<ComponentName />` 태그를 JSX 처럼 끼워 넣을 수 있습니다. 파이썬 비유를 들자면, **Jupyter 노트북이 마크다운 셀과 코드 셀을 섞듯, `.mdx` 는 마크다운과 UI 컴포넌트를 섞습니다.**
+
+## `astro build` 가 실제로 하는 일
+
+`npm run build` (안에서 `astro build` 가 호출됩니다) 를 돌리면 Astro 는 이런 단계를 거칩니다.
+
+1. `src/content/blog/` 아래의 모든 `.md` / `.mdx` 파일을 읽습니다.
+2. 각 frontmatter 를 `content.config.ts` 의 스키마로 검증합니다 (잘못된 `category` 값은 여기서 걸립니다).
+3. 마크다운을 HTML 로 렌더하면서, 본문 안의 컴포넌트들도 함께 렌더합니다.
+4. 공통 레이아웃 (`BlogPost.astro` 같은 것) 을 적용해서 nav / footer / meta 태그를 끼워 넣습니다.
+5. CSS, 이미지, 폰트, 그 외 자산을 최적화합니다.
+6. 모든 결과를 **`dist/`** 폴더에 씁니다.
+
+`dist/` 의 모양은 대략 이렇습니다.
+
+```
+dist/
+├── index.html                         ← 홈
+├── about/index.html                   ← About 페이지
+├── blog/
+│   ├── index.html                     ← 글 목록
+│   └── some-post-slug/index.html      ← 개별 글
+├── _astro/                            ← 번들된 CSS/JS
+│   ├── main.abc123.css
+│   └── ...
+├── sitemap-index.xml
+└── rss.xml
+```
+
+이 폴더 하나면 끝입니다. GitHub Pages, nginx, S3 — 어떤 정적 호스트든 그저 이 파일들을 서빙하기만 하면 됩니다. 방문자가 `https://<username>.github.io/blog/some-post-slug/` 를 요청하면, 서버는 `dist/blog/some-post-slug/index.html` 을 그대로 돌려줍니다.
+
+## `astro dev` 와 `astro build`, 어떻게 다른가
+
+자주 헷갈리는 두 명령어를 정리합니다.
+
+| 명령어 | 용도 | 출력 |
+|---|---|---|
+| `npm run dev` (= `astro dev`) | 로컬 미리보기. 파일을 저장하면 브라우저가 즉시 갱신 (핫리로드) | 없음. 메모리에서 서빙 |
+| `npm run build` (= `astro build`) | 운영 빌드. 최적화/미니파이까지 모두 포함 | `dist/` 폴더 |
+
+파이썬 비유. `uvicorn --reload` 가 `astro dev` 자리고, `mkdocs build` / `sphinx-build` 가 `astro build` 자리입니다. **글을 작성하는 동안에는 `dev`, GitHub Actions 가 push 후에 돌리는 건 `build`.** 둘은 같은 도구의 다른 모드입니다.
+
+## `astro.config.mjs` 가 설정하는 것들
+
+대표적인 설정은 이렇게 생겼습니다.
+
+```js
+import { defineConfig } from 'astro/config';
+import mdx from '@astrojs/mdx';
+import sitemap from '@astrojs/sitemap';
+
+export default defineConfig({
+  site: 'https://<username>.github.io',
+  integrations: [mdx(), sitemap()],
+  // ... 폰트 설정 등
+});
+```
+
+- `site`: 사이트가 배포될 공개 URL. sitemap.xml, canonical URL, RSS 피드를 만들 때 이 값을 씁니다. 잘못 넣으면 검색 엔진과 RSS 리더가 엉뚱한 주소를 따라가게 됩니다.
+- `integrations`: Astro 에 기능을 더해주는 플러그인 (여기서는 `.mdx` 지원과 sitemap 자동 생성).
+
+파이썬 비유. `mkdocs.yml` 의 `site_url:` 과 `plugins:` 블록 자리입니다.
+
+## 정리
+
+- Astro = JS 진영의 정적 사이트 생성기. Sphinx/MkDocs 의 자리에서 일반 웹 프레임워크로 확장됐습니다.
+- `.mdx` = 마크다운에 컴포넌트 import 가 섞입니다.
+- `astro build` → `dist/` 에 완성된 HTML/CSS/JS. 그 폴더를 어떤 정적 호스트로든 보내면 끝.
+- `dev` 는 글 쓸 때 보는 모드, `build` 는 배포할 때 굽는 모드.
+
+---
+
+다음 글에서는 그 빌드를 자동으로 돌려주는 GitHub Actions 를 봅니다. push 한 번으로 어떻게 일이 일어나는지를 풀어봅니다.
