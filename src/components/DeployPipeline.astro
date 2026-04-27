@@ -1,0 +1,189 @@
+---
+// 정적 블로그 배포 파이프라인 — 세로 타임라인.
+// 1편 "세 부품, 한 줄 파이프라인" 섹션의 ASCII 다이어그램 대체.
+
+const steps = [
+	{
+		lane: '로컬 PC',
+		laneClass: 'lane-local',
+		title: '저자가 글을 작성',
+		items: [
+			'.mdx 파일 작성',
+			'npm run dev 로 라이브 미리보기 (localhost:4321)',
+		],
+		edge: 'git push',
+	},
+	{
+		lane: 'GitHub · main 브랜치',
+		laneClass: 'lane-github',
+		title: 'main 으로 push 도착',
+		items: ['push 이벤트 발생'],
+		edge: '워크플로 트리거',
+	},
+	{
+		lane: 'GitHub · Actions',
+		laneClass: 'lane-github',
+		title: 'deploy.yml 워크플로 실행',
+		items: [
+			'Node 22 설치',
+			'npm ci',
+			'astro build → dist/ 생성',
+			'dist/ 를 artifact 로 업로드',
+		],
+		edge: 'artifact 인계',
+	},
+	{
+		lane: 'GitHub · Pages',
+		laneClass: 'lane-github',
+		title: 'Pages 가 dist/ 를 게시',
+		items: ['CDN 으로 배포'],
+		edge: 'HTTP 요청',
+	},
+	{
+		lane: '인터넷 · 방문자 브라우저',
+		laneClass: 'lane-internet',
+		title: 'https://<username>.github.io',
+		items: ['새 글이 보입니다'],
+	},
+];
+---
+
+<div class="pipeline">
+	{
+		steps.map((step, i) => (
+			<>
+				<div class:list={['step', step.laneClass]}>
+					<div class="step__head">
+						<span class="step__lane">{step.lane}</span>
+						<span class="step__num">{String(i + 1).padStart(2, '0')}</span>
+					</div>
+					<h3 class="step__title">{step.title}</h3>
+					<ul class="step__items">
+						{step.items.map((item) => (
+							<li>{item}</li>
+						))}
+					</ul>
+				</div>
+				{step.edge && (
+					<div class="edge" aria-hidden="true">
+						<span class="edge__line" />
+						<span class="edge__label">{step.edge}</span>
+						<span class="edge__line" />
+						<span class="edge__arrow">▼</span>
+					</div>
+				)}
+			</>
+		))
+	}
+</div>
+
+<style>
+	.pipeline {
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		gap: 0;
+		margin: 2rem 0;
+	}
+
+	.step {
+		background: white;
+		border: 1px solid rgb(var(--gray-light));
+		border-left-width: 4px;
+		border-radius: 10px;
+		padding: 0.9rem 1.1rem 1rem 1.1rem;
+		box-shadow: 0 1px 3px rgba(var(--gray), 0.08);
+	}
+
+	.step.lane-local {
+		border-left-color: var(--accent);
+		background: linear-gradient(90deg, rgba(35, 55, 255, 0.04), white 55%);
+	}
+	.step.lane-github {
+		border-left-color: #1f2328;
+		background: linear-gradient(90deg, rgba(31, 35, 40, 0.04), white 55%);
+	}
+	.step.lane-internet {
+		border-left-color: var(--claude);
+		background: linear-gradient(90deg, rgba(204, 120, 92, 0.06), white 55%);
+	}
+
+	.step__head {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: 0.6rem;
+		margin-bottom: 0.35rem;
+	}
+	.step__lane {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.68rem;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: rgb(var(--gray));
+	}
+	.step.lane-local .step__lane {
+		color: var(--accent);
+	}
+	.step.lane-github .step__lane {
+		color: #1f2328;
+	}
+	.step.lane-internet .step__lane {
+		color: var(--claude);
+	}
+	.step__num {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.7rem;
+		color: rgb(var(--gray));
+	}
+
+	.step__title {
+		margin: 0 0 0.5rem 0;
+		font-size: 1rem;
+		font-weight: 700;
+		color: rgb(var(--black));
+		line-height: 1.3;
+	}
+
+	.step__items {
+		margin: 0;
+		padding-left: 1.1rem;
+		font-size: 0.88rem;
+		line-height: 1.6;
+		color: rgb(var(--gray-dark));
+	}
+	.step__items li {
+		margin-bottom: 0.15rem;
+	}
+
+	/* 카드 사이 연결 */
+	.edge {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0;
+		padding: 0.15rem 0;
+	}
+	.edge__line {
+		width: 2px;
+		height: 0.6rem;
+		background: rgb(var(--gray-light));
+	}
+	.edge__label {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.7rem;
+		color: rgb(var(--gray));
+		background: white;
+		padding: 0.15rem 0.6rem;
+		border: 1px solid rgb(var(--gray-light));
+		border-radius: 999px;
+		margin: 0.15rem 0;
+	}
+	.edge__arrow {
+		font-size: 0.7rem;
+		color: rgb(var(--gray));
+		line-height: 1;
+		margin-top: -0.1rem;
+	}
+</style>
