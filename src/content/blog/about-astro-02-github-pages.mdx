@@ -1,5 +1,5 @@
 ---
-title: '(2/5) GitHub Pages 는 그냥 파일 서버 한 대입니다'
+title: '(2/5) GitHub Pages 는 그냥 서버 한 대입니다'
 description: 'GitHub Pages 가 실제로 하는 일은 단순합니다. 폴더 하나를 골라 그 안의 파일을 그대로 돌려주는 것. 거기에 따라붙는 작은 규칙들 — repo 이름, 활성화, 빌드 결과물 vs 소스 — 을 정리합니다.'
 pubDate: 'Apr 27 2026'
 category: about-astro
@@ -9,7 +9,7 @@ category: about-astro
 import RepoUrlMapping from '../../components/RepoUrlMapping.astro';
 import PagesSiteModes from '../../components/PagesSiteModes.astro';
 
-GitHub Pages 를 처음 보면 가장 자주 헷갈리는 부분이 있습니다. "이게 무료라는데, 그럼 안에서 어떤 마법이 도는 거지?" 결론부터 말하면, 마법은 없습니다. **들어 있는 HTML/CSS/JS 파일을 그대로 돌려주는 파일 서버 한 대** 가 정확한 그림입니다.
+GitHub Pages 를 처음 보면 가장 자주 헷갈리는 부분이 있습니다. "이게 무료라는데, 그럼 안에서 어떤 마법이 도는 거지?" 결론부터 말하면, 마법은 없습니다. **들어 있는 HTML/CSS/JS 파일을 그대로 돌려주는 서버 한 대** 가 정확한 그림입니다.
 
 이 글은 그 단순함을 한 번 짚고, 거기서 따라 나오는 작은 규칙들 — repo 이름은 왜 &lt;username&gt;.github.io 인가, 무엇이 서빙되고 무엇이 안 되는가 — 을 정리합니다.
 
@@ -76,4 +76,4 @@ GitHub Pages 는 **정적 전용** 입니다. 거기서 서버 코드를 돌릴 
 
 ---
 
-다음 글에서는 그 결과물을 만드는 도구, **Astro** 를 봅니다. MkDocs 가 컴포넌트를 갖게 된다면 이렇게 생겼겠다, 싶은 도구입니다.
+다음 글에서는 그 결과물을 만드는 도구, **Astro** 를 봅니다.
