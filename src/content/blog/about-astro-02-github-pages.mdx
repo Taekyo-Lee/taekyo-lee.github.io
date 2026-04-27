@@ -1,22 +1,25 @@
 ---
-title: '(2/5) GitHub Pages 는 사실 nginx 한 대입니다'
+title: '(2/5) GitHub Pages 는 그냥 파일 서버 한 대입니다'
 description: 'GitHub Pages 가 실제로 하는 일은 단순합니다. 폴더 하나를 골라 그 안의 파일을 그대로 돌려주는 것. 거기에 따라붙는 작은 규칙들 — repo 이름, 활성화, 빌드 결과물 vs 소스 — 을 정리합니다.'
 pubDate: 'Apr 27 2026'
 category: about-astro
 # heroImage: '../../assets/about-astro-02.jpg'
 ---
 
+import RepoUrlMapping from '../../components/RepoUrlMapping.astro';
+import PagesSiteModes from '../../components/PagesSiteModes.astro';
+
 GitHub Pages 를 처음 보면 가장 자주 헷갈리는 부분이 있습니다. "이게 무료라는데, 그럼 안에서 어떤 마법이 도는 거지?" 결론부터 말하면, 마법은 없습니다. **들어 있는 HTML/CSS/JS 파일을 그대로 돌려주는 파일 서버 한 대** 가 정확한 그림입니다.
 
-이 글은 그 단순함을 한 번 짚고, 거기서 따라 나오는 작은 규칙들 — repo 이름은 왜 `<username>.github.io` 인가, 무엇이 서빙되고 무엇이 안 되는가 — 을 정리합니다.
+이 글은 그 단순함을 한 번 짚고, 거기서 따라 나오는 작은 규칙들 — repo 이름은 왜 &lt;username&gt;.github.io 인가, 무엇이 서빙되고 무엇이 안 되는가 — 을 정리합니다.
 
 ## 정적 호스팅이라는 게 무엇인가
 
 웹 호스팅은 크게 두 갈래로 나뉩니다.
 
-**동적 호스팅** 은 방문자가 페이지를 요청할 때마다 서버가 코드를 돌려 그 자리에서 HTML 을 만듭니다. Django, FastAPI, Flask, Rails 가 여기 속합니다. "글 목록을 보여줘" 라는 요청이 들어오면 DB 에 쿼리를 날리고, 템플릿을 렌더하고, 응답을 만들어냅니다. 그래서 이 모델은 늘 떠 있는 서버 프로세스, 보통은 데이터베이스, 그리고 트래픽에 맞춰 스케일을 늘리는 인프라가 필요합니다.
+**동적 호스팅 (Dynamic hosting)** 은 방문자가 페이지를 요청할 때마다 서버가 코드를 돌려 그 자리에서 HTML 을 만듭니다. Django, FastAPI, Flask, Rails 가 여기 속합니다. "글 목록을 보여줘" 라는 요청이 들어오면 DB 에 쿼리를 날리고, 템플릿을 렌더하고, 응답을 만들어냅니다. 그래서 이 모델은 늘 떠 있는 서버 프로세스, 보통은 데이터베이스, 그리고 트래픽에 맞춰 스케일을 늘리는 인프라가 필요합니다.
 
-**정적 호스팅** 은 정반대입니다. 서버는 이미 디스크에 완성된 HTML/CSS/JS 를 가지고 있습니다. 요청이 들어오면 매칭되는 파일을 그대로 돌려줍니다. 계산이 없습니다. DB 도 없고, 애플리케이션 프로세스도 없습니다. `nginx` 같은 파일 서빙 도구 한 대로 충분합니다.
+**정적 호스팅 (Static hosting)** 은 정반대입니다. 서버는 이미 디스크에 완성된 HTML/CSS/JS 를 가지고 있습니다. 요청이 들어오면 매칭되는 파일을 그대로 돌려줍니다. 계산이 없습니다. DB 도 없고, 애플리케이션 프로세스도 없습니다. 파일을 그대로 내보내는 단순한 서버 한 대로 충분합니다.
 
 GitHub Pages 는 **정적 전용** 입니다. 거기서 서버 코드를 돌릴 수는 없고, DB 도 못 붙입니다. 그 제약이 정확히 이 서비스가 무료일 수 있는 이유입니다.
 
@@ -28,59 +31,47 @@ GitHub Pages 는 **정적 전용** 입니다. 거기서 서버 코드를 돌릴 
 - 모든 방문자가 같은 화면을 봅니다. 개인화가 없습니다.
 - 댓글, 검색, 인증 같은 동적 기능은 처음부터 없거나, 외부 서비스 (Disqus, Algolia 등) 로 떼어낼 수 있습니다.
 
-그래서 패턴이 단순해집니다. **콘텐츠가 바뀔 때마다 HTML 을 새로 굽고, 그 결과를 모두에게 똑같이 내보낸다.** 이게 SSG (정적 사이트 생성기) 패턴이고, Astro 의 기본 모드입니다. (Astro 는 어댑터를 붙이면 SSR 도 가능하지만, GitHub Pages 가 SSR 을 호스팅할 수 없으므로 이 조합에서는 순수 SSG 로 갑니다. SSR/SSG 구분은 다음 글에서 더 다룹니다.)
+그래서 패턴이 단순해집니다. **콘텐츠가 바뀔 때마다 HTML 을 새로 굽고, 그 결과를 모두에게 똑같이 내보낸다.** 이게 SSG (Static Site Generation, 정적 사이트 생성) 패턴이고, Astro 의 기본 모드입니다. (Astro 는 어댑터를 붙이면 SSR (Server-Side Rendering, 서버 사이드 렌더링) 도 가능하지만, GitHub Pages 가 SSR 을 호스팅할 수 없으므로 이 조합에서는 순수 SSG 로 갑니다. SSR/SSG 구분은 다음 글에서 더 다룹니다.)
 
-## `<username>.github.io` 라는 특별한 repo 이름
+## &lt;username&gt;.github.io 라는 특별한 repo 이름
 
 먼저 놓치기 쉬운 전제 하나. **GitHub Pages 는 repo 단위 옵트인입니다.** repo를 만들었다고, 거기에 push 했다고 해서 그 결과가 자동으로 웹에 올라가지 않습니다. Settings → Pages 에서 명시적으로 켠 repo만 서빙됩니다. 보통은 한 계정의 대부분의 repo가 사실 웹에 노출되지 않은 상태입니다.
 
-그 위에서, `<username>.github.io` 라는 도메인은 계정에 예약된 일종의 "주소 공간" 으로 생각하면 됩니다. Pages 를 켠 repo마다 그 주소 공간 안에 자기 자리 하나를 차지합니다. 한 repo는 루트를 차지하고, 나머지는 자기 이름을 서브패스로 갖습니다. repo가 50개라도 Pages 를 켠 게 2개면, 사이트는 정확히 2개입니다.
+&lt;username&gt;.github.io 도메인은 GitHub 계정마다 하나씩 자동으로 따라옵니다. Pages 를 켠 repo 들은 전부 이 한 도메인 아래에 자리를 잡는데, 그 중 딱 하나만 도메인 루트 (https://&lt;username&gt;.github.io/) 에 매핑되고, 나머지는 자기 이름이 서브패스로 붙습니다 (https://&lt;username&gt;.github.io/&lt;repo&gt;/). 그래서 repo 가 50개라도 Pages 를 켠 게 2개면 살아 있는 사이트도 2개입니다.
 
 그리고 GitHub Pages 는 두 모드로 동작합니다.
 
-**(a) User / Organization 사이트**
+<PagesSiteModes />
 
-- repo 이름이 정확히 `<username>.github.io` 여야 합니다.
-- URL 은 `https://<username>.github.io` 로, 도메인 루트에서 서빙됩니다.
-- 계정당 한 개.
+### 그런데 repo 이름을 my-blog 로 바꿔도, URL 에 여전히 alice.github.io 가 들어가는 건 뭐죠?
 
-**(b) Project 사이트**
+이 부분에서 많이 헷갈리는데, alice.github.io 는 사실 **두 가지 다른 의미** 로 쓰입니다.
 
-- 그 패턴과 일치하지 **않는** 어떤 repo에서든 Settings 에서 Pages 를 켜면 됩니다 (그 특별한 이름의 repo는 자동으로 User 사이트라서 Project 사이트가 될 수 없습니다).
-- URL 은 `https://<username>.github.io/<repo-name>` 로, 서브패스에서 서빙됩니다.
+1. **계정 alice 의 Pages 도메인** (계정 속성, 어떤 repo의 속성이 아닙니다). 모든 GitHub 사용자는 정확히 한 개의 Pages 도메인을 받습니다. 그 사용자가 가진 모든 Pages 사이트는 다 이 한 도메인 아래에 서빙됩니다.
+2. **그 도메인 이름과 같은 이름을 가진 특정 repo**. GitHub 이 이 이름의 repo를 User 사이트로 예약해두고, 도메인의 루트 경로에 매핑합니다.
 
-예를 들어 사용자 `taekyo-lee` 의 repo 이름이 `taekyo-lee.github.io` 라면 (a) 모드가 켜집니다. URL 이 깔끔한 루트 한 줄, `https://taekyo-lee.github.io` 가 됩니다. 만약 repo 이름이 `my-blog` 였다면 URL 은 `https://taekyo-lee.github.io/my-blog/` 가 됐을 것입니다.
+그래서 사용자 alice 의 Pages 도메인은 언제나 alice.github.io 입니다. 이건 안 바뀝니다. repo 이름은 그 도메인 **아래 어디에** 사이트가 자리잡을지만 결정합니다.
 
-### 그런데 repo 이름을 `my-blog` 로 바꿔도, URL 에 여전히 `taekyo-lee.github.io` 가 들어가는 건 뭐죠?
+<RepoUrlMapping />
 
-이 부분에서 많이 헷갈리는데, `taekyo-lee.github.io` 는 사실 **두 가지 다른 의미** 로 쓰입니다.
-
-1. **계정 `taekyo-lee` 의 Pages 도메인** (계정 속성, 어떤 repo의 속성이 아닙니다). 모든 GitHub 사용자는 정확히 한 개의 Pages 도메인을 받습니다. 그 사용자가 가진 모든 Pages 사이트는 다 이 한 도메인 아래에 서빙됩니다.
-2. **그 도메인 이름과 같은 이름을 가진 특정 repo**. GitHub 가 이 이름의 repo를 User 사이트로 예약해두고, 도메인의 루트 경로에 매핑합니다.
-
-그래서 사용자 `taekyo-lee` 의 Pages 도메인은 언제나 `taekyo-lee.github.io` 입니다. 이건 안 바뀝니다. repo 이름은 그 도메인 **아래 어디에** 사이트가 자리잡을지만 결정합니다.
-
-- repo 이름 `taekyo-lee.github.io` → User 사이트 → 루트 경로 → `https://taekyo-lee.github.io/`
-- repo 이름 `my-blog` → Project 사이트 → 서브패스 → `https://taekyo-lee.github.io/my-blog/`
-
-**`<username>.github.io` repo의 진짜 특별함은 이거 하나뿐입니다.** GitHub 가 이 repo를 Pages 도메인의 루트에 매핑한다는 것. 빌드 방식도, 서빙 방식도, 들어갈 수 있는 콘텐츠도 다른 repo와 똑같습니다. 단지 결과 URL 의 자리만 다를 뿐입니다.
+**&lt;username&gt;.github.io repo의 진짜 특별함은 이거 하나뿐입니다.** GitHub 이 이 repo를 Pages 도메인의 루트에 매핑한다는 것. 빌드 방식도, 서빙 방식도, 들어갈 수 있는 콘텐츠도 다른 repo와 똑같습니다. 단지 결과 URL 의 자리만 다를 뿐입니다.
 
 ## Pages 가 실제로 서빙하는 건 무엇인가
 
-이게 중요한 질문입니다. Pages 는 repo의 소스 코드를 서빙하지 않습니다. 사이트를 방문하는 사람은 `src/` 도, `astro.config.mjs` 도 필요 없습니다. **완성된 HTML** 이 필요합니다.
+이게 중요한 질문입니다. Pages 는 repo의 소스 코드를 서빙하지 않습니다. 사이트를 방문하는 사람은 src/ 도, astro.config.mjs 도 필요 없습니다. **완성된 HTML** 이 필요합니다.
 
 그래서 Pages 에는 "그럼 어떤 폴더를 서빙할까?" 라는 설정이 필요합니다. 두 가지 흔한 방식이 있습니다.
 
-1. **브랜치 기반 (예전 방식)** — 지정된 브랜치 (보통 `gh-pages`) 의 루트를 Pages 가 그대로 읽습니다. 빌드 결과물을 그 브랜치에 commit해서 push 하는 흐름입니다.
-2. **GitHub Actions artifact 기반 (지금의 best practice)** — Actions 가 빌드해서 `dist/` 를 artifact 로 업로드하면, Pages 가 거기서 가져갑니다. 별도 브랜치가 필요 없습니다.
+1. **브랜치 기반 (예전 방식)** — 지정된 브랜치 (보통 gh-pages) 의 루트를 Pages 가 그대로 읽습니다. 빌드 결과물을 그 브랜치에 commit해서 push 하는 흐름입니다.
+2. **GitHub Actions artifact 기반 (지금의 best practice)** — Actions 가 빌드해서 dist/ 를 artifact 로 업로드하면, Pages 가 거기서 가져갑니다. 별도 브랜치가 필요 없습니다.
 
-요즘은 후자가 더 깔끔하다고 평가됩니다. 소스 브랜치 (`main`) 에는 사람이 쓴 소스만 들어가고, 빌드 결과물이 브랜치 히스토리를 오염시키지 않습니다.
+요즘은 후자가 더 깔끔하다고 평가됩니다. 소스 브랜치 (main) 에는 사람이 쓴 소스만 들어가고, 빌드 결과물이 브랜치 히스토리를 오염시키지 않습니다.
 
 ## 정리
 
 - GitHub Pages = 무료 정적 호스팅.
 - 정적 = 서버가 요청당 어떤 코드도 돌리지 않고, 파일을 그대로 돌려준다.
-- repo 이름 `<username>.github.io` 가 GitHub 에게 "이건 User 사이트야" 라고 알리는 신호다.
+- repo 이름 &lt;username&gt;.github.io 가 GitHub 에게 "이건 User 사이트야" 라고 알리는 신호다.
 - Pages 가 서빙하는 건 빌드 **결과물** 이지 소스 코드가 아니다. 그러니 누군가가 그 결과물을 만들어 Pages 에 넘겨줘야 하는데, 그 일을 하는 게 GitHub Actions 다.
 
 ---
