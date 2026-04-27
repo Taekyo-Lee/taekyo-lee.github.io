@@ -29,8 +29,8 @@ body {
 	word-wrap: break-word;
 	overflow-wrap: break-word;
 	color: rgb(var(--gray-dark));
-	font-size: 20px;
-	line-height: 1.7;
+	font-size: 17px;
+	line-height: 1.75;
 }
 main {
 	width: 720px;
@@ -49,19 +49,19 @@ h6 {
 	line-height: 1.2;
 }
 h1 {
-	font-size: 3.052em;
+	font-size: 2em;
 }
 h2 {
-	font-size: 2.441em;
+	font-size: 1.55em;
 }
 h3 {
-	font-size: 1.953em;
+	font-size: 1.25em;
 }
 h4 {
-	font-size: 1.563em;
+	font-size: 1.125em;
 }
 h5 {
-	font-size: 1.25em;
+	font-size: 1em;
 }
 strong,
 b {
@@ -88,6 +88,32 @@ input {
 }
 table {
 	width: 100%;
+	border-collapse: collapse;
+	margin: 1.5em 0;
+	font-size: 0.95em;
+	line-height: 1.55;
+}
+th,
+td {
+	padding: 0.65em 0.9em;
+	text-align: left;
+	vertical-align: top;
+	border-bottom: 1px solid rgb(var(--gray-light));
+}
+thead th {
+	background: rgba(var(--gray-light), 0.5);
+	border-bottom: 2px solid rgb(var(--gray-light));
+	font-weight: 700;
+	color: rgb(var(--black));
+}
+tbody tr:hover {
+	background: rgba(var(--gray-light), 0.3);
+}
+tbody tr:last-child td {
+	border-bottom: none;
+}
+table code {
+	font-size: 0.92em;
 }
 img {
 	max-width: 100%;
@@ -110,7 +136,7 @@ blockquote {
 	border-left: 4px solid var(--accent);
 	padding: 0 0 0 20px;
 	margin: 0;
-	font-size: 1.333em;
+	font-size: 1.05em;
 }
 hr {
 	border: none;
@@ -118,11 +144,36 @@ hr {
 }
 @media (max-width: 720px) {
 	body {
-		font-size: 18px;
+		font-size: 16px;
 	}
 	main {
 		padding: 1em;
 	}
+}
+
+/* Per-category color tokens.
+   Each modifier class sets --cat-bg / --cat-bg-hover / --cat-fg.
+   Consumers (badges, sidebar active state) read these via var() with
+   accent-blue as the fallback for "All" / unknown. */
+.cat-claude-code {
+	--cat-bg: rgba(204, 120, 92, 0.12);
+	--cat-bg-hover: rgba(204, 120, 92, 0.2);
+	--cat-fg: #a0543c;
+}
+.cat-ai-agent {
+	--cat-bg: rgba(16, 161, 105, 0.12);
+	--cat-bg-hover: rgba(16, 161, 105, 0.2);
+	--cat-fg: #0e7a4f;
+}
+.cat-essays {
+	--cat-bg: rgba(96, 115, 159, 0.14);
+	--cat-bg-hover: rgba(96, 115, 159, 0.22);
+	--cat-fg: #3f4e6e;
+}
+.cat-about-astro {
+	--cat-bg: rgba(138, 78, 187, 0.12);
+	--cat-bg-hover: rgba(138, 78, 187, 0.2);
+	--cat-fg: #6e3a9c;
 }
 
 .sr-only {
