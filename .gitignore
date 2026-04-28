@@ -20,3 +20,6 @@ pnpm-debug.log*
 
 # Editor folders
 .idea/
+
+# GitHub Actions self-hosted runner
+actions-runner/
