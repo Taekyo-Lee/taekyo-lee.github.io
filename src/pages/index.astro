@@ -3,6 +3,9 @@ import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
+
+const isCompany = import.meta.env.PUBLIC_IS_COMPANY === 'true';
+const greeting = isCompany ? '안녕하세요 AI Native 파트의 블로그입니다' : '안녕하세요, Jet 입니다.';
 ---
 
 <!doctype html>
@@ -13,7 +16,14 @@ import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
 	<body>
 		<Header />
 		<main>
-			<h1>안녕하세요, Jet 입니다.</h1>
+			<h1>{greeting}</h1>
+			{
+				isCompany && (
+					<p class="mirror-note">
+						본 블로그는 <a href="https://taekyo-lee.github.io/" target="_blank" rel="noopener">https://taekyo-lee.github.io/</a> 의 mirror site 입니다.
+					</p>
+				)
+			}
 			<p>
 				RF 엔지니어로 시작해 지금은 AI 엔지니어로 일하고 있습니다. 이 블로그에서는 AI Agent 를
 				만들고 쓰면서 배운 것들을 정리합니다.
@@ -23,3 +33,15 @@ import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
 		<Footer />
 	</body>
 </html>
+
+<style>
+	.mirror-note {
+		margin: 0.5em 0 1.2em 0;
+		padding: 0.6em 0.9em;
+		background: rgba(35, 55, 255, 0.05);
+		border-left: 3px solid var(--accent);
+		border-radius: 4px;
+		font-size: 0.9em;
+		color: rgb(var(--gray-dark));
+	}
+</style>
