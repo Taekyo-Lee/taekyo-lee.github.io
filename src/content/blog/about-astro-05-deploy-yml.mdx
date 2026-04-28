@@ -1,16 +1,25 @@
 ---
 title: '(5/5) deploy.yml 39줄을 한 줄씩 읽어보기'
-description: '개념은 4편까지 다 깔았습니다. 이번 글은 Astro + GitHub Pages 조합이 실제로 쓰는 워크플로 파일 39줄을 위에서 아래로 읽습니다. 진짜 일은 공식 액션들이 다 합니다.'
+description: '개념은 4편까지 다 깔았습니다. 이번 글은 Astro + GitHub Pages 조합이 실제로 쓰는 workflow 파일 39줄을 위에서 아래로 읽습니다. 진짜 일은 공식 액션들이 다 합니다.'
 pubDate: 'Apr 27 2026'
 category: about-astro
+series: 'astro-deploy'
+seriesOrder: 5
 heroImage: '../../assets/hero-astro.svg'
 ---
 
-시리즈의 마지막 글입니다. 1편에서 파이프라인을 한 장에 그렸고, 2~4편에서 부품을 하나씩 떼어 봤습니다. 이번 글은 그 모든 게 모여 있는 **실제 워크플로 파일** 한 장을 한 줄씩 읽는 자리입니다.
+<style>{`
+  .term { color: var(--accent); font-weight: 700; }
+  .key { color: var(--claude-dark); font-weight: 700; }
+`}</style>
 
-길이는 39줄. 안에 들어 있는 진짜 로직은 더 적습니다. 큰 일은 공식 액션들이 다 해주기 때문입니다. 그 짧은 39줄이 어떻게 "글을 작성하고 push 하면 끝" 이라는 경험을 만들어내는지, 위에서 아래로 따라가봅니다.
+시리즈의 마지막 글입니다. 1편에서 파이프라인을 한 장에 그렸고, 2~4편에서 도구들을 하나씩 떼어 봤습니다. 이번 글은 그 모든 게 모여 있는 <span class="key">이 블로그가 실제로 쓰고 있는 workflow 파일</span> 한 장을 한 줄씩 읽는 자리입니다. 가상의 예시가 아니라, 지금 이 글이 GitHub Pages 위에 떠 있도록 굴리고 있는 그 39줄입니다.
+
+길이는 39줄. 안에 들어 있는 진짜 로직은 더 적습니다. 큰 일은 공식 액션들 (예: actions/checkout@v4, withastro/action@v3, actions/deploy-pages@v4) 이 다 해주기 때문입니다. 그 짧은 39줄이 어떻게 "글을 작성하고 push 하면 끝" 이라는 경험을 만들어내는지, 위에서 아래로 따라가봅니다.
 
 ## 파일 전체
+
+위치는 `./.github/workflows/deploy.yml`. 4편에서 짚었듯, GitHub 은 repo 안의 이 폴더를 자동으로 들여다봅니다.
 
 ```yaml
 name: Deploy Astro to GitHub Pages
@@ -63,9 +72,9 @@ jobs:
 name: Deploy Astro to GitHub Pages
 ```
 
-워크플로의 표시 이름. Actions 탭에 이렇게 뜹니다. 런타임 동작에는 영향이 없습니다.
+workflow의 표시 이름. Actions 탭에 이렇게 뜹니다. 런타임 동작에는 영향이 없습니다.
 
-### 트리거
+### trigger
 
 ```yaml
 on:
@@ -76,7 +85,7 @@ on:
 
 - main 으로 push → 자동 실행.
 - workflow_dispatch → GitHub UI 의 "Run workflow" 버튼으로 수동 실행 가능.
-- 다른 브랜치 (예: 피처 브랜치) 로의 push 는 **이 워크플로를 발화시키지 않습니다**. 일부러 그렇게 설계된 것입니다. 이 워크플로는 "배포 전용" 입니다.
+- 다른 브랜치 (예: 피처 브랜치) 로의 push 는 <span class="key">이 workflow를 실행시키지 않습니다</span>. 일부러 그렇게 설계된 것입니다. 이 workflow는 "배포 전용" 입니다.
 
 ### 권한
 
@@ -99,7 +108,7 @@ concurrency:
 
 겹치는 실행은 "pages" 그룹 아래에 줄을 섭니다. 진행 중인 배포는 절대 취소하지 않아서, 배포가 도중에 중단되는 일을 막아줍니다.
 
-### Build 잡
+### Build job
 
 ```yaml
 jobs:
@@ -110,8 +119,8 @@ jobs:
         uses: actions/checkout@v4
 ```
 
-- 새 우분투 러너 한 대 위에서 시작.
-- 첫 스텝. actions/checkout@v4 가 러너 위에 repo를 클론합니다. 이걸 안 하면 러너에는 코드가 한 줄도 없습니다.
+- 새 Ubuntu runner 한 대 위에서 시작.
+- 첫 step. actions/checkout@v4 가 runner 위에 repo를 클론합니다. 이걸 안 하면 runner에는 코드가 한 줄도 없습니다.
 
 ```yaml
       - name: Install, build, and upload your site
@@ -120,20 +129,20 @@ jobs:
           node-version: 22
 ```
 
-**이 스텝 한 줄이 거의 모든 빌드 작업을 합니다.**
+<span class="key">이 step 한 줄이 거의 모든 빌드 작업을 합니다.</span>
 
 withastro/action@v3 는 Astro 팀이 직접 운영하는 공식 액션입니다. 안에서 이런 일들이 차례로 일어납니다.
 
 1. Node.js 22 를 설치합니다 (node-version: 22 에 따라).
 2. 락파일 (package-lock.json) 을 발견하고 npm ci 를 돌립니다. (npm ci 는 락파일 기반의 엄격하고 재현 가능한 설치입니다. CI 에서는 npm install 보다 이 명령이 정공법입니다.)
-3. npm run build 를 돌립니다. 그 안에서 astro build 가 발화돼서 dist/ 가 만들어집니다.
-4. dist/ 를 **Pages artifact 포맷** 으로 패키징해서 업로드합니다.
+3. npm run build 를 돌립니다. 그 안에서 astro build 가 실행돼서 dist/ 가 만들어집니다.
+4. dist/ 를 <span class="term">Pages artifact 포맷</span> 으로 패키징해서 업로드합니다.
 
 요컨대, 로컬에서 npm install && npm run build 하고 그 결과물을 호스트에 올리는 일을 한 줄로 압축한 것입니다.
 
 node-version: 22 인 이유. package.json 이 `"engines": { "node": ">=22.12.0" }` 으로 선언돼 있다면 빌드 환경도 거기에 맞춰져야 합니다. 안 맞으면 로컬과 CI 사이에 미묘한 빌드 차이가 생길 수 있습니다.
 
-### Deploy 잡
+### Deploy job
 
 ```yaml
   deploy:
@@ -141,8 +150,8 @@ node-version: 22 인 이유. package.json 이 `"engines": { "node": ">=22.12.0" 
     runs-on: ubuntu-latest
 ```
 
-- needs: build — build 가 성공해야만 실행됩니다. 실패하면 이 잡은 스킵.
-- build 잡과 **다른 러너** 위에서 돕니다. 그런데 별도의 다운로드 스텝이 필요 없습니다. artifact 인계는 Pages 가 알아서 해줍니다.
+- needs: build — build 가 성공해야만 실행됩니다. 실패하면 이 job은 스킵.
+- build job과 <span class="key">다른 runner</span> 위에서 돕니다. 그런데 별도의 다운로드 step이 필요 없습니다. artifact 인계는 Pages 가 알아서 해줍니다.
 
 ```yaml
     environment:
@@ -150,8 +159,8 @@ node-version: 22 인 이유. package.json 이 `"engines": { "node": ">=22.12.0" 
       url: ${{ steps.deployment.outputs.page_url }}
 ```
 
-- GitHub 의 "environments" 기능. repo Settings → Environments 에 github-pages 라는 특수 환경이 있고, Pages 배포는 반드시 그걸 거쳐야 합니다.
-- url: 은 편의 설정. Actions 탭에 라이브 배포 URL 이 표시되도록 해줍니다. steps.deployment.outputs.page_url 은 바로 아래 스텝의 출력값을 참조합니다.
+- GitHub 의 <span class="term">"environments"</span> 기능. repo Settings → Environments 에 github-pages 라는 특수 환경이 있고, Pages 배포는 반드시 그걸 거쳐야 합니다.
+- url: 은 편의 설정. Actions 탭에 라이브 배포 URL 이 표시되도록 해줍니다. steps.deployment.outputs.page_url 은 바로 아래 step의 출력값을 참조합니다.
 
 ```yaml
     steps:
@@ -160,8 +169,8 @@ node-version: 22 인 이유. package.json 이 `"engines": { "node": ">=22.12.0" 
         uses: actions/deploy-pages@v4
 ```
 
-- id: deployment 가 이 스텝에 이름표를 붙여서, 위쪽 environment.url 에서 참조할 수 있게 해줍니다 (page_url 같은 출력값 접근).
-- actions/deploy-pages@v4 는 build 잡이 올린 artifact 를 알아서 찾아서 게시합니다. 파라미터가 거의 필요 없는 이유는, Pages artifact 의 규약이 GitHub 쪽에 표준화돼 있기 때문입니다.
+- id: deployment 가 이 step에 이름표를 붙여서, 위쪽 environment.url 에서 참조할 수 있게 해줍니다 (page_url 같은 출력값 접근).
+- actions/deploy-pages@v4 는 build job이 올린 artifact 를 알아서 찾아서 게시합니다. 파라미터가 거의 필요 없는 이유는, Pages artifact 의 규약이 GitHub 쪽에 표준화돼 있기 때문입니다.
 
 ## 흐름을 다시 한 번
 
@@ -169,22 +178,22 @@ node-version: 22 인 이유. package.json 이 `"engines": { "node": ">=22.12.0" 
 저자: git push origin main
         │
         ▼
-GitHub: push 이벤트 감지 → deploy.yml 의 `on` 매칭 → 워크플로 큐에 등록
+GitHub: push 이벤트 감지 → deploy.yml 의 `on` 매칭 → workflow 큐에 등록
         │
         ▼
-Build 잡 (새 우분투 러너)
+Build job (새 Ubuntu runner)
   1. actions/checkout@v4          ← repo 클론
   2. withastro/action@v3          ← Node 설치 → npm ci → astro build → dist/ 업로드
         │
         ▼  (Pages 가 artifact 를 임시 보관)
-Deploy 잡 (또 다른 새 우분투 러너)
+Deploy job (또 다른 새 Ubuntu runner)
   1. actions/deploy-pages@v4      ← Pages CDN 에 푸시
         │
         ▼
 https://<username>.github.io 에 새 HTML 이 뜸 (보통 1~2분 안에)
 ```
 
-전체 소요 시간은 보통 **3~5분**. 이 중 대부분은 Node 와 의존성 설치 + Astro 빌드에 들어갑니다. 마지막 deploy 스텝 자체는 빠르게 끝납니다.
+전체 소요 시간은 보통 **3~5분**. 이 중 대부분은 Node 와 의존성 설치 + Astro 빌드에 들어갑니다. 마지막 deploy step 자체는 빠르게 끝납니다.
 
 ## 자주 마주치는 오해들
 
@@ -194,9 +203,9 @@ https://<username>.github.io 에 새 HTML 이 뜸 (보통 1~2분 안에)
 
 **"gh-pages 브랜치가 안 보이는데요."**
 
-그건 옛날 방식입니다. 이 워크플로는 artifact 방식을 쓰기 때문에, 별도 브랜치가 필요 없습니다.
+그건 옛날 방식입니다. 이 workflow는 artifact 방식을 쓰기 때문에, 별도 브랜치가 필요 없습니다.
 
-**"Actions 에서는 실패라는데 노트북에서는 npm run build 가 잘 돕니다."**
+**"Actions 에서는 실패라는데 내 로컬 PC 에서는 npm run build 가 잘 돕니다."**
 
 흔한 원인 두 가지. (1) 로컬 Node 버전이 node-version: 22 와 맞지 않거나. (2) 락파일이 stale 인데 로컬은 캐시된 설치 위에서 돌고 있고, CI 는 그 락파일 기준으로 새로 설치하는 경우. 락파일을 새로 갱신해서 commit하면 보통 풀립니다.
 
@@ -210,10 +219,10 @@ https://<username>.github.io 에 새 HTML 이 뜸 (보통 1~2분 안에)
 
 ## 정리
 
-워크플로는 짧습니다 (39줄). 그 안에서 호출되는 공식 액션들 (actions/checkout, withastro/action, actions/deploy-pages) 이 무대 뒤에서 무거운 일을 다 합니다. 저자 입장에서 해야 할 일은 단순합니다. **.mdx 를 작성하고, main 으로 push.** 나머지는 이 39줄의 YAML 이 GitHub 인프라에게 자동으로 시킵니다.
+workflow는 짧습니다 (39줄). 그 안에서 호출되는 공식 액션들 (actions/checkout, withastro/action, actions/deploy-pages) 이 무대 뒤에서 무거운 일을 다 합니다. 저자 입장에서 해야 할 일은 단순합니다. <span class="key">.mdx 를 작성하고, main 으로 push.</span> 나머지는 이 39줄의 YAML 이 GitHub 인프라에게 자동으로 시킵니다.
 
 파이프라인 동작을 바꾸고 싶다면, 이 한 파일만 고치면 됩니다. 모든 자동화 로직이 선언적으로 한 군데 모여 있다는 게 이 구성의 강점입니다.
 
 ---
 
-이걸로 *About Astro* 시리즈 5편이 끝났습니다. 1편에서 시작한 한 장의 다이어그램이, 이제 부품과 줄 단위까지 다 풀어진 셈입니다. 같은 구성으로 정적 블로그를 만들고자 한다면, 이 5편이 한 사이클의 지도가 될 수 있습니다.
+이걸로 *About Astro* 시리즈 5편이 끝났습니다. 1편에서 시작한 한 장의 다이어그램이, 이제 도구와 줄 단위까지 다 풀어진 셈입니다. 같은 구성으로 정적 블로그를 만들고자 한다면, 이 5편이 한 사이클의 지도가 될 수 있습니다.

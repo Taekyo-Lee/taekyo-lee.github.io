@@ -14,7 +14,14 @@ const blog = defineCollection({
 			pubDate: z.coerce.date(),
 			updatedDate: z.coerce.date().optional(),
 			heroImage: z.optional(image()),
-			category: z.enum(['claude-code', 'ai-agent', 'essays', 'about-astro']),
+			category: z.enum([
+				'claude-code-101',
+				'harness-engineering',
+				'claude-code-vs-opencode',
+				'about-astro',
+			]),
+			series: z.string().optional(),
+			seriesOrder: z.number().optional(),
 		}),
 });
 

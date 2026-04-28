@@ -155,17 +155,17 @@ hr {
    Each modifier class sets --cat-bg / --cat-bg-hover / --cat-fg.
    Consumers (badges, sidebar active state) read these via var() with
    accent-blue as the fallback for "All" / unknown. */
-.cat-claude-code {
+.cat-claude-code-101 {
 	--cat-bg: rgba(204, 120, 92, 0.12);
 	--cat-bg-hover: rgba(204, 120, 92, 0.2);
 	--cat-fg: #a0543c;
 }
-.cat-ai-agent {
+.cat-harness-engineering {
 	--cat-bg: rgba(16, 161, 105, 0.12);
 	--cat-bg-hover: rgba(16, 161, 105, 0.2);
 	--cat-fg: #0e7a4f;
 }
-.cat-essays {
+.cat-claude-code-vs-opencode {
 	--cat-bg: rgba(96, 115, 159, 0.14);
 	--cat-bg-hover: rgba(96, 115, 159, 0.22);
 	--cat-fg: #3f4e6e;

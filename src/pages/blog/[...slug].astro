@@ -13,8 +13,25 @@ type Props = CollectionEntry<'blog'>;
 
 const post = Astro.props;
 const { Content } = await render(post);
+
+let prevPost: CollectionEntry<'blog'> | null = null;
+let nextPost: CollectionEntry<'blog'> | null = null;
+
+if (post.data.series && post.data.seriesOrder !== undefined) {
+	const allPosts = await getCollection('blog');
+	const siblings = allPosts
+		.filter(
+			(p) =>
+				p.data.series === post.data.series &&
+				p.data.seriesOrder !== undefined,
+		)
+		.sort((a, b) => (a.data.seriesOrder ?? 0) - (b.data.seriesOrder ?? 0));
+	const idx = siblings.findIndex((p) => p.id === post.id);
+	if (idx > 0) prevPost = siblings[idx - 1];
+	if (idx >= 0 && idx < siblings.length - 1) nextPost = siblings[idx + 1];
+}
 ---
 
-<BlogPost {...post.data}>
+<BlogPost {...post.data} prevPost={prevPost} nextPost={nextPost}>
 	<Content />
 </BlogPost>
