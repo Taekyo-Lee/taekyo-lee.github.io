@@ -6,7 +6,7 @@ import { defineConfig, fontProviders } from 'astro/config';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://github.samsungds.net/aiagent/ai-native-development-blog',
+	site: 'https://taekyo-lee.github.io',
 	integrations: [mdx(), sitemap()],
 	fonts: [
 		{
