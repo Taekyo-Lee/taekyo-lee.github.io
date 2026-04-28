@@ -6,6 +6,7 @@ import type { ImageMetadata } from 'astro';
 import FallbackImage from '../assets/blog-placeholder-1.jpg';
 import { SITE_TITLE } from '../consts';
 import { Font } from 'astro:assets';
+const base = import.meta.env.BASE_URL;
 
 interface Props {
 	title: string;
@@ -16,14 +17,22 @@ interface Props {
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 
 const { title, description, image = FallbackImage } = Astro.props;
+const isCompany = import.meta.env.PUBLIC_IS_COMPANY === 'true';
 ---
 
 <!-- Global Metadata -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<link rel="icon" href="/favicon.ico" />
-<link rel="sitemap" href="/sitemap-index.xml" />
+{isCompany && (
+	<>
+		<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+		<meta http-equiv="Pragma" content="no-cache" />
+		<meta http-equiv="Expires" content="0" />
+	</>
+)}
+<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
+<link rel="icon" href={`${base}/favicon.ico`} />
+<link rel="sitemap" href={`${base}/sitemap-index.xml`} />
 <link
 	rel="alternate"
 	type="application/rss+xml"
