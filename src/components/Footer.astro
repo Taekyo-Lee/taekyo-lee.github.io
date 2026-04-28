@@ -1,11 +1,15 @@
 ---
 const today = new Date();
+const isCompany = import.meta.env.PUBLIC_IS_COMPANY === 'true';
+const githubUrl = isCompany
+	? 'https://github.samsungds.net/aiagent/ai-native-development-blog'
+	: 'https://github.com/Taekyo-Lee';
 ---
 
 <footer>
 	&copy; {today.getFullYear()} Guru Cat. All rights reserved.
 	<div class="social-links">
-		<a href="https://github.com/Taekyo-Lee" target="_blank">
+		<a href={githubUrl} target="_blank">
 			<span class="sr-only">Guru Cat's GitHub</span>
 			<svg viewBox="0 0 16 16" aria-hidden="true" width="32" height="32" astro-icon="social/github"
 				><path
