@@ -34,6 +34,24 @@
 - Node 22.12.0 이상 필수 (로컬·CI 모두)
 - GitHub Pages 배포 (main push → GitHub Actions, 3~5분)
 
+### 이중 배포 아키텍처 (사외/사내)
+
+동일 소스코드가 사외(github.com)와 사내(기업 GitHub Enterprise)에 모두 배포됨. **merge만 하면 자동 분기** — 수동 설정 불필요.
+
+| | 사외 | 사내 |
+|---|---|---|
+| URL | `taekyo-lee.github.io` | `github.samsungds.net/pages/aiagent/ai-native-development-blog` |
+| workflow | `deploy.yml` | `deploy_at_company.yml` |
+| `site` | `https://taekyo-lee.github.io` | `https://github.samsungds.net` |
+| `base` | `''` (루트) | `/pages/aiagent/ai-native-development-blog` |
+| `build.assets` | `_astro` (기본값) | `assets` (GE가 `_` 폴더 무시) |
+
+**자동 탐지**: `astro.config.mjs`에서 git remote URL 기반으로 `isCompany` 자동 판별 (`samsungds.net` 포함 여부). CI fallback으로 `DEPLOY_TARGET=company` 환경변수도 지원.
+
+**내부 링크**: 모든 `href`는 `import.meta.env.BASE_URL` 기반으로 생성. 하드코딩 절대 경로 (`/blog` 등) 사용 금지 — `base` 변경 시 링크 깨짐.
+
+**사내 배포 워크플로우**: 사외에서 업데이트 → 사내 upstream에서 pull → main에 merge → push (conflict 없음)
+
 구조가 궁금하면 `src/` 를 직접 보세요. 핵심만:
 - `src/content.config.ts` — Zod schema. `category` 필수 enum.
 - `src/consts.ts` — `SITE_TITLE`, `CATEGORY_LABELS`
@@ -86,8 +104,10 @@
 title: '글 제목'
 description: '요약 한 줄'
 pubDate: 'Apr 22 2026'
-category: claude-code   # claude-code / ai-agent / essays 중 하나 — 오타 시 빌드 에러
-heroImage: '../../assets/some.jpg'   # 선택. 없으면 hero 자동 생략
+category: claude-code-101   # claude-code-101 / harness-engineering / claude-code-vs-opencode / about-astro 중 하나 — 오타 시 빌드 에러
+series: 'understanding-claude-code'   # 선택. 같은 시리즈 글들끼리 묶는 슬러그 (prev/next 자동 표시용)
+seriesOrder: 1                          # 선택. 시리즈 내 순번. series 와 함께 지정해야 동작
+heroImage: '../../assets/some.jpg'      # 선택. 없으면 hero 자동 생략
 ---
 ```
 
@@ -155,4 +175,6 @@ git push
 
 - **새 글이 안 보임**: Ctrl+Shift+R (Astro View Transitions 캐싱). `content.config.ts`·새 `.mdx`·`astro.config.mjs` 변경 시 dev 서버 재시작.
 - **빌드 실패**: https://github.com/Taekyo-Lee/taekyo-lee.github.io/actions
-- **Node 버전**: Astro 6 은 22.12.0 이상 필수.
+- **Node 버전**: Astro 6 은 22.12.0 이상 필수. `nvm alias default 22` 으로 기본 설정.
+- **사내 블로그 CSS 깨짐**: `build.assets`가 `_astro`면 GE가 무시 → `assets`로 자동 설정됨. `astro.config.mjs`의 `isCompany` 탐지 로직 확인.
+- **사내 블로그 링크 404**: `href`에 하드코딩 절대 경로가 있으면 `base` 미반영 → `import.meta.env.BASE_URL` 사용.
