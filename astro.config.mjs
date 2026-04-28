@@ -17,6 +17,9 @@ try {
 	isCompany = process.env.DEPLOY_TARGET === 'company';
 }
 
+// Expose to pages as import.meta.env.PUBLIC_IS_COMPANY
+process.env.PUBLIC_IS_COMPANY = String(isCompany);
+
 // https://astro.build/config
 export default defineConfig({
 	site: isCompany

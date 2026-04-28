@@ -104,8 +104,10 @@
 title: '글 제목'
 description: '요약 한 줄'
 pubDate: 'Apr 22 2026'
-category: claude-code   # claude-code / ai-agent / essays 중 하나 — 오타 시 빌드 에러
-heroImage: '../../assets/some.jpg'   # 선택. 없으면 hero 자동 생략
+category: claude-code-101   # claude-code-101 / harness-engineering / claude-code-vs-opencode / about-astro 중 하나 — 오타 시 빌드 에러
+series: 'understanding-claude-code'   # 선택. 같은 시리즈 글들끼리 묶는 슬러그 (prev/next 자동 표시용)
+seriesOrder: 1                          # 선택. 시리즈 내 순번. series 와 함께 지정해야 동작
+heroImage: '../../assets/some.jpg'      # 선택. 없으면 hero 자동 생략
 ---
 ```
 
