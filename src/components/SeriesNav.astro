@@ -1,0 +1,95 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+	prev?: CollectionEntry<'blog'> | null;
+	next?: CollectionEntry<'blog'> | null;
+}
+
+const { prev, next } = Astro.props;
+
+if (!prev && !next) {
+	return Astro.redirect ? null : null;
+}
+---
+
+{
+	(prev || next) && (
+		<nav class="series-nav" aria-label="시리즈 내비게이션">
+			<div class="series-nav__row">
+				{prev ? (
+					<a class="series-nav__card series-nav__card--prev" href={`/blog/${prev.id}/`}>
+						<span class="series-nav__label">← 이전 글</span>
+						<span class="series-nav__title">{prev.data.title}</span>
+					</a>
+				) : (
+					<span class="series-nav__placeholder" />
+				)}
+				{next ? (
+					<a class="series-nav__card series-nav__card--next" href={`/blog/${next.id}/`}>
+						<span class="series-nav__label">다음 글 →</span>
+						<span class="series-nav__title">{next.data.title}</span>
+					</a>
+				) : (
+					<span class="series-nav__placeholder" />
+				)}
+			</div>
+		</nav>
+	)
+}
+
+<style>
+	.series-nav {
+		margin: 3rem 0 1rem 0;
+		padding-top: 1.5rem;
+		border-top: 1px solid rgb(var(--gray-light));
+	}
+	.series-nav__row {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1rem;
+	}
+	.series-nav__card {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		padding: 1rem 1.1rem;
+		border: 1px solid rgb(var(--gray-light));
+		border-radius: 10px;
+		background: white;
+		text-decoration: none;
+		transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+	}
+	.series-nav__card:hover {
+		border-color: var(--accent);
+		background: rgba(35, 55, 255, 0.03);
+		transform: translateY(-1px);
+	}
+	.series-nav__card--next {
+		text-align: right;
+	}
+	.series-nav__label {
+		font-size: 0.78rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		color: var(--accent);
+	}
+	.series-nav__title {
+		font-size: 0.98rem;
+		font-weight: 600;
+		color: rgb(var(--black));
+		line-height: 1.35;
+	}
+	.series-nav__placeholder {
+		display: block;
+	}
+
+	@media (max-width: 620px) {
+		.series-nav__row {
+			grid-template-columns: 1fr;
+		}
+		.series-nav__card--next {
+			text-align: left;
+		}
+	}
+</style>
