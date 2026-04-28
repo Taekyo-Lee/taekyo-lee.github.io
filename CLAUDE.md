@@ -50,7 +50,32 @@
 
 **내부 링크**: 모든 `href`는 `import.meta.env.BASE_URL` 기반으로 생성. 하드코딩 절대 경로 (`/blog` 등) 사용 금지 — `base` 변경 시 링크 깨짐.
 
-**사내 배포 워크플로우**: 사외에서 업데이트 → 사내 upstream에서 pull → main에 merge → push (conflict 없음)
+**사내 배포 워크플로우**: 사외에서 업데이트 → 사내 upstream에서 pull → main에 merge → push
+
+### 사내 merge conflict 자동 해결 규칙
+
+`git merge upstream` 시 발생하는 충돌은 다음 규칙에 따라 항상 동일하게 해결:
+
+| 충돌 파일 | 원인 | 해결 (사내 기준) |
+|---|---|---|
+| `.github/workflows/deploy.yml` | 사외에만 있는 파일, 사내에서 삭제됨 | `git rm` 으로 삭제 유지 (사내는 `deploy_at_company.yml`만 사용) |
+| `astro.config.mjs` | upstream에 `PUBLIC_IS_COMPANY` env 노출 코드 추가 | `process.env.PUBLIC_IS_COMPANY = String(isCompany);` 라인 **유지** (`about.astro`, `index.astro`에서 mirror 안내 표시에 필요) |
+| `.gitignore` | 주석 문구 차이 | HEAD (사내 주석) 유지 |
+
+**빠른 해결 스크립트**:
+```bash
+# 1. deploy.yml 삭제 유지
+git rm .github/workflows/deploy.yml
+
+# 2. astro.config.mjs: PUBLIC_IS_COMPANY 블록 제거 (HEAD 유지)
+# 충돌 마커에서 upstream 쪽 라인만 삭제
+
+# 3. .gitignore: HEAD 주석 유지
+
+# 4. 스테이징 & 커밋
+git add -A
+git commit -m "Merge upstream: resolve conflicts for company repo"
+```
 
 구조가 궁금하면 `src/` 를 직접 보세요. 핵심만:
 - `src/content.config.ts` — Zod schema. `category` 필수 enum.
