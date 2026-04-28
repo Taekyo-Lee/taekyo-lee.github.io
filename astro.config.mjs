@@ -4,9 +4,21 @@ import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import { defineConfig, fontProviders } from 'astro/config';
 
+// Company GitHub Pages deployment: set DEPLOY_TARGET=company
+// External (github.com): leave DEPLOY_TARGET unset or set to 'external'
+const isCompany = process.env.DEPLOY_TARGET === 'company';
+
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://taekyo-lee.github.io',
+	site: isCompany
+		? 'https://github.samsungds.net'
+		: 'https://taekyo-lee.github.io',
+	base: isCompany
+		? '/pages/aiagent/ai-native-development-blog'
+		: '',
+	build: {
+		assets: isCompany ? 'assets' : '_astro',
+	},
 	integrations: [mdx(), sitemap()],
 	fonts: [
 		{
