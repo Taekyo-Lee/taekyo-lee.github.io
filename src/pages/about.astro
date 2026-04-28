@@ -1,14 +1,24 @@
 ---
 import HoianCat from '../assets/hoian_cat.png';
 import Layout from '../layouts/BlogPost.astro';
+
+const isCompany = import.meta.env.PUBLIC_IS_COMPANY === 'true';
+const aboutTitle = isCompany ? '안녕하세요 AI Native 파트의 블로그입니다' : '안녕하세요, Jet 입니다.';
 ---
 
 <Layout
-	title="안녕하세요, Jet 입니다."
+	title={aboutTitle}
 	description="Guru Cat's AI 소개"
 	pubDate={new Date('April 18 2026')}
 	heroImage={HoianCat}
 >
+	{
+		isCompany && (
+			<p class="mirror-note">
+				본 블로그는 <a href="https://taekyo-lee.github.io/" target="_blank" rel="noopener">https://taekyo-lee.github.io/</a> 의 mirror site 입니다.
+			</p>
+		)
+	}
 	<p>
 		RF 엔지니어로 시작해 지금은 AI 엔지니어로 일하고 있습니다. 이 블로그에서는 <strong
 			>Guru Cat</strong
@@ -56,3 +66,15 @@ import Layout from '../layouts/BlogPost.astro';
 		</li>
 	</ul>
 </Layout>
+
+<style>
+	.mirror-note {
+		margin: 0.5em 0 1.2em 0;
+		padding: 0.6em 0.9em;
+		background: rgba(35, 55, 255, 0.05);
+		border-left: 3px solid var(--accent);
+		border-radius: 4px;
+		font-size: 0.9em;
+		color: rgb(var(--gray-dark));
+	}
+</style>
