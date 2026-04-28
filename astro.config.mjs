@@ -4,9 +4,18 @@ import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import { defineConfig, fontProviders } from 'astro/config';
 
-// Company GitHub Pages deployment: set DEPLOY_TARGET=company
-// External (github.com): leave DEPLOY_TARGET unset or set to 'external'
-const isCompany = process.env.DEPLOY_TARGET === 'company';
+// Auto-detect deployment target from git remote URL
+// Company: github.samsungds.net → isCompany=true
+// External: github.com → isCompany=false
+import { execSync } from 'node:child_process';
+let isCompany = false;
+try {
+	const remoteUrl = execSync('git remote get-url origin 2>/dev/null', { encoding: 'utf8' }).trim();
+	isCompany = remoteUrl.includes('samsungds.net');
+} catch {
+	// Fallback: env var override (for CI where git remote may differ)
+	isCompany = process.env.DEPLOY_TARGET === 'company';
+}
 
 // https://astro.build/config
 export default defineConfig({
