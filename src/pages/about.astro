@@ -19,51 +19,48 @@ const aboutTitle = isCompany ? '안녕하세요 AI Native 파트의 블로그입
 			</p>
 		)
 	}
-	<p>
-		RF 엔지니어로 시작해 지금은 AI 엔지니어로 일하고 있습니다. 이 블로그에서는 <strong
-			>Guru Cat</strong
-		> 이라는 이름도 함께 씁니다.
-	</p>
+	{
+		isCompany ? (
+			<p>AI Native 파트입니다. S.SLI 사업부 구성원의 AI Native Development를 돕는 조직입니다.</p>
+		) : (
+			<>
+				<p>
+					RF 엔지니어로 시작해 지금은 AI 엔지니어로 일하고 있습니다. 이 블로그에서는 <strong
+						>Guru Cat</strong
+					> 이라는 이름도 함께 씁니다.
+				</p>
 
-	<h2>무슨 일을 하나요</h2>
+				<h2>무슨 일을 하나요</h2>
 
-	<p>
-		안테나와 신호를 다루던 RF 엔지니어였습니다. 언젠가부터 "컴퓨터가 스스로 일하게 만드는 방법"
-		이 더 궁금해졌고, 지금은 AI Agent 엔지니어로 일하고 있어요.
-	</p>
+				<p>
+					안테나와 신호를 다루던 RF 엔지니어였습니다. 언젠가부터 "컴퓨터가 스스로 일하게 만드는 방법"
+					이 더 궁금해졌고, 지금은 AI Agent 엔지니어로 일하고 있어요.
+				</p>
 
-	<p>
-		요즘은 <strong>Claude Code</strong> 와 <strong>agentic coding</strong> 에 주로 관심이 있습니다.
-		AI 가 단순히 답을 주는 것을 넘어 스스로 파일을 열고 코드를 고치고 도구를 쓰는 시대에, 그 도구들의
-		구조는 어떻게 생겼는지, 조직 안에서 실제로 쓰려면 뭐가 필요한지를 파고드는 중입니다.
-	</p>
+				<p>
+					요즘은 <strong>Claude Code</strong> 와 <strong>agentic coding</strong> 에 주로 관심이 있습니다.
+					AI 가 단순히 답을 주는 것을 넘어 스스로 파일을 열고 코드를 고치고 도구를 쓰는 시대에, 그 도구들의
+					구조는 어떻게 생겼는지, 조직 안에서 실제로 쓰려면 뭐가 필요한지를 파고드는 중입니다.
+				</p>
 
-	<h2>이 블로그에서는</h2>
+				<h2>이 블로그에서는</h2>
 
-	<ul>
-		<li>Claude Code 의 내부 구조와 동작 원리</li>
-		<li>Agent 시스템을 설계할 때의 고민들</li>
-		<li>조직 환경에서 AI 도구를 도입하며 부딪힌 현실</li>
-		<li>RF 엔지니어의 눈으로 본 "컴퓨터와 가까워지기"</li>
-	</ul>
+				<ul>
+					<li>Claude Code 의 내부 구조와 동작 원리</li>
+					<li>Agent 시스템을 설계할 때의 고민들</li>
+					<li>조직 환경에서 AI 도구를 도입하며 부딪힌 현실</li>
+					<li>RF 엔지니어의 눈으로 본 "컴퓨터와 가까워지기"</li>
+				</ul>
 
-	<p>매주 한 편씩 꾸준히 쓰려고 합니다.</p>
+				<p>매주 한 편씩 꾸준히 쓰려고 합니다.</p>
+			</>
+		)
+	}
 
 	<h2>Contact</h2>
 
 	<ul>
-		<li>Email: <a href="mailto:jetleee.1888@gmail.com">jetleee.1888@gmail.com</a></li>
-		<li>
-			GitHub: <a href="https://github.com/Taekyo-Lee" target="_blank">@Taekyo-Lee</a>
-		</li>
-		<li>
-			YouTube: <a href="https://www.youtube.com/@GuruCat-d4h" target="_blank">@GuruCat-d4h</a>
-		</li>
-		<li>
-			LinkedIn: <a href="https://linkedin.com/in/jet-taekyo-lee-2aab9a317" target="_blank"
-				>jet-taekyo-lee</a
-			>
-		</li>
+		<li>Email: <a href={`mailto:${isCompany ? 'taekyo.lee@samsung.com' : 'jetleee.1888@gmail.com'}`}>{isCompany ? 'taekyo.lee@samsung.com' : 'jetleee.1888@gmail.com'}</a></li>
 	</ul>
 </Layout>
 
