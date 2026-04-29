@@ -50,6 +50,19 @@
 
 **내부 링크**: 모든 `href`는 `import.meta.env.BASE_URL` 기반으로 생성. 하드코딩 절대 경로 (`/blog` 등) 사용 금지 — `base` 변경 시 링크 깨짐.
 
+```astro
+const base = import.meta.env.BASE_URL;
+// O: ${base} 는 production 빌드에서 항상 trailing slash (`/` 또는 `/pages/.../`) 가 붙어 있음
+<a href={`${base}blog`}>...</a>          // 사외 → /blog, 사내 → /pages/aiagent/.../blog
+<a href={`${base}category/${slug}/`}>...</a>
+
+// X: 절대 금지 패턴
+<a href={`${base}/blog`}>...</a>         // production 에서 //blog 가 되어 protocol-relative URL 로 깨짐
+<a href="/blog">...</a>                  // base 미반영 → 사내에서 404
+```
+
+**핵심 규칙**: `${base}` 뒤에 슬래시를 추가로 붙이지 말 것. base 가 이미 `/` 로 끝남.
+
 **사내 배포 워크플로우**: 사외에서 업데이트 → 사내 upstream에서 pull → main에 merge → push
 
 ### 사내 merge conflict 자동 해결 규칙

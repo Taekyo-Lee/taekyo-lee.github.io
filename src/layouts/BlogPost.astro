@@ -15,6 +15,7 @@ type Props = Omit<CollectionEntry<'blog'>['data'], 'category'> & {
 };
 
 const { title, description, pubDate, updatedDate, heroImage, category, prevPost, nextPost } = Astro.props;
+const base = import.meta.env.BASE_URL;
 ---
 
 <html lang="ko">
@@ -88,7 +89,7 @@ const { title, description, pubDate, updatedDate, heroImage, category, prevPost,
 					<div class="title">
 						{
 							category && (
-								<a class:list={['category', `cat-${category}`]} href={`/category/${category}/`}>
+								<a class:list={['category', `cat-${category}`]} href={`${base}category/${category}/`}>
 									{CATEGORY_LABELS[category]}
 								</a>
 							)
