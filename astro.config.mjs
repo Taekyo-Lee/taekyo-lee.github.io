@@ -26,8 +26,8 @@ export default defineConfig({
 		? 'https://github.samsungds.net'
 		: 'https://taekyo-lee.github.io',
 	base: isCompany
-		? '/pages/aiagent/ai-native-development-blog'
-		: '',
+		? '/pages/aiagent/ai-native-development-blog/'
+		: '/',
 	build: {
 		assets: isCompany ? 'assets' : '_astro',
 	},
