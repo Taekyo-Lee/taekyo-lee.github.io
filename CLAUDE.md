@@ -216,3 +216,5 @@ git push
 - **Node 버전**: Astro 6 은 22.12.0 이상 필수. `nvm alias default 22` 으로 기본 설정.
 - **사내 블로그 CSS 깨짐**: `build.assets`가 `_astro`면 GE가 무시 → `assets`로 자동 설정됨. `astro.config.mjs`의 `isCompany` 탐지 로직 확인.
 - **사내 블로그 링크 404**: `href`에 하드코딩 절대 경로가 있으면 `base` 미반영 → `import.meta.env.BASE_URL` 사용.
+
+  
