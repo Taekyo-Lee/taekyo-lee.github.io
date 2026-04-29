@@ -1,0 +1,346 @@
+---
+title: 'Langfuse Trace Keys Reference (Claude Code → Langfuse)'
+description: 'Claude Code 의 OTel span 을 OTLP 로 Langfuse 에 보낼 때 attribute 들이 어디에 어떤 의미로 붙는지 정리한 reference. Claude Code 가 원래 넣어주는 key 와 직접 추가한 key 를 함께 다룹니다.'
+pubDate: 'Apr 29 2026'
+category: lab-notes
+heroImage: '../../assets/blog-placeholder-3.jpg'
+---
+
+<style>{`
+  .tag {
+    display: inline-block;
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.72em;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-right: 4px;
+    white-space: nowrap;
+    line-height: 1.4;
+  }
+  .tag-otel { background: #ddf4ff; color: #0969da; }
+  .tag-genai { background: #fff8c5; color: #7d4e00; }
+  .tag-langfuse { background: #dafbe1; color: #116329; }
+  .tag-upstream { background: #faf2ff; color: #6639ba; }
+  .tag-fork { background: #ffd6cc; color: #a40e26; }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    margin: 1em 0 1.5em;
+    padding: 12px 14px;
+    background: rgba(96, 115, 159, 0.06);
+    border: 1px solid rgba(96, 115, 159, 0.2);
+    border-radius: 8px;
+    font-size: 0.92em;
+  }
+  .legend-row { display: flex; align-items: center; gap: 6px; }
+
+  .k {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    color: #1f4787;
+    font-size: 0.94em;
+  }
+
+  .trace-span-explainer {
+    margin: 1.6em 0 2em;
+    padding: 18px 20px;
+    background: rgba(96, 115, 159, 0.05);
+    border: 1px solid rgba(96, 115, 159, 0.18);
+    border-radius: 10px;
+  }
+  .trace-span-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .trace-span-card {
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: white;
+    border: 1px solid rgba(96, 115, 159, 0.22);
+  }
+  .trace-span-card.is-trace { border-left: 3px solid var(--accent); }
+  .trace-span-card.is-span { border-left: 3px solid var(--claude); }
+  .trace-span-label {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-weight: 700;
+    font-size: 0.98em;
+    margin-bottom: 4px;
+  }
+  .trace-span-card.is-trace .trace-span-label { color: var(--accent); }
+  .trace-span-card.is-span .trace-span-label { color: var(--claude-dark); }
+  .trace-span-desc {
+    font-size: 0.9em;
+    line-height: 1.55;
+  }
+  .trace-span-tree-title {
+    font-size: 0.78em;
+    font-weight: 700;
+    color: rgb(96, 115, 159);
+    margin: 0 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .trace-span-tree {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.82em;
+    line-height: 1.7;
+    background: white;
+    padding: 12px 14px;
+    border-radius: 6px;
+    border: 1px solid rgba(96, 115, 159, 0.2);
+    overflow-x: auto;
+    margin: 0;
+    color: #2c3e50;
+  }
+  .trace-span-tree .tree-node { color: #2c3e50; }
+  .trace-span-tree .tree-node.is-root { color: var(--accent); font-weight: 600; }
+  .trace-span-tree .tree-comment { color: rgba(96, 115, 159, 0.9); }
+  .trace-span-note {
+    margin-top: 14px;
+    font-size: 0.9em;
+    line-height: 1.55;
+    color: rgb(70, 80, 100);
+  }
+  @media (max-width: 620px) {
+    .trace-span-row { grid-template-columns: 1fr; }
+  }
+`}</style>
+
+## 배경
+
+Claude Code 를 다음과 같이 띄우면 내부 동작이 OTel span 형태로 흘러나옵니다.
+
+```bash
+claude --debug
+```
+
+OTel 은 OpenTelemetry 의 줄임말로, 한 프로그램의 동작을 trace / metric / log 형태로 외부 도구가 받아볼 수 있게 표준화한 observability 프레임워크입니다. trace 와 span 은 그 중 trace 부분의 핵심 두 단어인데, 둘의 관계는 다음과 같습니다.
+
+<div class="trace-span-explainer">
+  <div class="trace-span-row">
+    <div class="trace-span-card is-trace">
+      <div class="trace-span-label">trace</div>
+      <div class="trace-span-desc">한 prompt 가 응답까지 가는 전체 여정. 논리적 컨테이너.</div>
+    </div>
+    <div class="trace-span-card is-span">
+      <div class="trace-span-label">span</div>
+      <div class="trace-span-desc">그 안에서 일어난 작업 한 건. 한 LLM 호출, 한 tool 실행처럼 시작과 끝이 있는 측정 단위.</div>
+    </div>
+  </div>
+  <div class="trace-span-tree-title">한 trace 안의 span 트리 예시</div>
+  <pre class="trace-span-tree"><span class="tree-node is-root">interaction span</span>         <span class="tree-comment">← root, 전체 prompt 의 lifecycle</span>
+├─ <span class="tree-node">llm_request span</span>      <span class="tree-comment">← 첫 모델 호출</span>
+├─ <span class="tree-node">tool span</span>             <span class="tree-comment">← Bash 실행</span>
+│  └─ <span class="tree-node">tool.execution</span>     <span class="tree-comment">← 실제 handler 실행</span>
+└─ <span class="tree-node">llm_request span</span>      <span class="tree-comment">← tool 결과 받고 두 번째 모델 호출</span></pre>
+  <div class="trace-span-note">Langfuse 에서는 이 트리가 좌측 패널에 그대로 그려지고, 각 노드 (span) 를 클릭하면 그 단계의 input / output / duration 이 보입니다.</div>
+</div>
+
+이 stream 을 OTLP exporter 로 받아서 [Langfuse](https://langfuse.com) 에 보내면, 토큰 수, 시스템 프롬프트, tool 정의, 응답 본문, latency 까지 모두 위 트리의 각 노드에 담겨 시각화됩니다.
+
+이 reference 는 그 trace 안의 모든 attribute 를 한 자리에 정리한 자료입니다. Claude Code 가 자체적으로 넣어주는 attribute 위에, Langfuse UI 가 잘 알아먹는 key 들 (`langfuse.observation.input/output`, `gen_ai.*`) 을 직접 추가했습니다. 그래서 Langfuse 에 도착한 한 span 에는 **Claude Code 가 원래 넣은 key** 와 **직접 추가한 key** 가 섞여 있고, 거기에 **OTel 표준 / OTel-GenAI / Langfuse 인식 key** 라는 출처 구분도 따로 있습니다.
+
+정식 글로 풀어쓰기엔 너무 좁고 raw 한 내용이라 Lab Notes 로 둡니다. 본인 환경에서 Langfuse trace 를 봤을 때 "이 attribute 는 누가 넣은 거고 어디서 쓰이지?" 가 궁금할 때 들춰보면 됩니다.
+
+## Attribute 카탈로그
+
+trace export 는 세 그룹 (<span class="k">attributes.&#42;</span> / <span class="k">resourceAttributes.&#42;</span> / <span class="k">scope.&#42;</span>) 으로 들어옵니다. 이 중 의미 있는 데이터는 거의 전부 첫 번째인 <span class="k">attributes.&#42;</span> 에 모이고, 나머지 둘은 host/process 정보나 SDK 식별자처럼 자리에서 의미가 바로 드러나는 raw 한 값들입니다. 그래서 본 카탈로그에서는 <span class="k">attributes.&#42;</span> 만 다룹니다.
+
+<span class="k">attributes.&#42;</span> 안의 key 는 어떤 span 위에 붙느냐에 따라 의미가 갈리므로, 아래 §1 ~ §5 는 span 종류별로 묶어 정리했습니다 (본문 안의 §3.1 / §3.4 같은 표기는 같은 카탈로그 안의 cross reference 입니다). 본체 표 앞에 보조 설명 두 개 (Trace 구조, Provenance) 를 먼저 둡니다.
+
+### Trace 구조: 세 그룹
+
+각 그룹에 구체적으로 어떤 값이 들어가는지 한 줄씩 짚으면:
+
+- <strong><span class="k">attributes.&#42;</span></strong>: 사용된 model, input/output, token, latency, span 종류 discriminator 등 그 trace 의 핵심 데이터. §1 ~ §5 에서 본격적으로 다룸.
+- <strong><span class="k">resourceAttributes.&#42;</span></strong>: <span class="k">service.name</span>, <span class="k">host.name</span>, <span class="k">host.arch</span>, <span class="k">process.pid</span>, <span class="k">process.owner</span>, <span class="k">telemetry.sdk.&#42;</span> 같은 host / process / SDK 식별 정보가 모임.
+- <strong><span class="k">scope.&#42;</span></strong>: <span class="k">&#123; name, version, attributes &#125;</span> 형태. trace 를 만든 instrumentation library 식별자 (보통 name 값이 <span class="k">com.anthropic.claude_code.tracing</span>).
+
+### Provenance (출처)
+
+각 표의 Provenance 컬럼에 붙는 태그는 그 key 가 어디서 왔고 누가 쓰는지를 표시합니다.
+
+<div class="legend">
+  <div class="legend-row"><span class="tag tag-otel">OTel</span> OpenTelemetry 표준 (벤더 중립)</div>
+  <div class="legend-row"><span class="tag tag-genai">OTel-GenAI</span> OpenTelemetry GenAI 컨벤션</div>
+  <div class="legend-row"><span class="tag tag-langfuse">Langfuse</span> Langfuse OTLP ingestion 이 UI 렌더링에 사용</div>
+  <div class="legend-row"><span class="tag tag-upstream">Upstream</span> Claude Code 가 자체적으로 넣음</div>
+  <div class="legend-row"><span class="tag tag-fork">Custom</span> 직접 추가한 key</div>
+</div>
+
+---
+
+### 1. Identity & session (모든 span 에 공통)
+
+<span class="k">utils/telemetryAttributes.ts:getTelemetryAttributes()</span> 에서 만들어져 <span class="k">createSpanAttributes()</span> (<span class="k">sessionTracing.ts:258</span>) 에서 모든 span 에 merge 됩니다.
+
+| Key | Provenance | Description |
+| --- | --- | --- |
+| attributes.user.id | <span class="tag tag-upstream">Upstream</span> | 머신 단위로 고정된 user 식별자. `getOrCreateUserID()` 가 홈 디렉토리의 식별자 파일에 저장한 random UUID. OAuth account id 와는 다름. |
+| attributes.session.id | <span class="tag tag-upstream">Upstream</span> | 프로세스 단위 session UUID (`getSessionId()`). 프로세스를 새로 띄울 때마다 새 값. `OTEL_METRICS_INCLUDE_SESSION_ID` 로 gating (default on). interaction span 에서는 `sessionTracing.ts:329` 에서 한 번 더 명시적으로 세팅됨. |
+| attributes.terminal.type | <span class="tag tag-upstream">Upstream</span> | 감지된 터미널 emulator (vscode, iTerm.app, xterm 등). `envDynamic.terminal` 출처. |
+| attributes.span.type | <span class="tag tag-upstream">Upstream</span> | span 종류 discriminator. 값: interaction, llm_request, tool, tool.blocked_on_user, tool.execution, hook. `createSpanAttributes()` 에서 무조건 세팅. |
+
+선택적 identity 필드 (해당 기능이 켜져 있을 때만 등장):
+
+- <span class="k">attributes.app.version</span>: 빌드 버전. <span class="k">OTEL_METRICS_INCLUDE_VERSION</span> gating (default off).
+- <span class="k">attributes.organization.id</span>, <span class="k">attributes.user.email</span>, <span class="k">attributes.user.account_uuid</span>, <span class="k">attributes.user.account_id</span>: Anthropic OAuth 인증된 경우만. 보통 OAuth 인증을 안 쓰면 부재.
+
+---
+
+### 2. Interaction-span attributes (span.type = "interaction")
+
+user prompt 한 건의 root span. user 입력에서 최종 응답까지 cycle 전체를 감쌉니다.
+
+| Key | Provenance | Description |
+| --- | --- | --- |
+| attributes.user_prompt | <span class="tag tag-upstream">Upstream</span> | 원본 user prompt 텍스트. **redacted** (`<REDACTED>`) 가 default 이며 `OTEL_LOG_USER_PROMPTS=1` 이어야 평문이 들어감. |
+| attributes.user_prompt_length | <span class="tag tag-upstream">Upstream</span> | 원본 prompt 의 character length (redact 여부와 무관하게 항상 존재). |
+| attributes.interaction.sequence | <span class="tag tag-upstream">Upstream</span> | 프로세스 안에서 interaction 의 monotonic counter. 첫 interaction = 1. |
+| attributes.interaction.duration_ms | <span class="tag tag-upstream">Upstream</span> | interaction 전체 wall-clock 시간. span end 시점에 세팅. |
+
+trace level Langfuse attributes (<span class="k">LANGFUSE_PUBLIC_KEY</span>/<span class="k">LANGFUSE_SECRET_KEY</span> 가 있을 때만):
+
+| Key | Provenance | Description |
+| --- | --- | --- |
+| attributes.langfuse.trace.input | <span class="tag tag-fork">Custom</span> <span class="tag tag-langfuse">Langfuse</span> | framework 태그가 stripping 된 user prompt 를 LangChain 포맷으로 담음. **trace level Input 패널** 의 표시 값. |
+| attributes.langfuse.trace.name | <span class="tag tag-fork">Custom</span> <span class="tag tag-langfuse">Langfuse</span> | Langfuse list view 에 보이는 trace 제목. 처음에는 고정 식별 문자열; 이후 primary LLM 호출이 `<id>:<model>` 포맷으로 덮어씀. |
+| attributes.gen_ai.conversation.id | <span class="tag tag-fork">Custom</span> <span class="tag tag-genai">OTel-GenAI</span> | `session.id` 와 동일 값. Langfuse 가 여러 trace 를 한 conversation 으로 묶을 수 있게 해줌. |
+| attributes.gen_ai.agent.name | <span class="tag tag-fork">Custom</span> <span class="tag tag-genai">OTel-GenAI</span> | 고정 agent 식별 문자열. |
+| attributes.gen_ai.agent.description | <span class="tag tag-fork">Custom</span> <span class="tag tag-genai">OTel-GenAI</span> | static description 문자열. |
+
+---
+
+### 3. LLM-request span attributes (span.type = "llm_request")
+
+Claude Code 가 실제로 LLM API 를 호출할 때 만들어지는 span. 본 reference 의 대부분 key 가 여기 모입니다.
+
+#### 3.1 Request shape (span 시작 시점)
+
+| Key | Provenance | Description |
+| --- | --- | --- |
+| attributes.model | <span class="tag tag-upstream">Upstream</span> | 호출에 넘어간 model id (예: claude-haiku-4-5-20251001, gpt-4o-mini). |
+| attributes.llm_request.context | <span class="tag tag-upstream">Upstream</span> | interaction span 안에 nested 면 "interaction", 아니면 "standalone". |
+| attributes.speed | <span class="tag tag-upstream">Upstream</span> | `fastMode` on 이면 "fast", 아니면 "normal". |
+| attributes.query_source | <span class="tag tag-upstream">Upstream</span> | 호출을 쏜 시스템 부위. 예: main_thread, subagent, generate_session_title (Langfuse 에서는 필터링됨), compaction, away_summary. |
+| attributes.langfuse.span.name | <span class="tag tag-fork">Custom</span> <span class="tag tag-langfuse">Langfuse</span> | `<id>:<model>` 포맷의 span 이름. Langfuse 트리 뷰의 span 제목. |
+| attributes.langfuse.is_primary | <span class="tag tag-fork">Custom</span> <span class="tag tag-langfuse">Langfuse</span> | boolean. main thread / SDK / subagent 호출은 true; utility 호출 (compaction, speculation) 은 false. primary 만 `langfuse.trace.name`/`input`/`output` 을 덮어쓸 수 있음. |
+| attributes.gen_ai.request.model | <span class="tag tag-fork">Custom</span> <span class="tag tag-genai">OTel-GenAI</span> | `attributes.model` 과 같은 값을 OTel 표준 key 로. |
+| attributes.gen_ai.operation.name | <span class="tag tag-fork">Custom</span> <span class="tag tag-genai">OTel-GenAI</span> | "llm_call". |
+| attributes.gen_ai.agent.name, attributes.gen_ai.agent.description | <span class="tag tag-fork">Custom</span> <span class="tag tag-genai">OTel-GenAI</span> | interaction span 과 같은 값. |
+| attributes.langfuse.observation.input | <span class="tag tag-fork">Custom</span> <span class="tag tag-langfuse">Langfuse</span> | **전체 conversation history** 를 LangChain chat 포맷 `[{role,content},…]` 로. **observation Input 패널** 의 표시 값. `messagesToLangChainChatFormat()` (`sessionTracing.ts`) 이 framework boilerplate 를 메시지마다 stripping 해서 만듦. |
+
+#### 3.2 System prompt (beta tracing 활성 시)
+
+<span class="k">betaSessionTracing.ts:addBetaLLMRequestAttributes</span> 에서 세팅.
+
+| Key | Provenance | Description |
+| --- | --- | --- |
+| attributes.system_prompt_hash | <span class="tag tag-upstream">Upstream</span> | 전체 system prompt 의 SHA-256 prefix (`sp_<12hex>`). 같은 prompt 면 호출 간에 안정적으로 같음. |
+| attributes.system_prompt_preview | <span class="tag tag-upstream">Upstream</span> | system prompt 첫 500 chars. 가벼운 진단용; 전체 payload 는 별도. |
+| attributes.system_prompt_length | <span class="tag tag-upstream">Upstream</span> | character length. |
+| attributes.gen_ai.system_instructions | <span class="tag tag-fork">Custom</span> <span class="tag tag-genai">OTel-GenAI</span> | **전체 system prompt** 그대로. Langfuse metadata 에 표시됨. |
+
+전체 prompt 는 unique hash 마다 한 번씩 별도의 system_prompt OTel **log event** 로도 emit 됩니다 (span attribute 가 아님).
+
+#### 3.3 Tools (beta tracing 활성 시)
+
+| Key | Provenance | Description |
+| --- | --- | --- |
+| attributes.tools (array) | <span class="tag tag-upstream">Upstream</span> | model 에 제공된 모든 tool 의 compact list `[{name, hash}, …]`. hash 가 호출 간 tool 정의 dedup 에 쓰임. |
+| attributes.tools[].name | <span class="tag tag-upstream">Upstream</span> | tool 이름 (Bash, Read, Edit 등). |
+| attributes.tools[].hash | <span class="tag tag-upstream">Upstream</span> | 전체 tool 정의를 JSON-stringify 한 결과의 SHA-256 12 chars. |
+| attributes.tools_count | <span class="tag tag-upstream">Upstream</span> | tool 개수. |
+| attributes.gen_ai.tool.definitions (array) | <span class="tag tag-fork">Custom</span> <span class="tag tag-genai">OTel-GenAI</span> | **전체 tool 스키마**. 다른 OTel-GenAI 호환 도구와 같은 스키마 모양. 아래 필드들이 각 항목 아래에 nested. |
+| attributes.gen_ai.tool.definitions[].name | <span class="tag tag-fork">Custom</span> | `tools[].name` 과 동일. |
+| attributes.gen_ai.tool.definitions[].description | <span class="tag tag-fork">Custom</span> | model 에 전달된 tool description 문자열. |
+| …input_schema.$schema | <span class="tag tag-fork">Custom</span> | JSON Schema dialect (보통 https://json-schema.org/draft/2020-12/schema). |
+| …input_schema.type | <span class="tag tag-fork">Custom</span> | tool param 은 "object". |
+| …input_schema.properties | <span class="tag tag-fork">Custom</span> | param-name → schema 맵. 각 파라미터의 type / description / enum 등. |
+| …input_schema.required | <span class="tag tag-fork">Custom</span> | 필수 param 이름 array. |
+| …input_schema.additionalProperties | <span class="tag tag-fork">Custom</span> | 보통 false. |
+
+각 unique tool hash 마다 별도의 tool OTel log event 가 전체 정의와 함께 emit 됩니다 (span attribute 가 아님).
+
+#### 3.4 Per-turn deltas (모든 사용자에게 노출)
+
+upstream 이 의도한 "지난 turn 이후 새로 들어온 것" 의미입니다. **전체 conversation 이 아닙니다**. 전체 conversation 은 §3.1 의 <span class="k">langfuse.observation.input</span> 에 있습니다.
+
+| Key | Provenance | Description |
+| --- | --- | --- |
+| attributes.new_context | <span class="tag tag-upstream">Upstream</span> | 같은 query_source 안에서 **이전 reported span 이후 추가된** user side 메시지의 텍스트를 concat. assistant 메시지와 system reminder 는 제외. 60KB 로 truncation. |
+| attributes.new_context_message_count | <span class="tag tag-upstream">Upstream</span> | new_context 에 들어간 새 user 메시지 수. |
+| attributes.new_context_truncated | <span class="tag tag-upstream">Upstream</span> | boolean. truncate 됐을 때만 존재. |
+| attributes.new_context_original_length | <span class="tag tag-upstream">Upstream</span> | 원본 (truncate 전) length. truncate 됐을 때만. |
+| attributes.system_reminders | <span class="tag tag-upstream">Upstream</span> | 지난 span 이후 새로 추가된 `<system-reminder>` 블록. new_context 를 오염시키지 않도록 분리. reminder 가 다시 inject 안 되는 turn 에서는 보통 부재. |
+| attributes.system_reminders_count | <span class="tag tag-upstream">Upstream</span> | 개수. |
+| attributes.system_reminders_truncated, …_original_length | <span class="tag tag-upstream">Upstream</span> | truncation marker. |
+
+#### 3.5 End-of-call attributes (LLM 호출이 응답하면)
+
+<span class="k">endLLMRequestSpan()</span> (<span class="k">sessionTracing.ts:568+</span>) 에서 채워짐.
+
+| Key | Provenance | Description |
+| --- | --- | --- |
+| attributes.duration_ms | <span class="tag tag-upstream">Upstream</span> | request 시작에서 response 끝까지의 wall time. |
+| attributes.input_tokens | <span class="tag tag-upstream">Upstream</span> | billing 된 prompt token. |
+| attributes.output_tokens | <span class="tag tag-upstream">Upstream</span> | billing 된 completion token. |
+| attributes.cache_read_tokens (+ .intValue) | <span class="tag tag-upstream">Upstream</span> | prompt cache 에서 served 된 토큰. .intValue suffix 는 OTLP 가 정수를 wrapper 객체로 인코딩하기 때문. |
+| attributes.cache_creation_tokens (+ .intValue) | <span class="tag tag-upstream">Upstream</span> | 이번 호출에서 prompt cache 에 새로 쓴 토큰. |
+| attributes.success | <span class="tag tag-upstream">Upstream</span> | boolean. 최종 시도가 성공했는지. |
+| attributes.status_code | <span class="tag tag-upstream">Upstream</span> | provider HTTP status (실패 / non-200 시만). |
+| attributes.error | <span class="tag tag-upstream">Upstream</span> | 에러 메시지 (success=false 일 때만). |
+| attributes.attempt | <span class="tag tag-upstream">Upstream</span> | 1-indexed 시도 번호. >1 이면 retry 발생. |
+| attributes.response.has_tool_call | <span class="tag tag-upstream">Upstream</span> | boolean. 응답에 tool_use 블록이 하나라도 있는지. |
+| attributes.ttft_ms | <span class="tag tag-upstream">Upstream</span> | time to first token (request 시작에서 첫 stream delta 까지) ms. |
+| attributes.gen_ai.usage.input_tokens | <span class="tag tag-fork">Custom</span> <span class="tag tag-genai">OTel-GenAI</span> | input_tokens 와 같은 값을 OTel 표준 key 로. |
+| attributes.gen_ai.usage.output_tokens | <span class="tag tag-fork">Custom</span> <span class="tag tag-genai">OTel-GenAI</span> | output_tokens 와 같은 값을 OTel 표준 key 로. |
+| attributes.langfuse.observation.output | <span class="tag tag-fork">Custom</span> <span class="tag tag-langfuse">Langfuse</span> | model 응답 텍스트를 LangChain 포맷으로. **observation Output 패널** 의 표시 값. |
+| attributes.langfuse.trace.output | <span class="tag tag-fork">Custom</span> <span class="tag tag-langfuse">Langfuse</span> | 같은 값. primary 호출만 세팅 (utility 가 trace level Output 을 덮어쓰지 못하게). |
+| attributes.response.model_output | <span class="tag tag-upstream">Upstream</span> (beta) | model 응답 전체 텍스트. 60KB truncation. beta tracing 활성 시만. |
+| attributes.response.thinking_output | <span class="tag tag-upstream">Upstream</span> (beta) | reasoning/thinking 블록 (reasoning 가능한 model 한정). beta tracing 활성 시만. |
+
+---
+
+### 4. Tool spans (span.type = "tool", tool.execution, tool.blocked_on_user)
+
+tool 한 건 호출은 여러 span 을 만듭니다.
+
+- tool: tool 사용 lifecycle 전체 (input → permission decision → execution → result).
+- tool.blocked_on_user: user 승인 대기 시간을 담은 child span.
+- tool.execution: 실제 handler 실행을 담은 child span.
+
+| Key | Provenance | Description |
+| --- | --- | --- |
+| attributes.tool_name | <span class="tag tag-upstream">Upstream</span> | tool 이름 (Bash, Read 등). |
+| attributes.tool_input | <span class="tag tag-upstream">Upstream</span> (beta) | truncate 된 tool input (beta tracing 활성 시). |
+| attributes.tool_result_* | <span class="tag tag-upstream">Upstream</span> (beta) | tool result preview / length / truncation 마커. |
+| attributes.new_context | <span class="tag tag-upstream">Upstream</span> (beta) | tool result 를 "new context" 로 취급 (§3.4 의 의미를 tool turn 에 그대로 적용). |
+| attributes.langfuse.observation.input, .output | <span class="tag tag-fork">Custom</span> <span class="tag tag-langfuse">Langfuse</span> | Langfuse 패널용 tool input / result. |
+
+---
+
+### 5. Hook spans (span.type = "hook")
+
+Claude Code 의 hook 이 실행될 때. hook event 이름, matcher pattern, command, exit code, duration 을 포함. <span class="k">sessionTracing.ts:1014+</span> 참고.
+
+---
+
+## 빠른 안내: "Langfuse 에서 X 는 어디서 보나요?"
+
+| 보고 싶은 것 | 어디 |
+| --- | --- |
+| model 에 들어간 conversation 전체 | `attributes.langfuse.observation.input` (LLM call span 의 Input 패널) |
+| model 의 응답 | `attributes.langfuse.observation.output` (Output 패널) |
+| system prompt | `attributes.gen_ai.system_instructions` |
+| 사용 가능한 tool 스키마 | `attributes.gen_ai.tool.definitions` |
+| 토큰 사용량 / 비용 | `attributes.gen_ai.usage.input_tokens`, `attributes.gen_ai.usage.output_tokens`, cache_*_tokens |
+| latency 분해 | `attributes.ttft_ms`, `attributes.duration_ms`, child span duration |
+| 어떤 model 이 처리했는가 | `attributes.gen_ai.request.model` |
+| retry 였는가 | `attributes.attempt` > 1 |
+| trace 를 시작한 user prompt | interaction span 의 `attributes.langfuse.trace.input` (또는 `OTEL_LOG_USER_PROMPTS=1` 일 때 `attributes.user_prompt`) |
+| turn 단위 delta (지난 호출 이후 새로 들어온 것) | `attributes.new_context`. 전체 prompt 가 **아님**. |
+

@@ -175,6 +175,11 @@ hr {
 	--cat-bg-hover: rgba(138, 78, 187, 0.2);
 	--cat-fg: #6e3a9c;
 }
+.cat-lab-notes {
+	--cat-bg: rgba(217, 158, 30, 0.14);
+	--cat-bg-hover: rgba(217, 158, 30, 0.24);
+	--cat-fg: #8a6608;
+}
 
 .sr-only {
 	border: 0;
