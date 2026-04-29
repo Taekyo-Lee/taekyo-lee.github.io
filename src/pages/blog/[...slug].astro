@@ -1,37 +1,156 @@
 ---
-import { type CollectionEntry, getCollection, render } from 'astro:content';
-import BlogPost from '../../layouts/BlogPost.astro';
+import { Image } from 'astro:assets';
+import { getCollection } from 'astro:content';
+import BaseHead from '../../components/BaseHead.astro';
+import CategorySidebar from '../../components/CategorySidebar.astro';
+import Footer from '../../components/Footer.astro';
+import FormattedDate from '../../components/FormattedDate.astro';
+import Header from '../../components/Header.astro';
+import { CATEGORY_LABELS, SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
 
 export async function getStaticPaths() {
-	const posts = await getCollection('blog');
-	return posts.map((post) => ({
-		params: { slug: post.id },
-		props: post,
-	}));
+	const all = await getCollection('blog');
+	const counts = all.reduce<Record<string, number>>((acc, p) => {
+		acc[p.data.category] = (acc[p.data.category] ?? 0) + 1;
+		return acc;
+	}, {});
+	return Object.keys(CATEGORY_LABELS)
+		.filter((slug) => (counts[slug] ?? 0) > 0)
+		.map((slug) => ({ params: { slug } }));
 }
-type Props = CollectionEntry<'blog'>;
 
-const post = Astro.props;
-const { Content } = await render(post);
-
-let prevPost: CollectionEntry<'blog'> | null = null;
-let nextPost: CollectionEntry<'blog'> | null = null;
-
-if (post.data.series && post.data.seriesOrder !== undefined) {
-	const allPosts = await getCollection('blog');
-	const siblings = allPosts
-		.filter(
-			(p) =>
-				p.data.series === post.data.series &&
-				p.data.seriesOrder !== undefined,
-		)
-		.sort((a, b) => (a.data.seriesOrder ?? 0) - (b.data.seriesOrder ?? 0));
-	const idx = siblings.findIndex((p) => p.id === post.id);
-	if (idx > 0) prevPost = siblings[idx - 1];
-	if (idx >= 0 && idx < siblings.length - 1) nextPost = siblings[idx + 1];
-}
+const base = import.meta.env.BASE_URL;
+const { slug } = Astro.params;
+const label = CATEGORY_LABELS[slug as string] ?? slug;
+const posts = (await getCollection('blog', ({ data }) => data.category === slug)).sort(
+	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
+);
+const pageTitle = `${label} — ${SITE_TITLE}`;
 ---
 
-<BlogPost {...post.data} prevPost={prevPost} nextPost={nextPost}>
-	<Content />
-</BlogPost>
+<!doctype html>
+<html lang="ko">
+	<head>
+		<BaseHead title={pageTitle} description={SITE_DESCRIPTION} />
+		<style>
+			main {
+				width: 1100px;
+				max-width: calc(100% - 2em);
+			}
+			.layout {
+				display: grid;
+				grid-template-columns: 180px 1fr;
+				gap: 2.5rem;
+				align-items: start;
+			}
+			.section-head {
+				margin: 0 0 1.5rem 0;
+			}
+			.section-head h1 {
+				margin: 0;
+				font-size: 1.6rem;
+			}
+			.section-head .meta {
+				margin: 0.3em 0 0 0;
+				font-size: 0.85rem;
+				color: rgb(var(--gray));
+			}
+			ul {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 2rem;
+				list-style-type: none;
+				margin: 0;
+				padding: 0;
+			}
+			ul li {
+				width: calc(50% - 1rem);
+			}
+			ul li * {
+				text-decoration: none;
+				transition: 0.2s ease;
+			}
+			ul li img {
+				margin-bottom: 0.5rem;
+				border-radius: 12px;
+			}
+			ul li a {
+				display: block;
+			}
+			.title {
+				margin: 0;
+				font-size: 1.15rem;
+				color: rgb(var(--black));
+				line-height: 1.35;
+			}
+			.category {
+				display: inline-block;
+				padding: 0.15em 0.6em;
+				margin-bottom: 0.5em;
+				background: var(--cat-bg, rgb(var(--accent), 0.1));
+				color: var(--cat-fg, rgb(var(--accent)));
+				border-radius: 999px;
+				font-size: 0.72rem;
+				font-weight: 600;
+				letter-spacing: 0.03em;
+			}
+			.date {
+				margin: 0.4em 0 0 0;
+				font-size: 0.85rem;
+				color: rgb(var(--gray));
+			}
+			ul li a:hover h4,
+			ul li a:hover .date {
+				color: rgb(var(--accent));
+			}
+			ul a:hover img {
+				box-shadow: var(--box-shadow);
+			}
+			@media (max-width: 720px) {
+				.layout {
+					grid-template-columns: 1fr;
+					gap: 1.5rem;
+				}
+				ul {
+					gap: 1.2rem;
+				}
+				ul li {
+					width: 100%;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<Header />
+		<main>
+			<div class="layout">
+				<CategorySidebar current={slug} />
+				<section>
+					<header class="section-head">
+						<h1>{label}</h1>
+						<p class="meta">{posts.length}편</p>
+					</header>
+					<ul>
+						{
+							posts.map((post) => (
+								<li>
+									<a href={`${base}blog/${post.id}/`}>
+										{post.data.heroImage && (
+											<Image width={720} height={360} src={post.data.heroImage} alt="" />
+										)}
+										<span class:list={['category', `cat-${post.data.category}`]}>{CATEGORY_LABELS[post.data.category]}</span>
+										<h4 class="title">{post.data.title}</h4>
+										<p class="date">
+											<FormattedDate date={post.data.pubDate} />
+										</p>
+									</a>
+								</li>
+							))
+						}
+					</ul>
+				</section>
+			</div>
+		</main>
+		<Footer />
+	</body>
+</html>
