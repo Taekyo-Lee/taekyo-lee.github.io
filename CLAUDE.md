@@ -1,9 +1,25 @@
 # Blog Ops Notes
 
-**프로젝트**: `~/workspace/taekyo-lee.github.io/` → https://taekyo-lee.github.io
+**프로젝트**: `~/workspace/taekyo-lee.github.io/`
 **용도**: 이 레포에서 일하는 Claude Code 세션을 위한 운영 맥락 (저자 정체성, 톤, 기술 규칙, 다음 작업).
 
 > 셋업은 끝났습니다. 이 문서는 "새 글 쓰고 배포하는" 일상 운영에 필요한 것만 담습니다. 과거 셋업 이력은 `git log` 를 보세요.
+
+---
+
+## 작업 환경 (local PC)
+
+저자는 세 개의 로컬 PC 에서 이 블로그를 작업합니다.
+
+| 환경 | 용도 | Production URL |
+|---|---|---|
+| **HOME** | 집 | https://taekyo-lee.github.io |
+| **DEVELOPMENT** | 개발용 | https://taekyo-lee.github.io |
+| **COMPANY** | 회사 (보안 엄격) | https://github.samsungds.net/pages/aiagent/ai-native-development-blog/ |
+
+- HOME 과 DEVELOPMENT 는 환경 차이 없음 — 동일 사외 배포 (`taekyo-lee.github.io`).
+- COMPANY 는 보안 정책상 매우 다름 — 사내 GitHub Enterprise 로 배포되며 GitHub Actions 사용 불가, `gh-pages` 브랜치 방식. 자세한 분기 규칙은 아래 "이중 배포 아키텍처" 참고.
+- 현재 세션의 **배포 타겟** (사외/사내) 은 git remote URL 로 자동 판별됨 (`samsungds.net` 포함 여부). HOME 과 DEVELOPMENT 는 둘 다 사외로 동일 취급.
 
 ---
 
@@ -14,11 +30,14 @@
 - 본명은 블로그 표시 텍스트에 쓰지 않음. GitHub URL (`Taekyo-Lee`) 과 사이트 URL 은 구조적으로 노출 — 허용.
 - 회사/기업명 구체 언급 피함 (기업 환경은 일반화 표현으로)
 
-공개 프로필:
+공개 프로필 (HOME / DEVELOPMENT — 사외 배포에서만 사용):
 - GitHub: https://github.com/Taekyo-Lee
 - YouTube: https://www.youtube.com/@GuruCat-d4h
 - LinkedIn: https://linkedin.com/in/jet-taekyo-lee-2aab9a317
 - Email: jetleee.1888@gmail.com
+
+사내용 프로필 (COMPANY — 사내 배포에서만 사용, **Email 만 공개**):
+- Email: taekyo.lee@samsung.com
 
 **커리어 서사 (브랜드 핵심)**: RF Engineer → AI Agent Engineer. 안테나·신호에서 "컴퓨터가 스스로 일하게 만드는 방법" 으로 관심이 옮겨감. 기업 환경에서 AI Agent 를 쓰는 일을 함.
 
@@ -34,15 +53,16 @@
 - Node 22.12.0 이상 필수 (로컬·CI 모두)
 - GitHub Pages 배포 (main push → GitHub Actions, 3~5분)
 
-### 이중 배포 아키텍처 (사외/사내)
+### 이중 배포 아키텍처 (HOME&DEVELOPMENT / COMPANY)
 
-동일 소스코드가 사외(github.com)와 사내(기업 GitHub Enterprise)에 모두 배포됨. **merge만 하면 자동 분기** — 수동 설정 불필요.
+동일 소스코드가 HOME&DEVELOPMENT (github.com) 와 COMPANY (기업 GitHub Enterprise) 양쪽에 배포됨. **merge만 하면 자동 분기** — 수동 설정 불필요.
 
-| | 사외 | 사내 |
+| | HOME&DEVELOPMENT | COMPANY |
 |---|---|---|
 | URL | `taekyo-lee.github.io` | `github.samsungds.net/pages/aiagent/ai-native-development-blog` |
+| github repo | `https://github.com/Taekyo-Lee/taekyo-lee.github.io` | `https://github.samsungds.net/aiagent/ai-native-development-blog` |
 | workflow | `deploy.yml` | `deploy_at_company.yml` |
-| `site` | `https://taekyo-lee.github.io` | `https://github.samsungds.net` |
+| `site` (Astro config) | `https://taekyo-lee.github.io` | `https://github.samsungds.net` |
 | `base` | `/` (루트) | `/pages/aiagent/ai-native-development-blog/` |
 | `build.assets` | `_astro` (기본값) | `assets` (GE가 `_` 폴더 무시) |
 
@@ -53,27 +73,35 @@
 ```astro
 const base = import.meta.env.BASE_URL;
 // O: ${base} 는 production 빌드에서 항상 trailing slash (`/` 또는 `/pages/.../`) 가 붙어 있음
-<a href={`${base}blog`}>...</a>          // 사외 → /blog, 사내 → /pages/aiagent/.../blog
+<a href={`${base}blog`}>...</a>          // HOME&DEVELOPMENT → /blog, COMPANY → /pages/aiagent/.../blog
 <a href={`${base}category/${slug}/`}>...</a>
 
 // X: 절대 금지 패턴
 <a href={`${base}/blog`}>...</a>         // production 에서 //blog 가 되어 protocol-relative URL 로 깨짐
-<a href="/blog">...</a>                  // base 미반영 → 사내에서 404
+<a href="/blog">...</a>                  // base 미반영 → COMPANY 에서 404
 ```
 
 **핵심 규칙**: `${base}` 뒤에 슬래시를 추가로 붙이지 말 것. base 가 이미 `/` 로 끝남.
 
-**사내 배포 워크플로우**: 사외에서 업데이트 → 사내 upstream에서 pull → main에 merge → push
+**COMPANY 배포 워크플로우**: HOME/DEVELOPMENT 에서 업데이트 → COMPANY upstream 에서 pull → main 에 merge → push
 
-### 사내 merge conflict 자동 해결 규칙
+### COMPANY merge conflict 자동 해결 규칙
+
+**왜 이 규칙이 필요한가**: 블로그 작성·수정은 **무조건 HOME/DEVELOPMENT 에서만** 진행. 그 변경분을 COMPANY 에서 `git pull` 로 가져와 사내 레포에 반영하는 흐름임.
+
+핵심은 두 환경의 git remote 가 서로 다른 레포라는 점:
+- HOME/DEVELOPMENT remote → `https://github.com/Taekyo-Lee/taekyo-lee.github.io` (사외 배포: https://taekyo-lee.github.io)
+- COMPANY remote → `https://github.samsungds.net/aiagent/ai-native-development-blog` (사내 배포: https://github.samsungds.net/pages/aiagent/ai-native-development-blog/)
+
+이 두 레포는 환경 차이가 존재 — 대표적으로 HOME/DEVELOPMENT 는 GitHub Actions 사용, COMPANY 는 `gh-pages` 브랜치 방식. 이 차이로 인해 `astro.config.mjs`, 워크플로우 파일 등에서 conflict 가 발생함. 가장 흔하고 치명적인 실수는 **링크가 깨지는 것** (`base` 분기 로직 손상 → COMPANY 배포에서 404). 그래서 conflict 해결은 아래 규칙대로 **신중하게** 적용해야 함.
 
 `git merge upstream` 시 발생하는 충돌은 다음 규칙에 따라 항상 동일하게 해결:
 
-| 충돌 파일 | 원인 | 해결 (사내 기준) |
+| 충돌 파일 | 원인 | 해결 (COMPANY 기준) |
 |---|---|---|
-| `.github/workflows/deploy.yml` | 사외에만 있는 파일, 사내에서 삭제됨 | `git rm` 으로 삭제 유지 (사내는 `deploy_at_company.yml`만 사용) |
+| `.github/workflows/deploy.yml` | HOME&DEVELOPMENT 에만 있는 파일, COMPANY 에서 삭제됨 | `git rm` 으로 삭제 유지 (COMPANY 는 `deploy_at_company.yml`만 사용) |
 | `astro.config.mjs` | upstream에 `PUBLIC_IS_COMPANY` env 노출 코드 추가 | `process.env.PUBLIC_IS_COMPANY = String(isCompany);` 라인 **유지** (`about.astro`, `index.astro`에서 mirror 안내 표시에 필요) |
-| `.gitignore` | 주석 문구 차이 | HEAD (사내 주석) 유지 |
+| `.gitignore` | 주석 문구 차이 | HEAD (COMPANY 주석) 유지 |
 
 **빠른 해결 스크립트**:
 ```bash
@@ -214,7 +242,7 @@ git push
 - **새 글이 안 보임**: Ctrl+Shift+R (Astro View Transitions 캐싱). `content.config.ts`·새 `.mdx`·`astro.config.mjs` 변경 시 dev 서버 재시작.
 - **빌드 실패**: https://github.com/Taekyo-Lee/taekyo-lee.github.io/actions
 - **Node 버전**: Astro 6 은 22.12.0 이상 필수. `nvm alias default 22` 으로 기본 설정.
-- **사내 블로그 CSS 깨짐**: `build.assets`가 `_astro`면 GE가 무시 → `assets`로 자동 설정됨. `astro.config.mjs`의 `isCompany` 탐지 로직 확인.
-- **사내 블로그 링크 404**: `href`에 하드코딩 절대 경로가 있으면 `base` 미반영 → `import.meta.env.BASE_URL` 사용.
+- **COMPANY 블로그 CSS 깨짐**: `build.assets`가 `_astro`면 GE가 무시 → `assets`로 자동 설정됨. `astro.config.mjs`의 `isCompany` 탐지 로직 확인.
+- **COMPANY 블로그 링크 404**: `href`에 하드코딩 절대 경로가 있으면 `base` 미반영 → `import.meta.env.BASE_URL` 사용.
 
   
