@@ -19,6 +19,7 @@ const blog = defineCollection({
 				'harness-engineering',
 				'claude-code-vs-opencode',
 				'about-astro',
+				'lab-notes',
 			]),
 			series: z.string().optional(),
 			seriesOrder: z.number().optional(),
