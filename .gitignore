@@ -23,3 +23,6 @@ pnpm-debug.log*
 
 # GitHub Actions self-hosted runner
 actions-runner/
+
+# Local artifacts
+artifacts/
