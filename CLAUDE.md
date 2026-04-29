@@ -43,7 +43,7 @@
 | URL | `taekyo-lee.github.io` | `github.samsungds.net/pages/aiagent/ai-native-development-blog` |
 | workflow | `deploy.yml` | `deploy_at_company.yml` |
 | `site` | `https://taekyo-lee.github.io` | `https://github.samsungds.net` |
-| `base` | `''` (루트) | `/pages/aiagent/ai-native-development-blog` |
+| `base` | `/` (루트) | `/pages/aiagent/ai-native-development-blog/` |
 | `build.assets` | `_astro` (기본값) | `assets` (GE가 `_` 폴더 무시) |
 
 **자동 탐지**: `astro.config.mjs`에서 git remote URL 기반으로 `isCompany` 자동 판별 (`samsungds.net` 포함 여부). CI fallback으로 `DEPLOY_TARGET=company` 환경변수도 지원.
