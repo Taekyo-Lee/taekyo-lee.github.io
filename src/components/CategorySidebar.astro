@@ -6,6 +6,7 @@ interface Props {
 	current?: string;
 }
 const { current } = Astro.props;
+const base = import.meta.env.BASE_URL;
 
 const posts = await getCollection('blog');
 const counts = posts.reduce<Record<string, number>>((acc, p) => {
@@ -19,7 +20,7 @@ const items = Object.keys(CATEGORY_LABELS)
 		slug,
 		label: CATEGORY_LABELS[slug],
 		count: counts[slug] ?? 0,
-		href: `/category/${slug}/`,
+		href: `${base}category/${slug}/`,
 	}));
 
 const totalCount = posts.length;
@@ -30,7 +31,7 @@ const allActive = !current;
 	<h3 class="heading">Categories</h3>
 	<ul class="list">
 		<li>
-			<a href="/blog/" class:list={['item', { active: allActive }]}>
+			<a href={`${base}blog/`} class:list={['item', { active: allActive }]}>
 				<span class="label">All</span>
 				<span class="count">{totalCount}</span>
 			</a>
