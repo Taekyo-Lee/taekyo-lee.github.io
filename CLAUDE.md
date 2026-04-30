@@ -34,7 +34,7 @@
 - GitHub: https://github.com/Taekyo-Lee
 - YouTube: https://www.youtube.com/@GuruCat-d4h
 - LinkedIn: https://linkedin.com/in/jet-taekyo-lee-2aab9a317
-- Email: jetleee.1888@gmail.com
+- Email: gurucat72@gmail.com
 
 사내용 프로필 (COMPANY — 사내 배포에서만 사용, **Email 만 공개**):
 - Email: taekyo.lee@samsung.com
@@ -54,6 +54,8 @@
 - GitHub Pages 배포 (main push → GitHub Actions, 3~5분)
 
 ### 이중 배포 아키텍처 (HOME&DEVELOPMENT / COMPANY)
+
+**왜 두 곳에 배포하나**: 사외 (`taekyo-lee.github.io`) 는 공개 브랜딩용, 사내 (기업 GitHub Enterprise) 는 망분리 환경의 동료 접근용. 같은 콘텐츠를 양쪽에 동시에 띄워야 함.
 
 동일 소스코드가 HOME&DEVELOPMENT (github.com) 와 COMPANY (기업 GitHub Enterprise) 양쪽에 배포됨. **merge만 하면 자동 분기** — 수동 설정 불필요.
 
@@ -78,7 +80,7 @@ const base = import.meta.env.BASE_URL;
 
 // X: 절대 금지 패턴
 <a href={`${base}/blog`}>...</a>         // production 에서 //blog 가 되어 protocol-relative URL 로 깨짐
-<a href="/blog">...</a>                  // base 미반영 → COMPANY 에서 404
+<a href="/blog">...</a>                  // base 미반영 → COMPANY 에서 404 (HOME/DEVELOPMENT 에선 멀쩡히 작동, 사외 빌드 통과 ≠ 사내 안전)
 ```
 
 **핵심 규칙**: `${base}` 뒤에 슬래시를 추가로 붙이지 말 것. base 가 이미 `/` 로 끝남.
@@ -215,25 +217,6 @@ git add src/content/blog/<slug>.mdx
 git commit -m "Add post: <title>"
 git push
 ```
-
----
-
-## 다음 작업 백로그
-
-### Phase 2: Flagship 글 — 대기 중
-
-블로그의 "결정적 증거" 역할. 기업 환경에서 AI Agent 도구를 쓸 때의 제약과 대응 경험을 1인칭 서사로. 기술 배경 + 조직 맥락 + 과정의 고민 블렌드. **구체 주제는 저자와 상의**.
-
-### Phase 3: 원본 자료 기반 후속 포스트
-
-- ✅ "왜 Claude Code 는 터미널에 있을까?" (`why_cli.html`)
-- ⬜ "Claude Code 를 `--debug` 로 열어봤다" (`claude-code-startup.html`)
-- ⬜ "Commands vs Skills — 누가 진짜 일을 하는가" (`commands-vs-skills.html`)
-- ⬜ "OpenAI가 만든 Claude Code Plugin 뜯어보기" (`codex-plugin.html`)
-
-### Phase 4 (보류): 카테고리 네비게이션 UI
-
-글 5~10편 쌓인 뒤. `/category/[slug].astro` 동적 라우트 + 뱃지 클릭 가능화. 지금은 글 수가 적어 필터 페이지가 허전함.
 
 ---
 

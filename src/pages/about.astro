@@ -60,7 +60,10 @@ const aboutTitle = isCompany ? '안녕하세요 AI Native 파트의 블로그입
 	<h2>Contact</h2>
 
 	<ul>
-		<li>Email: <a href={`mailto:${isCompany ? 'taekyo.lee@samsung.com' : 'jetleee.1888@gmail.com'}`}>{isCompany ? 'taekyo.lee@samsung.com' : 'jetleee.1888@gmail.com'}</a></li>
+		<li>Email: <a href={`mailto:${isCompany ? 'taekyo.lee@samsung.com' : 'gurucat72@gmail.com'}`}>{isCompany ? 'taekyo.lee@samsung.com' : 'gurucat72@gmail.com'}</a></li>
+		{!isCompany && (
+			<li>YouTube: <a href="https://www.youtube.com/@GuruCat-d4h" target="_blank" rel="noopener">@GuruCat-d4h</a></li>
+		)}
 	</ul>
 </Layout>
 
