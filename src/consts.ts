@@ -9,5 +9,6 @@ export const CATEGORY_LABELS: Record<string, string> = {
 	'harness-engineering': 'Harness Engineering for Claude Code',
 	'claude-code-vs-opencode': 'Claude Code vs. OpenCode',
 	'about-astro': 'About Astro',
+	'about-nodejs': 'About Node.js',
 	'lab-notes': 'Lab Notes',
 };

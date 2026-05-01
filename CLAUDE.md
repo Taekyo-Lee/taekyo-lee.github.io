@@ -156,10 +156,32 @@ git commit -m "Merge upstream: resolve conflicts for company repo"
 
 | | 원본 자료 | 블로그 포스트 |
 |---|---|---|
+| 포맷 | Markdown (loose, reference) | **MDX 안에서 HTML 적극 활용** |
 | 톤 | Reference, 중립적 | 1인칭 서사 |
 | 구조 | 슬라이드/문서 | 서사 곡선 |
 | 독자 | 내부 참조용 | 맥락 0에서 시작 |
 | 비주얼 | 정적 HTML | MDX + Astro 컴포넌트 |
+
+### HTML-first 작성 규칙 (마크다운 자제)
+
+원본은 markdown 으로 적혀 있어도, **블로그 포스트는 최대한 HTML 스타일로** 옮깁니다. 이유: 인라인 색·강조·콜아웃·테이블 하이라이트가 markdown 만으로는 표현이 빈약함.
+
+- **인라인 backtick (`xxx`) 최대한 자제**. 진짜 multi-line 코드는 fenced code block (` ``` `) 으로 두되, 인라인은 아래 클래스로 대체:
+  - `<span class="term">…</span>` — 블루 (`var(--accent)`), 기술 용어·고유명사 (JavaScript, Node.js, V8)
+  - `<span class="key">…</span>` — 오렌지 (`var(--claude-dark)`), 핵심 강조·결론 문구
+  - `<span class="mod">…</span>` — 모노스페이스 + 옅은 슬레이트 배경, 모듈/명령/식별자 (`fs`, `npm install`, `.ts`)
+- **테이블은 HTML `<table class="compare-table">`** 로. markdown pipe 테이블은 행 하이라이트 (`class="highlight"`, `class="row-accent"`) 가 안 되어 시각이 단조로움.
+- **콜아웃·인사이트 박스**:
+  - `<div class="callout">` — 쿨 슬레이트 배경, 일반 사이드 노트
+  - `<div class="callout-accent">` — 블루 좌측 보더, 정의·핵심 매핑
+  - `<div class="callout-warm">` — 오렌지 좌측 보더, 결론·요약
+  - `<div class="note-box">` — 점선 테두리, 작은 메타 노트
+- **클래스는 포스트 상단 `<style>{` … `}</style>` 블록에 정의**. 컴포넌트로 추출은 안 함 (포스트마다 미세 조정 자유 확보). 색은 반드시 글로벌 토큰 (`var(--accent)`, `var(--claude)`, `var(--claude-dark)`, `rgb(var(--gray))`, `rgba(96, 115, 159, …)` 등) 으로.
+
+레퍼런스 포스트:
+- `src/content/blog/about-astro-03-astro.mdx` — `.term`/`.key` 와 HTML 테이블 사용의 전형
+- `src/content/blog/claude-code-langfuse-trace-keys.mdx` — 인라인 모노스페이스 (`.k`), 콜아웃 박스, 트리 시각화의 종합판
+- `src/content/blog/javascript-ecosystem-primer.mdx` — `.term`/`.key`/`.mod`/`.callout*`/`.compare-table` 의 풀 셋
 
 ---
 
