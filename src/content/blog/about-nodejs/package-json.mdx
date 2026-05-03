@@ -117,7 +117,7 @@ npm init -y     # 기본값으로 바로 생성 (실무에서 가장 흔함)
     <tr><td>version</td><td>semver 형식 (다음 글). 배포할 때마다 올려야 함</td></tr>
     <tr><td>description</td><td>짧은 설명. npm 페이지와 검색 결과에 노출됨</td></tr>
     <tr><td>main</td><td>라이브러리로 쓰일 때의 진입점. 누가 require('my-project') 하면 이 파일이 로드됨. 파이썬 __init__.py 와 비슷한 역할이지만 <strong>고정 이름이 아니라 여기서 경로를 직접 지정</strong> (./dist/index.js 같이)</td></tr>
-    <tr><td>scripts</td><td>이름 붙인 명령어 묶음. npm run &lt;name&gt; 으로 실행 (9 번 글에서 상세)</td></tr>
+    <tr><td>scripts</td><td>이름 붙인 명령어 묶음. npm run &lt;name&gt; 으로 실행 (<a href={`${import.meta.env.BASE_URL}blog/npm-scripts/`}>(9/14) npm scripts — 긴 명령에 짧은 별명을 붙이는 곳</a> 에서 상세)</td></tr>
     <tr><td>dependencies</td><td>런타임에 필요한 패키지</td></tr>
     <tr><td>devDependencies</td><td>개발 시에만 필요한 패키지 (테스트, 빌드, 린터 등)</td></tr>
     <tr><td>bin</td><td>CLI 실행 파일 등록 (<a href={`${import.meta.env.BASE_URL}blog/bin-folder/`}>(10/14) node_modules/.bin/ — 심볼릭 링크와 shebang 한 줄의 협력</a> 에서 상세)</td></tr>
