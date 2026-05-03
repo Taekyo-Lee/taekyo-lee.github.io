@@ -231,7 +231,7 @@ Claude Code 가 실제로 LLM API 를 호출할 때 만들어지는 span. 본 re
 | attributes.gen_ai.request.model | <span class="tag tag-fork">Custom</span> <span class="tag tag-genai">OTel-GenAI</span> | attributes.model 과 같은 값을 OTel 표준 key 로. |
 | attributes.gen_ai.operation.name | <span class="tag tag-fork">Custom</span> <span class="tag tag-genai">OTel-GenAI</span> | "llm_call". |
 | attributes.gen_ai.agent.name, attributes.gen_ai.agent.description | <span class="tag tag-fork">Custom</span> <span class="tag tag-genai">OTel-GenAI</span> | interaction span 과 같은 값. |
-| attributes.langfuse.observation.input | <span class="tag tag-fork">Custom</span> <span class="tag tag-langfuse">Langfuse</span> | **전체 conversation history** 를 LangChain chat 포맷 [{role,content},…] 로. **observation Input 패널** 의 표시 값. messagesToLangChainChatFormat() (<span class="term">sessionTracing.ts</span>) 이 framework boilerplate 를 메시지마다 stripping 해서 만듦. |
+| attributes.langfuse.observation.input | <span class="tag tag-fork">Custom</span> <span class="tag tag-langfuse">Langfuse</span> | **전체 conversation history** 를 LangChain chat 포맷 [&#123;role,content&#125;,…] 로. **observation Input 패널** 의 표시 값. messagesToLangChainChatFormat() (<span class="term">sessionTracing.ts</span>) 이 framework boilerplate 를 메시지마다 stripping 해서 만듦. |
 
 #### 3.2 System prompt (beta tracing 활성 시)
 
@@ -250,7 +250,7 @@ Claude Code 가 실제로 LLM API 를 호출할 때 만들어지는 span. 본 re
 
 | Key | Provenance | Description |
 | --- | --- | --- |
-| attributes.tools (array) | <span class="tag tag-upstream">Upstream</span> | model 에 제공된 모든 tool 의 compact list [{name, hash}, …]. hash 가 호출 간 tool 정의 dedup 에 쓰임. |
+| attributes.tools (array) | <span class="tag tag-upstream">Upstream</span> | model 에 제공된 모든 tool 의 compact list [&#123;name, hash&#125;, …]. hash 가 호출 간 tool 정의 dedup 에 쓰임. |
 | attributes.tools[].name | <span class="tag tag-upstream">Upstream</span> | tool 이름 (Bash, Read, Edit 등). |
 | attributes.tools[].hash | <span class="tag tag-upstream">Upstream</span> | 전체 tool 정의를 <span class="term">JSON</span>-stringify 한 결과의 SHA-256 12 chars. |
 | attributes.tools_count | <span class="tag tag-upstream">Upstream</span> | tool 개수. |
