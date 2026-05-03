@@ -19,7 +19,7 @@ if (!prev && !next) {
 		<nav class="series-nav" aria-label="시리즈 내비게이션">
 			<div class="series-nav__row">
 				{prev ? (
-					<a class="series-nav__card series-nav__card--prev" href={`${base}blog/${prev.id}/`}>
+					<a class="series-nav__card series-nav__card--prev" href={`${base}blog/${prev.id.split('/').pop()}/`}>
 						<span class="series-nav__label">← 이전 글</span>
 						<span class="series-nav__title">{prev.data.title}</span>
 					</a>
@@ -27,7 +27,7 @@ if (!prev && !next) {
 					<span class="series-nav__placeholder" />
 				)}
 				{next ? (
-					<a class="series-nav__card series-nav__card--next" href={`${base}blog/${next.id}/`}>
+					<a class="series-nav__card series-nav__card--next" href={`${base}blog/${next.id.split('/').pop()}/`}>
 						<span class="series-nav__label">다음 글 →</span>
 						<span class="series-nav__title">{next.data.title}</span>
 					</a>

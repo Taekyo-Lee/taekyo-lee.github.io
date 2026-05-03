@@ -1,0 +1,310 @@
+---
+title: '(8/14) 업데이트 — npm outdated · npm update · @latest 의 차이'
+description: 'npm update 는 semver 범위 안에서만 갱신, @latest 는 package.json 자체를 덮어씀. 그리고 npm outdated 가 정확히 어디에 HTTP 요청을 보내는지까지.'
+pubDate: 'May 3 2026'
+category: about-nodejs
+series: 'npm-primer'
+seriesOrder: 8
+heroImage: '../../../assets/hero-about-nodejs.png'
+---
+
+<style>{`
+  .term { color: var(--accent); font-weight: 700; }
+  .key { color: var(--claude-dark); font-weight: 700; }
+  .mod {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.92em;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(96, 115, 159, 0.10);
+    color: rgb(var(--gray-dark));
+  }
+  .callout { background: rgba(96, 115, 159, 0.07); border-radius: 8px; padding: 1em 1.25em; margin: 1.5em 0; }
+  .callout-accent { border-left: 4px solid var(--accent); background: rgba(35, 55, 255, 0.04); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .callout-warm { border-left: 4px solid var(--claude); background: rgba(204, 120, 92, 0.06); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .note-box { border: 1px dashed rgba(96, 115, 159, 0.35); border-radius: 8px; padding: 0.7em 1em; margin: 1.25em 0; font-size: 0.95em; color: rgb(var(--gray-dark)); }
+  .compare-table { width: 100%; border-collapse: collapse; margin: 1.5em 0; font-size: 0.95em; line-height: 1.55; }
+  .compare-table th, .compare-table td { padding: 0.6em 0.85em; border-bottom: 1px solid rgb(var(--gray-light)); text-align: left; vertical-align: top; }
+  .compare-table th { background: rgba(var(--gray-light), 0.5); font-weight: 700; color: rgb(var(--black)); }
+  .compare-table tr.highlight { background: rgba(204, 120, 92, 0.08); }
+  .compare-table tr.highlight td { border-bottom-color: rgba(204, 120, 92, 0.3); }
+  .compare-table tr.row-accent { background: rgba(35, 55, 255, 0.05); }
+`}</style>
+
+<span class="term">npm install</span> &lt;pkg&gt;@latest 한 줄로 친구 두 명의 스프린트가 통째로 날아간 적이 있어요. 그 친구가 의도한 건 그저 "최신 버전이 뭔지 한번 시험" 이었는데, 이게 <span class="term">package.json</span> 의 의존성 줄을 덮어쓴다는 걸 몰랐던 거죠. 이 글은 <span class="term">npm</span> 의 업데이트 명령 세 종. <span class="term">npm outdated</span>, <span class="term">npm update</span>, <span class="term">npm install @latest.</span> 의 차이를 정확히 정리합니다.
+
+## 한 줄 답
+
+<div class="callout-accent">
+<span class="term">npm update</span> 는 <span class="term">package.json</span> 에 적힌 <span class="key">semver 범위 안에서만</span> 최신으로 갱신. 범위를 <span class="key">넘어서</span> (예: MAJOR 업그레이드) 바꾸려면 <span class="term">npm install</span> &lt;pkg&gt;@latest 를 씁니다. 현재 상태는 <span class="term">npm outdated</span> 로 확인. 파이썬의 <span class="term">uv</span> lock --upgrade-package X · <span class="term">pip</span> install --upgrade X 와 같은 자리예요.
+</div>
+
+## 먼저: 무엇이 "업데이트 가능" 인지 확인
+
+```bash
+npm outdated
+```
+
+각 패키지의 <span class="key">현재 상태 vs 최신 상태</span> 를 한눈에 보여줘요.
+
+```
+Package      Current   Wanted   Latest   Location
+react        18.3.0    18.3.1   19.0.0   node_modules/react
+commander    12.0.0    12.1.0   13.0.0   node_modules/commander
+```
+
+<table class="compare-table">
+  <thead>
+    <tr><th>컬럼</th><th>의미</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Current</strong></td><td>지금 node_modules/ 에 실제 설치된 버전</td></tr>
+    <tr><td><strong>Wanted</strong></td><td><span class="term">package.json</span> 의 <span class="key">semver 범위 안에서</span> 받을 수 있는 최신 (= <span class="term">npm update</span> 가 깔 버전)</td></tr>
+    <tr><td><strong>Latest</strong></td><td>registry 에 올라온 <span class="key">전체</span> 최신 (범위 무시)</td></tr>
+  </tbody>
+</table>
+
+<div class="callout">
+
+- Current &lt; Wanted 면 → <span class="term">npm update</span> 로 바로 올릴 수 있음 (호환 업데이트)
+- Wanted &lt; Latest 면 → MAJOR 업그레이드가 있다는 뜻: 조심스럽게 올려야 함
+
+</div>
+
+### <span class="term">npm outdated</span> 는 어떻게 이 정보를 얻나요?
+
+간단히. <span class="key">npm registry 에 HTTP 요청</span> 을 보냅니다. 단 <span class="term">npmjs.com</span> (사람이 보는 웹사이트) 이 아니라 그 API 엔드포인트인 <span class="key">registry.npmjs.org</span> 에.
+
+<div class="callout-warm">
+잠깐. 이건 <span class="term">npm outdated</span> 만의 얘기가 아니에요. <span class="term">npm</span> 의 <span class="key">모든 네트워크 작업</span> 이 <span class="term">registry.npmjs.org</span> 로 갑니다: <span class="term">npm install</span> (메타데이터 + tarball 다운로드), <span class="term">npm publish</span> (업로드), <span class="term">npm view</span>, <span class="term">npx</span>, <span class="term">yarn</span> · <span class="term">pnpm</span> 까지 전부.
+
+<span class="term">npmjs.com</span> (웹사이트) 과 <span class="term">registry.npmjs.org</span> (API) 는 <span class="key">다른 도메인</span> 이고 역할도 달라요:
+
+- npmjs.com. 사람용 웹사이트. HTML 페이지, 검색 UI, README 렌더링
+- registry.npmjs.org. 도구용 API. <span class="term">JSON</span> 메타데이터 + tarball (.tgz) 저장소
+
+npmjs.com/package/react 페이지도 <span class="key">내부적으로 registry.npmjs.org 를 호출해서</span> 정보를 받아와요. 웹사이트는 registry 의 "뷰어" 인 셈.
+
+실전에서 이 구분이 걸리는 지점. 폐쇄망에서 회사가 <span class="term">npmjs.com</span> 은 열어 두고 <span class="term">registry.npmjs.org</span> 는 막으면 <span class="key">브라우저로 패키지 정보는 보이는데 npm install 은 실패</span> 하는 혼란이 생깁니다. lock 파일의 "resolved" 필드 (https://<span class="term">registry.npmjs.org/react/-/react-18.3.1.tgz</span> 같은 것) 가 가리키는 URL 이 이 registry 경로예요.
+</div>
+
+그 전제 위에서 <span class="term">npm outdated</span> 의 동작 순서:
+
+```
+1. 현재 설치된 버전을 읽음
+   → package-lock.json · node_modules/ 에서 "Current" 값 확보
+
+2. package.json 의 각 의존성에 대해 registry 조회
+   → GET https://registry.npmjs.org/<패키지명>
+   → 응답: 패키지의 전체 메타데이터 (모든 버전 목록, tags 등) JSON
+
+3. 받은 정보에서 두 값을 뽑음
+   → "Latest" = 메타데이터의 dist-tags.latest 필드
+   → "Wanted" = 전체 버전 목록 중 내 semver 범위에 맞는 최신
+
+4. Current · Wanted · Latest 비교해서 출력
+```
+
+현재 쓰는 registry 주소는 <span class="term">npm config get registry</span> 로 확인 가능.
+
+```bash
+$ npm config get registry
+https://registry.npmjs.org/
+```
+
+몇 가지 중요 포인트:
+
+#### ① "Latest" 는 숫자상 최고 버전이 아니에요
+
+흔한 오해인데. <span class="term">npm outdated</span> 가 표시하는 "Latest" 는 <span class="key">패키지 메타데이터의 dist-tags.latest 필드</span> 예요. 패키지 작성자가 "이게 안정판" 이라고 명시적으로 지정한 값. 그래서 작성자가 2.0.0-beta.1 을 publish 하고 beta 태그를 달면, 숫자가 더 높아도 <span class="key">"Latest" 에 안 잡힙니다</span>.
+
+```bash
+npm view react dist-tags
+# { latest: '18.3.1', next: '19.0.0-rc.1', experimental: '...' }
+```
+
+#### ② 네트워크 필수
+
+<span class="term">npm install</span> 은 캐시 + lock 이 있으면 오프라인에서도 돌지만, <span class="key">npm outdated 는 항상 registry 에 조회</span> 해요. 오프라인 · 방화벽 환경에선 실패합니다.
+
+#### ③ 다른 registry 로도 바꿀 수 있음
+
+<span class="term">.npmrc</span> 파일이나 <span class="term">npm config set registry</span> &lt;URL&gt; 로 registry 주소를 바꿀 수 있어요. 기업 환경에서 흔한 구성:
+
+<div class="callout">
+
+- Verdaccio · Artifactory · Nexus: 회사 내부 프록시 registry
+- GitHub Packages: 조직 내 비공개 패키지용
+- Scoped registry: @my-company/* 스코프만 내부 registry 로
+
+</div>
+
+이 경우 <span class="term">npm outdated</span> 의 조회 대상도 그쪽으로 바뀝니다. 원리는 같고 주소만 다른 것.
+
+#### ④ 캐싱
+
+<span class="term">npm</span> 은 HTTP 캐시를 어느 정도 활용 (&#126;/.npm/_cacache/). 짧은 시간 내 반복 호출은 캐시가 먹을 수 있지만, 메타데이터는 TTL 이 짧아 일반적으론 매번 네트워크가 일어난다고 봐야 해요.
+
+<div class="note-box">
+<span class="key">파이썬 비교</span>. <span class="term">uv</span> <span class="term">pip</span> list --outdated · <span class="term">pip</span> list --outdated 도 <span class="term">PyPI</span> (pypi.org/simple/) 에 각 패키지 메타데이터를 조회해서 비교합니다. 원리 동일.
+</div>
+
+## <span class="term">npm update</span>: 범위 안에서 갱신
+
+```bash
+npm update                     # package.json 의 모든 의존성을 semver 범위 안에서 최신으로
+npm update <pkg>               # 특정 패키지만
+```
+
+동작 원리. <span class="term">package.json</span> 의 범위 지정자를 <span class="key">존중</span> 합니다.
+
+```
+package.json:  "react": "^18.3.0"
+
+npm registry 에 나온 버전들:
+  18.3.1   ← ^18.3.0 범위 안 → 업데이트 대상
+  18.4.0   ← ^18.3.0 범위 안 → 업데이트 대상
+  19.0.0   ← ^18.3.0 범위 밖 → 건너뜀
+```
+
+즉 <span class="key">MAJOR 을 넘어가진 않아요</span>. ^ 의 철학 그대로. 호환 버전만 따라감. 호환성 깨지는 변경은 <span class="key">개발자가 의식적으로</span> 올리라는 설계예요.
+
+업데이트 후:
+
+<div class="callout">
+
+- <span class="term">package.json</span> 은 그대로일 수도 있고 (범위 안에서 최신이 이미 맞으면) 최신 Wanted 로 갱신되기도 함. <span class="term">npm</span> 버전 · 플래그에 따라 미묘하게 다릅니다
+- <span class="term">package-lock.json</span> 은 <span class="key">반드시 변경됨</span> → Git 에 커밋
+
+</div>
+
+## MAJOR 을 넘어 갱신: @latest
+
+<span class="term">npm update</span> 로는 넘길 수 없는 MAJOR 업그레이드. 이때는:
+
+```bash
+npm install <pkg>@latest       # registry 최신 버전으로 강제 설치
+npm install <pkg>@19.0.0       # 특정 버전 명시
+```
+
+### 이 명령은 <span class="term">package.json</span> **자체를 수정합니다**
+
+<span class="term">npm update</span> 가 범위를 지켜 "유연하게 따라가는" 명령이라면, <span class="term">npm install</span> &lt;pkg&gt;@... 은 <span class="key">package.json 의 의존성 줄을 덮어쓰는</span> 명령이에요. 예를 들어 react 가 ^18.3.1 로 적혀 있었다면:
+
+```diff
+  "dependencies": {
+-   "react": "^18.3.1"
++   "react": "^19.0.0"
+  }
+```
+
+즉 <span class="term">npm install react@latest</span> 한 번으로 <span class="key">내 package.json 의 의존성 선언이 바뀐 상태</span> 가 돼요. <span class="term">npm install</span> 이 조용히 lock 을 갱신하는 것 (이전 글) 과는 <span class="key">차원이 다른 변화</span>. <span class="term">package.json</span> 은 코드의 일부나 다름없는 파일이라 팀 전체의 의존성 약속이 바뀌는 거니까요.
+
+<div class="callout-warm">
+
+<span class="key">실무 파급</span>. "한번 시험 삼아 <span class="term">npm install react@latest</span> 돌려 봤다" 의 결과로 <span class="term">package.json</span> 이 바뀌어 있으면, 무심코 커밋 · PR 에 섞여 들어가 <span class="key">팀원 전체가 MAJOR 업데이트에 말려들 수 있어요</span>. 특히 @latest 는 "지금 이 순간의 최신" 이라 미래에 MAJOR 이 더 올라가면 어디까지 점프할지도 불확실합니다.
+
+대응:
+
+1. @latest · @&lt;버전&gt; 뒤에는 <span class="key">반드시 git diff package.json 확인</span>
+2. 의도하지 않은 변경이면 <span class="key">즉시 되돌리기</span>. 이전 버전으로 다시 <span class="term">npm install</span> &lt;pkg&gt;@&lt;원래버전&gt; 하거나, git checkout <span class="term">package.json</span> <span class="term">package-lock.json</span>
+3. 의도적이면. 변경 이유 · CHANGELOG 링크를 커밋 메시지 · PR 설명에 남기세요
+
+</div>
+
+<div class="note-box">
+추가로. MAJOR 업데이트는 <span class="key">호환성 깨짐</span> 이라는 선언이에요 (semver 글 참고). 변경 로그 (CHANGELOG) 확인 필수. 공식 마이그레이션 가이드가 있는 경우도 많음.
+</div>
+
+## 특정 버전으로 다운그레이드 · 고정
+
+```bash
+npm install <pkg>@18.2.0       # 정확히 이 버전으로
+npm install <pkg>@~18.2.0      # 18.2.x 만 허용
+```
+
+새 버전에 회귀가 있어 이전으로 되돌려야 할 때.
+
+### 이것도 <span class="term">package.json</span> 을 덮어씁니다
+
+방향이 위로든 아래로든, <span class="term">npm install</span> &lt;pkg&gt;@&lt;어떤버전&gt; 형태는 <span class="key">항상 package.json 의 의존성 줄을 바꿔요</span>.
+
+```diff
+  "dependencies": {
+-   "react": "^18.3.1"
++   "react": "18.2.0"
+  }
+```
+
+위의 @latest 경우와 같은 대응이 필요해요. <span class="key">git diff 로 확인하고 의도적 변경만 커밋</span>.
+
+## 업데이트 후에 반드시 할 일
+
+<div class="callout-accent">
+
+1. <span class="key">npm outdated 로 결과 확인</span>. 의도대로 올라갔는지
+2. <span class="key">테스트 돌리기</span>. MAJOR 가 아니어도 MINOR/PATCH 회귀가 없는지
+3. <span class="key">package-lock.json 변경분 커밋</span>. lock 갱신은 <span class="term">npm update</span> · <span class="term">npm install @latest</span> 모두의 공통 결과. 빠뜨리면 팀원 환경이 어긋남
+
+</div>
+
+## 전역 설치의 업데이트: AI CLI 실전
+
+AI CLI (Claude Code 등) 처럼 <span class="key">전역 설치</span> 한 것들은 로컬 프로젝트 업데이트와는 경로가 달라요.
+
+```bash
+npm install -g <pkg>@latest             # 가장 확실한 방법 (덮어쓰기)
+npm update -g <pkg>                     # 대안 (동작이 npm 버전별 미묘)
+npm list -g --depth=0                   # 현재 전역 설치된 것 확인
+```
+
+<span class="key">@latest 로 덮어 쓰는 패턴</span> 이 권장되는 이유: 전역 설치는 semver 범위 개념이 없어요 (단일 버전). <span class="term">npm update -g</span> 의 동작이 <span class="term">npm</span> 버전에 따라 안정적이지 않아서, "최신으로 덮어쓰기" 가 가장 확실합니다.
+
+### Claude Code 의 자동 업데이트
+
+Claude Code 같은 일부 AI CLI 는 <span class="key">자체 자동 업데이트</span> 기능이 내장돼 있어요. 실행할 때마다 새 버전이 있는지 체크하고 알아서 갱신합니다. 이런 경우 <span class="term">npm install -g</span> ...@latest 를 수동으로 칠 일이 거의 없어요. 다만:
+
+<div class="callout">
+
+- 기업 환경 · 폐쇄망에서 자동 업데이트가 막히는 경우
+- 특정 버전에 묶어 두고 싶은 경우
+- 자동 업데이트가 실패했을 때 수동 복구
+
+</div>
+
+이런 상황에선 <span class="term">npm install -g</span> 경로가 여전히 유효합니다.
+
+## 파이썬과의 대응
+
+<table class="compare-table">
+  <thead>
+    <tr><th><span class="term">npm</span></th><th><span class="term">Python</span></th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="term">npm outdated</span></td><td><span class="term">uv</span> <span class="term">pip</span> list --outdated · <span class="term">pip</span> list --outdated</td></tr>
+    <tr><td><span class="term">npm update</span> (범위 안)</td><td><span class="term">uv</span> lock --upgrade · <span class="term">pip</span> install --upgrade --upgrade-strategy only-if-needed</td></tr>
+    <tr><td><span class="term">npm update</span> &lt;pkg&gt;</td><td><span class="term">uv</span> lock --upgrade-package &lt;pkg&gt;</td></tr>
+    <tr><td><span class="term">npm install</span> &lt;pkg&gt;@latest (범위 덮어씀)</td><td><span class="term">uv</span> add &lt;pkg&gt;@latest · <span class="term">pip</span> install --upgrade &lt;pkg&gt;</td></tr>
+    <tr><td><span class="term">npm install -g</span> &lt;pkg&gt;@latest</td><td><span class="term">uv</span> tool upgrade &lt;pkg&gt; · <span class="term">pipx</span> upgrade &lt;pkg&gt;</td></tr>
+  </tbody>
+</table>
+
+개념은 거의 1:1. 파이썬의 <span class="term">uv</span> 는 <span class="term">npm</span> 의 철학을 거의 그대로 가져온 도구라 용어까지 비슷해요.
+
+## 주의점 몇 가지
+
+<div class="callout-warm">
+
+- <span class="key">업데이트는 공짜가 아닙니다</span>: MINOR 업데이트도 회귀가 있을 수 있고, transitive 의존성이 따라 움직이면서 예상 못 한 변화가 생길 수 있어요. <span class="term">CI</span> 테스트가 있는 프로젝트에선 <span class="key">PR 단위로 업데이트</span> 를 내는 게 안전 (한 번에 20 개 패키지를 올리면 문제 추적이 지옥)
+- <span class="key">npm update 는 package-lock.json 을 바꿉니다</span>. 이전 글에서 본 "조용히 lock 을 수정함" 규칙이 update 에도 적용돼요. git status 로 꼭 확인
+- <span class="key">MAJOR 업그레이드는 별도 작업</span>: @latest 로 올리기 전에 CHANGELOG · 마이그레이션 가이드 · 팀 합의를 거치는 게 정석. "버튼 하나로 MAJOR 업" 은 사고로 가는 지름길
+
+</div>
+
+## 한 줄 요약
+
+<div class="callout-accent">
+<span class="term">npm outdated</span> 로 현재 상태 확인, <span class="term">npm update</span> 로 semver 범위 안에서 갱신, <span class="term">npm install</span> &lt;pkg&gt;@latest 로 범위를 넘는 MAJOR 업그레이드. 전역 설치는 <span class="term">npm install -g</span> &lt;pkg&gt;@latest 로 덮어쓰기. 업데이트 후엔 반드시 <span class="key">lock 파일을 커밋</span> 하세요.
+</div>
+
+다음 글에서는 <span class="term">package.json</span> 의 scripts 필드. Make 의 정신적 후계자이자 <span class="term">npm</span> 프로젝트의 명령어 카탈로그. 가 어떻게 작동하는지를 풀어 봅니다.

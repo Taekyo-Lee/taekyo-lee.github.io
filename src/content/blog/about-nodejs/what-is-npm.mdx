@@ -1,0 +1,167 @@
+---
+title: '(1/14) npm — Node 와 함께 딸려오는 패키지 매니저'
+description: 'AI CLI 들이 모두 npm 으로 배포되는 시대. 파이썬 엔지니어 관점에서 npm 이 정확히 pip 의 어느 자리에 있는지, 한 가지 결정적 차이는 무엇인지부터 정리합니다.'
+pubDate: 'May 3 2026'
+category: about-nodejs
+series: 'npm-primer'
+seriesOrder: 1
+heroImage: '../../../assets/hero-about-nodejs.png'
+---
+
+<style>{`
+  .term { color: var(--accent); font-weight: 700; }
+  .key { color: var(--claude-dark); font-weight: 700; }
+  .mod {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.92em;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(96, 115, 159, 0.10);
+    color: rgb(var(--gray-dark));
+  }
+  .callout { background: rgba(96, 115, 159, 0.07); border-radius: 8px; padding: 1em 1.25em; margin: 1.5em 0; }
+  .callout-accent { border-left: 4px solid var(--accent); background: rgba(35, 55, 255, 0.04); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .callout-warm { border-left: 4px solid var(--claude); background: rgba(204, 120, 92, 0.06); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .note-box { border: 1px dashed rgba(96, 115, 159, 0.35); border-radius: 8px; padding: 0.7em 1em; margin: 1.25em 0; font-size: 0.95em; color: rgb(var(--gray-dark)); }
+  .compare-table { width: 100%; border-collapse: collapse; margin: 1.5em 0; font-size: 0.95em; line-height: 1.55; }
+  .compare-table th, .compare-table td { padding: 0.6em 0.85em; border-bottom: 1px solid rgb(var(--gray-light)); text-align: left; vertical-align: top; }
+  .compare-table th { background: rgba(var(--gray-light), 0.5); font-weight: 700; color: rgb(var(--black)); }
+  .compare-table tr.highlight { background: rgba(204, 120, 92, 0.08); }
+  .compare-table tr.highlight td { border-bottom-color: rgba(204, 120, 92, 0.3); }
+  .compare-table tr.row-accent { background: rgba(35, 55, 255, 0.05); }
+`}</style>
+
+Claude Code, Codex, Cursor CLI, MCP 서버. 요즘 제가 매일 쓰는 AI 도구들의 공통점이 있어요. <span class="key">전부 npm 으로 배포됩니다.</span> 파이썬을 10년쯤 써온 입장에서 npm 을 마주칠 때마다 머릿속이 살짝 비는 느낌이었는데, 한번 정면으로 정리하기로 했습니다. 이 시리즈는 그 결과물이에요.
+
+이 글에서는 가장 기본적인 질문. npm 이 정확히 무엇이고, 파이썬의 무엇과 같은 자리에 있고, 어떤 결정적 차이가 있는지부터 시작합니다.
+
+## 한 줄 답
+
+<div class="callout-accent">
+npm = <span class="key">Node Package Manager</span>. Node.js 를 설치하면 함께 딸려오는 공식 패키지 매니저입니다. 파이썬의 pip 에 정확히 대응해요.
+</div>
+
+즉 "Node.js 를 깔았다" = "node 명령어 + npm 명령어, 두 개가 동시에 생겼다" 는 뜻입니다.
+
+## 그럼 Node.js 는 어떻게 설치하나요
+
+저는 nvm (Node Version Manager) 로 설치하는 걸 권합니다. 파이썬의 pyenv 와 정확히 같은 자리의 version manager 예요. 여러 Node 버전을 설치·전환할 수 있고, sudo 없이 전역 패키지 설치도 가능해집니다. AI CLI 들이 빠르게 움직이는 Node 최신 버전을 요구하는 경우가 많아서 <span class="key">버전 전환 능력은 실전에서 거의 필수</span> 예요.
+
+두 단계입니다. ① nvm 자체를 먼저 깔고, ② 그 nvm 으로 Node 를 깐다.
+
+```bash
+# ① nvm 설치 (macOS / Linux / WSL)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+
+# ② 터미널을 새로 열기
+#    (설치 스크립트가 ~/.bashrc 또는 ~/.zshrc 에 nvm 활성화 코드를 자동 추가함)
+
+# ③ 새 터미널에서 nvm 으로 Node 설치
+nvm install --lts        # 최신 LTS 버전 설치
+nvm use --lts            # 현재 셸에서 활성화
+```
+
+설치 확인:
+
+```bash
+$ node --version   # 예: v22.12.0
+$ npm --version    # 예: 10.9.0
+```
+
+두 명령이 모두 답하면 준비 완료. nvm 은 시리즈 마지막 글 <a href={`${import.meta.env.BASE_URL}blog/node-version-nvm/`}>(11/14) nvm — Node 버전 관리, 그리고 sudo 지옥에서 빠져나오기</a> 에서 더 깊이 다룹니다.
+
+## 파이썬 → npm 한 줄 매핑
+
+파이썬 엔지니어가 매일 하는 일을 npm 세계로 그대로 옮기면 이렇게 됩니다.
+
+<table class="compare-table">
+  <thead>
+    <tr><th>파이썬에서 하던 일</th><th>npm 에서는</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>pip install numpy — 라이브러리 하나 설치</td><td>npm install react</td></tr>
+    <tr><td>pip install -r requirements.txt — 프로젝트 의존성 전부</td><td>npm install</td></tr>
+    <tr><td>PyPI (pypi.org) 에서 패키지 찾기</td><td>npm registry (npmjs.com) 에서 패키지 찾기</td></tr>
+    <tr><td>pyproject.toml 에 의존성 선언</td><td>package.json 에 의존성 선언</td></tr>
+    <tr><td>venv 의 site-packages/ 에 깔림</td><td>node_modules/ 에 깔림</td></tr>
+    <tr><td>uv.lock · poetry.lock 으로 버전 고정</td><td>package-lock.json 으로 버전 고정</td></tr>
+  </tbody>
+</table>
+
+<span class="key">개념은 거의 1:1 매핑</span> 됩니다. 용어와 파일 이름만 다를 뿐이에요.
+
+<div class="note-box">
+폐쇄망 환경이라면 위 표의 registry 가 다를 수 있어요. 회사가 외부 PyPI · npmjs.com 접근을 막고 사내 mirror (Artifactory · Nexus · Verdaccio 같은 것) 를 거치도록 강제하는 경우가 흔합니다. 그 설정 방법은 이전 글의 .npmrc 해부 편을 참고하세요.
+</div>
+
+## 한 가지 결정적 차이: 기본값이 "프로젝트 로컬"
+
+파이썬과 npm 사이에 정말 다른 한 지점이 있습니다.
+
+파이썬에서는 venv 를 <span class="key">명시적으로</span> 만들어야 프로젝트별 격리가 작동해요 (python -m venv .venv 같은 걸 직접 실행). 안 만들면 시스템 전역 파이썬에 패키지가 설치됩니다.
+
+반면 npm 은 <span class="key">아무것도 안 해도 자동으로 프로젝트별 격리가 작동</span> 합니다. 현재 디렉토리에서 npm install react 하면 그 디렉토리의 node_modules/ 안에만 설치됩니다. 다른 디렉토리에는 영향 없음.
+
+```bash
+cd ~/project-a
+npm install react       # ~/project-a/node_modules/ 에만 들어감
+
+cd ~/project-b
+npm install react@17    # ~/project-b/node_modules/ 에만 들어감, 버전도 다를 수 있음
+```
+
+<div class="callout-warm">
+파이썬으로 치면 <span class="key">모든 폴더에 venv 가 자동으로 붙어 있는 것</span> 과 같습니다. 시스템 전역을 오염시키지 않는 구조가 기본 동작이에요. 시스템 전역에 설치하고 싶을 때만 -g 플래그를 명시적으로 붙입니다 (<a href={`${import.meta.env.BASE_URL}blog/global-vs-local/`}>(5/14) global vs local — -g 플래그가 정확히 바꾸는 것</a> 글에서 상세).
+</div>
+
+## npm registry: 패키지는 어디서 오는가
+
+npm 의 중앙 패키지 저장소는 npmjs.com 입니다. 파이썬의 PyPI (pypi.org) 와 같은 자리예요. 현재 200만 개 이상의 패키지가 올라와 있고, 대부분 무료·오픈소스입니다.
+
+### 패키지 페이지에서 뭘 읽어야 하나
+
+예를 들어 npmjs.com/package/react 에 들어가면 볼 수 있는 정보:
+
+<div class="callout">
+
+- Version: 최신 버전 (예: 18.3.1)
+- Weekly Downloads: 주간 다운로드 수. 생태계 내 영향력의 지표. React 는 2천만+/주
+- Dependents: "이 패키지에 의존하는 다른 패키지 수". 신뢰성·생태계 크기의 지표
+- Last publish: 마지막 업데이트. 오래 방치된 패키지는 주의 신호
+- Repository: 소스 코드 링크 (대부분 GitHub)
+- License: MIT, Apache-2.0 등
+
+</div>
+
+<div class="note-box">
+💡 <span class="key">실무 팁</span>. AI 도구 생태계는 빠르게 움직입니다. "last publish 가 6개월 이상 전이면 일단 의심" 하는 편이 안전해요.
+</div>
+
+### Scoped package: @org/name 형태
+
+npm 에는 조직 (organization) namespace 가 있습니다. 이름 앞에 @ 가 붙어 있으면 scoped package 예요.
+
+```
+@anthropic-ai/claude-code       ← Anthropic 이 배포
+@openai/agents                  ← OpenAI 가 배포
+@modelcontextprotocol/sdk       ← MCP 공식 조직
+react                           ← scoped 아님 (unscoped, 전역 이름)
+```
+
+<div class="callout-accent">
+파이썬의 PyPI 에는 이런 namespace 개념이 없어요. 그래서 유명한 이름을 선점당하면 끝입니다. npm 의 scoped package 는 <span class="key">같은 이름도 조직별로 구분</span> 해서 배포할 수 있게 해줘요. AI 도구·MCP 서버는 거의 전부 scoped package 형태입니다.
+</div>
+
+## 왜 AI 엔지니어가 npm 을 마주치게 되는가
+
+답은 단순합니다. <span class="key">Node.js 가 AI 개발자 도구 생태계를 지배하고 있기 때문</span> 이에요. Claude Code, Codex, Cursor CLI, 대부분의 MCP 서버. 이것들을 설치·실행·업데이트하려면 npm 을 거쳐야 합니다.
+
+그래서 설령 본인이 npm 으로 뭘 만들 일이 없더라도, AI 도구를 <span class="key">쓰기 위해서</span> 최소한의 npm 독해 능력은 필요해요. 이 시리즈가 딱 그만큼을 목표로 합니다.
+
+## 한 줄 요약
+
+<div class="callout-warm">
+npm 은 pip 의 JavaScript 버전. Node.js 와 함께 설치되고, npmjs.com 에서 패키지를 받아 <span class="key">현재 디렉토리의 node_modules/</span> 에 자동 격리해서 놓아줍니다. AI 개발자 도구 생태계의 기본 유통 채널이에요.
+</div>
+
+다음 글에서는 npm 의 가장 중요한 파일. package.json 이 정확히 어떤 정보를 담고, 파이썬의 pyproject.toml 과 어떻게 대응되는지 한 줄씩 펼쳐 봅니다.

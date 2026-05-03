@@ -1,0 +1,275 @@
+---
+title: '(14/14) [부록] 케이스 스터디 — claude-code-fork 의 setup.sh 한 줄씩'
+description: '실제 AI CLI fork 프로젝트의 setup.sh 를 분해. npm install + npm install -g + npm run + npm link 가 한 흐름에 모이는 모습. 시리즈의 회수.'
+pubDate: 'May 3 2026'
+category: about-nodejs
+series: 'npm-primer'
+seriesOrder: 14
+heroImage: '../../../assets/hero-about-nodejs.png'
+---
+
+<style>{`
+  .term { color: var(--accent); font-weight: 700; }
+  .key { color: var(--claude-dark); font-weight: 700; }
+  .mod {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.92em;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(96, 115, 159, 0.10);
+    color: rgb(var(--gray-dark));
+  }
+  .callout { background: rgba(96, 115, 159, 0.07); border-radius: 8px; padding: 1em 1.25em; margin: 1.5em 0; }
+  .callout-accent { border-left: 4px solid var(--accent); background: rgba(35, 55, 255, 0.04); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .callout-warm { border-left: 4px solid var(--claude); background: rgba(204, 120, 92, 0.06); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .note-box { border: 1px dashed rgba(96, 115, 159, 0.35); border-radius: 8px; padding: 0.7em 1em; margin: 1.25em 0; font-size: 0.95em; color: rgb(var(--gray-dark)); }
+  .compare-table { width: 100%; border-collapse: collapse; margin: 1.5em 0; font-size: 0.95em; line-height: 1.55; }
+  .compare-table th, .compare-table td { padding: 0.6em 0.85em; border-bottom: 1px solid rgb(var(--gray-light)); text-align: left; vertical-align: top; }
+  .compare-table th { background: rgba(var(--gray-light), 0.5); font-weight: 700; color: rgb(var(--black)); }
+  .compare-table tr.highlight { background: rgba(204, 120, 92, 0.08); }
+  .compare-table tr.highlight td { border-bottom-color: rgba(204, 120, 92, 0.3); }
+  .compare-table tr.row-accent { background: rgba(35, 55, 255, 0.05); }
+`}</style>
+
+이 글이 시리즈의 마지막. 회수입니다. Claude Code fork 라는 실제 AI CLI 프로젝트의 <span class="term">scripts/fork/setup.sh</span> 를 한 줄씩 읽으면서 지금까지 배운 <span class="term">npm</span> 개념이 <span class="key">실전에서 어떻게 쓰이는지</span> 확인합니다. 한 스크립트 안에 본문 11편이 거의 다 등장해요.
+
+이 스크립트 하나가 하는 일.
+
+<div class="callout">
+
+1. 프로젝트 의존성 로컬 설치
+2. 빌드 도구 Bun 을 전역 설치
+3. Git 태그 동기화 (버전 정보용)
+4. 소스를 번들로 빌드
+5. 설정 파일 템플릿 복사
+6. claude-fork 커맨드를 전역에서 쓸 수 있게 연결
+7. 셸 프로필에 환경 변수 추가
+
+</div>
+
+<span class="term">npm</span> 개념으로 치면 <span class="key">로컬 설치 + 전역 설치 + npm run 스크립트 + npm link</span> 가 한 흐름에 모두 등장해요. 하나씩 살펴봅니다.
+
+## 단계 1: 의존성 로컬 설치
+
+```bash
+npm install --ignore-scripts --no-audit --no-fund
+```
+
+### 무슨 일이 벌어지나
+
+<span class="term">npm install</span> 은 <span class="key">실행 위치의</span> <span class="term">package.json</span> 을 찾아 읽어요. 그런데 이 스크립트 자체는 <span class="term">scripts/fork/setup.sh</span> 에 있어서 그 폴더에는 <span class="term">package.json</span> 이 <span class="key">없습니다</span>. 그래서 스크립트 맨 위에서 먼저 레포 루트로 이동해 두는 게 포인트예요.
+
+```bash
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+cd "$REPO_ROOT"
+```
+
+이 두 줄 덕분에 <span class="term">npm install</span> 이 실행될 때는 이미 레포 루트에 있고, 거기 있는 <span class="term">package.json</span> 을 읽어서 <span class="key">레포 루트의 node_modules/</span> 에 의존성을 설치합니다. 이 프로젝트의 <span class="term">package.json</span> 을 보면 dependencies 에 SDK · OpenTelemetry · Commander 등 수십 개가 적혀 있고, 이것들이 전부 node_modules/ 로 들어와요. devDependencies (typescript, tsx, @types/&#42; 등 타입 정의와 TS 도구) 도 함께 설치됩니다. 뒤에 오는 빌드 · 타입 체크 단계에서 필요하기 때문. 즉 --production 은 쓰지 않습니다.
+
+### 플래그 세 개
+
+<div class="callout">
+
+- <span class="key">--ignore-scripts</span>: 각 패키지가 가지고 있는 <span class="key">설치 후 실행 스크립트 (postinstall 등) 를 건너뜁니다</span>. 신뢰하지 않은 코드가 <span class="term">npm install</span> 중에 자동으로 실행되는 걸 막는 보안 관례예요. 빌드는 뒤에서 우리가 직접 제어하니 이들을 건너뛰는 게 안전
+- <span class="key">--no-audit</span>: <span class="term">npm</span> 이 설치 직후 "보안 취약점 검사" 리포트를 찍는 걸 끔. 스크립트에선 필요 없는 소음
+- <span class="key">--no-fund</span>: "이 패키지 후원해 주세요" 메시지를 끔. 역시 자동화 환경에선 소음
+
+</div>
+
+<div class="note-box">
+파이썬 대응. 대략 <span class="term">uv</span> sync --dev 에 해당. --ignore-scripts 의 직접 대응은 파이썬엔 없어요 (<span class="term">pip</span> 은 임의 스크립트를 덜 실행하는 구조라 상대적으로 덜 문제). 이건 <span class="key">npm 의 취약점. 임의 실행 가능한 설치 hook. 에 대한 방어</span> 성격.
+</div>
+
+### 잠깐: "최종판 CLI 인데 왜 devDependencies 에 빌드 도구가 있지?"
+
+dependencies vs devDependencies 의 원칙을 그대로 적용하면 이 프로젝트에서:
+
+<div class="callout">
+
+- <span class="key">dependencies</span> (commander, SDK 들, OpenTelemetry 등): <span class="key">번들링된 뒤에도 런타임에 쓰이거나</span> 번들러가 외부로 남긴 것들 (실제로 bundle/vendor/ 폴더가 그 흔적)
+- <span class="key">devDependencies</span> (typescript, tsx, @types/&#42; 등): <span class="key">빌드가 끝나면 역할이 끝나는</span> 것들. <span class="term">TypeScript</span> 컴파일러는 소스를 JS 로 변환하면 임무 종료, @types/&#42; 는 타입 체크용이라 런타임에 존재조차 필요 없음, tsx 는 dev 모드 전용
+
+</div>
+
+그리고 결정적인 이유 하나 더. 이 패키지는 <span class="key">npm 에 publish 되는 성격</span> 이에요 (@anthropic-ai/claude-code 는 공식 출시판). 일반 사용자는 <span class="term">setup.sh</span> 가 아니라 <span class="term">npm install -g @anthropic-ai/claude-code</span> 로 받아요. 이때는 <span class="key">규칙 3 (transitive 규칙)</span> 이 걸려서 devDependencies 는 사용자에게 안 따라갑니다. 빌드 도구를 실수로 dependencies 에 넣으면 모든 사용자에게 추가로 수십 MB 가 딸려가게 되는 거죠. 그래서 관례를 철저히 지켜야 하는 위치입니다.
+
+## 단계 2: 빌드 도구 Bun 을 전역 설치
+
+```bash
+if ! command -v bun &>/dev/null; then
+  npm install -g bun
+fi
+```
+
+### 무슨 일이 벌어지나
+
+Bun 을 <span class="key">전역 설치</span> 합니다. -g 플래그 때문에 현재 프로젝트의 node_modules/ 가 아니라 시스템 전역 위치 (<span class="term">nvm</span> 을 쓰면 &#126;/.nvm/versions/node/&lt;ver&gt;/lib/node_modules/) 에 들어가요. 설치 후에는 터미널 어디서나 <span class="term">bun</span> 을 쳐서 실행할 수 있습니다.
+
+### Bun 이 뭐예요?
+
+<span class="term">Node.js</span> 의 <span class="key">신생 대안</span> (2022년 공개). 한 바이너리 안에 <span class="key">런타임 + 패키지 매니저 + 번들러 + 테스트 러너 + 트랜스파일러</span> 를 몰아넣은 올인원 <span class="term">JavaScript</span> 도구예요. <span class="term">Node.js</span> 가 <span class="term">V8</span> 엔진을 쓰는 반면 Bun 은 <span class="term">JavaScriptCore</span> (Safari 엔진) 를 쓰고, Zig 라는 시스템 언어로 구현돼서 빠릅니다.
+
+<div class="callout-accent">
+파이썬으로 치면 <span class="key">uv 가 파이썬에게 한 것과 같은 자리</span>. <span class="term">pip</span> + venv + <span class="term">pyenv</span> 를 합쳐 빠르게 만든 것이 <span class="term">uv</span> 라면, <span class="term">npm</span> + <span class="term">node</span> + webpack 을 합친 것이 Bun.
+</div>
+
+### 주의: 여기서 Bun 은 "빌드 도구로" 만 쓰임
+
+Claude Code fork 는 <span class="key">Bun 을 빌드에만 쓰고, 실행은 여전히 Node.js</span> 예요. <span class="term">package.json</span> 을 보면:
+
+```json
+"scripts": {
+  "build": "bun run scripts/build/build.ts",     ← Bun 이 빌드
+  "start": "node bundle/claude-fork.mjs"         ← Node.js 가 실행
+}
+```
+
+즉 "Bun 으로 갈아탔다" 가 아니라 "빌드 단계만 Bun 이 빠르게 처리하고, 최종 번들은 평범한 <span class="term">Node.js</span> 로 돌린다" 는 선택이에요.
+
+### 왜 전역에 설치하나
+
+Bun 은 라이브러리가 아니라 <span class="key">CLI 도구</span> 예요. 코드에서 import 해서 쓰는 게 아니라 터미널에서 명령으로 실행합니다. 원칙 그대로: <span class="key">"CLI 는 -g, 라이브러리는 로컬"</span>. 그리고 Bun 은 시스템 공용 성격이라 프로젝트별로 다른 버전을 섞을 일이 거의 없어요.
+
+### if ! command -v <span class="term">bun</span> 체크
+
+이미 설치되어 있으면 건너뜁니다. 전역 설치는 머신 공용 자원이니 <span class="key">한 번만 깔면 모든 프로젝트에서 재사용</span> 한다는 특성을 활용한 패턴.
+
+<div class="note-box">
+파이썬 대응. <span class="term">pipx</span> install &lt;cli-tool&gt; 과 같은 자리.
+</div>
+
+## 단계 3: Git 태그 pull (<span class="term">npm</span> 과 무관)
+
+```bash
+git fetch origin --tags
+```
+
+이 프로젝트는 <span class="key">버전 정보를 Git 태그에서 뽑아서 빌드</span> 합니다 (보편적이진 않지만 재현 가능성이 좋은 방식이에요). <span class="term">npm</span> 개념은 아니니 건너뛰어도 됩니다.
+
+## 단계 4: 빌드 실행 (<span class="term">npm run</span>)
+
+```bash
+npm run build
+```
+
+### 무슨 일이 벌어지나
+
+<span class="term">package.json</span> 의 scripts 필드 안에 정의된 build 항목을 실행합니다. 이 프로젝트의 실제 정의는:
+
+```json
+"scripts": {
+  "build": "bun run scripts/build/build.ts"
+}
+```
+
+즉 <span class="term">npm run build</span> 는 실질적으로 <span class="term">bun</span> run <span class="term">scripts/build/build.ts</span> 를 호출하는 것. 단계 2 에서 전역 설치한 Bun 이 여기서 <span class="key">실제로 쓰입니다</span>. 결과물은 <span class="term">bundle/claude-fork.mjs</span>. 약 19 MB 의 단일 번들 파일이 만들어져요 (소스 트리 전체 + 의존성을 하나로 뭉친 것).
+
+### 왜 <span class="term">npm run</span> 을 거치나
+
+스크립트명을 <span class="term">package.json</span> 에 정의해 두면, 긴 명령을 외울 필요 없이 <span class="term">npm run</span> &lt;이름&gt; 으로 부를 수 있어요. 프로젝트마다 빌드 방법이 달라도 <span class="key">npm run build</span> 는 공통 컨벤션.
+
+<div class="note-box">
+파이썬 대응. Makefile 이나 justfile 의 make build · just build 와 비슷한 자리.
+</div>
+
+## 단계 5: 설정 템플릿 복사 (<span class="term">npm</span> 과 무관)
+
+```bash
+cp config/models.json.example config/models.json
+cp .env.example .env
+```
+
+.example 파일을 실제 파일로 복사해서 사용자가 API 키를 채워 넣게 합니다. 흔한 관례. 민감한 값은 <span class="term">.gitignore</span> 에 두고 템플릿만 커밋.
+
+## 단계 6: <span class="term">npm link</span> (핵심)
+
+```bash
+npm link --no-audit --no-fund
+```
+
+### 무슨 일이 벌어지나: 한 줄 요약
+
+이 프로젝트 자체를 <span class="key">전역 CLI 로 등록</span> 합니다. 설치 후 <span class="key">터미널 어디서든 claude-fork 라고 치면</span> <span class="term">bundle/claude-fork.mjs</span> 가 실행돼요.
+
+### <span class="term">npm link</span> 가 정확히 하는 일
+
+<span class="term">package.json</span> 에 다음이 있다는 걸 이용합니다.
+
+```json
+"name": "@anthropic-ai/claude-code-fork",
+"bin": {
+  "claude-fork": "bundle/claude-fork.mjs"
+}
+```
+
+bin 필드는 "이 패키지는 claude-fork 라는 CLI 를 제공하고, 그 진입점은 <span class="term">bundle/claude-fork.mjs</span> 예요" 라는 선언이에요. <span class="term">npm link</span> 는:
+
+<div class="callout">
+
+1. 전역 node_modules/ 에 이 프로젝트를 <span class="key">심볼릭 링크</span> 로 걸고,
+2. bin 에 선언된 claude-fork 를 <span class="key">전역 bin 디렉토리에 심볼릭 링크</span> 로 걸어둡니다
+
+</div>
+
+결과: claude-fork 를 어디서 쳐도 이 프로젝트 폴더의 <span class="term">bundle/claude-fork.mjs</span> 가 실행됨. 심볼릭 링크니까 <span class="key">소스를 수정하고 다시 빌드만 하면</span> (<span class="term">npm run build</span>) 전역 claude-fork 도 자동으로 새 번들을 보게 됩니다.
+
+### <span class="term">npm install -g</span> . 와의 차이
+
+둘 다 현재 프로젝트를 전역 CLI 로 등록한다는 점은 같아요. 차이:
+
+<div class="callout-warm">
+
+- <span class="term">npm install -g</span> . → 현재 디렉토리를 <span class="key">복사</span> 해서 전역 위치에 놓음. 이후 원본 폴더를 수정해도 전역본은 그대로
+- <span class="term">npm link</span> → <span class="key">심볼릭 링크</span>: 원본을 수정 · 재빌드하면 즉시 반영
+
+</div>
+
+개발하면서 계속 고쳐 쓰는 fork 에게는 <span class="key">npm link 가 훨씬 편합니다</span>. 매번 재설치할 필요 없이 <span class="term">npm run build</span> 만 치면 끝.
+
+<div class="note-box">
+파이썬 대응. <span class="term">pip</span> install -e . (editable install) 와 같은 자리. 로컬 프로젝트를 심볼릭 링크 형태로 전역에 등록해서, 코드 수정이 즉시 반영되게 하는 개발 워크플로우 패턴.
+</div>
+
+## 단계 7~8: 셸 프로필 편집 (<span class="term">npm</span> 과 무관)
+
+```bash
+export CLAUDE_FORK_DIR="$REPO_ROOT"
+```
+
+&#126;/.bashrc 또는 &#126;/.zshrc 에 환경 변수를 추가합니다. 스크립트 주석에 <span class="key">API 키를 전역으로 export 하지 않는 이유</span> 가 잘 적혀 있어요. 모든 셸 프로세스에 키가 노출되면 보안 리스크가 커지니, claude-fork 프로세스만 <span class="term">.env</span> 를 직접 로드하도록. <span class="term">npm</span> 개념과 무관하지만 좋은 관례라 짚어 둘 만합니다.
+
+## 전체 흐름: 그림으로
+
+```
+[단계 1] npm install              → node_modules/ (로컬 설치)
+[단계 2] npm install -g bun       → 시스템 전역 bin 에 Bun CLI
+[단계 4] npm run build            → bundle/claude-fork.mjs 생성
+[단계 6] npm link                 → 전역 bin 에 claude-fork 심볼릭 링크
+                                    ↓
+                         터미널 어디서나 claude-fork 실행 가능
+```
+
+## 배운 개념 체크리스트
+
+이 스크립트 하나에서 시리즈의 내용이 어떻게 쓰였는지.
+
+<div class="callout-accent">
+
+- <span class="term">package.json</span>. 의존성 목록 + scripts + bin 선언의 근거지
+- <span class="term">npm install</span> 로컬: dependencies + devDependencies 를 로컬에 설치
+- <span class="term">npm install -g</span>: Bun 처럼 시스템 공용 CLI 에 사용
+- <span class="term">npm run</span> &lt;script&gt;: 긴 빌드 명령을 스크립트명으로 추상화
+- <span class="term">npm link</span>: 개발 중인 자체 프로젝트를 전역 CLI 로 붙이는 방법
+- --ignore-scripts: <span class="term">npm</span> 의 자동 실행 hook 으로부터 방어
+
+</div>
+
+## 한 줄 요약
+
+<div class="callout-warm">
+<span class="term">setup.sh</span> 의 핵심 3줄. <span class="key">npm install (로컬), npm install -g bun (전역 CLI), npm link (이 프로젝트를 전역 CLI 로)</span>. 만 이해하면 AI CLI fork 의 설치 자동화 패턴 전반이 읽힙니다. 파이썬으로 치면 <span class="term">uv</span> sync + <span class="term">pipx</span> install <span class="term">bun</span> + <span class="term">pip</span> install -e . 를 하나로 엮은 셈이에요.
+</div>
+
+---
+
+여기서 시리즈가 끝납니다. 본문 11편 + 부록 3편, 총 14편으로 <span class="term">npm</span> 의 핵심을 한 번 훑은 셈이에요. 어느 글이든 책상에 띄워두고 필요할 때 다시 펼쳐보세요. 다음 시리즈에서는 <span class="term">npm</span> 위에 올라가는 더 위층. <span class="term">TypeScript</span>, 모듈 시스템, 빌드/번들러, <span class="term">MCP</span> 서버 작성법. 으로 가 봅니다.

@@ -1,0 +1,175 @@
+---
+title: '(2/14) package.json — pyproject.toml 의 JSON 버전'
+description: 'npm 프로젝트의 신분증 한 장. 어떤 필드가 있고, 파이썬의 pyproject.toml 과 어떻게 대응되며, JSON 의 까다로운 문법 규칙까지.'
+pubDate: 'May 3 2026'
+category: about-nodejs
+series: 'npm-primer'
+seriesOrder: 2
+heroImage: '../../../assets/hero-about-nodejs.png'
+---
+
+<style>{`
+  .term { color: var(--accent); font-weight: 700; }
+  .key { color: var(--claude-dark); font-weight: 700; }
+  .mod {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.92em;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(96, 115, 159, 0.10);
+    color: rgb(var(--gray-dark));
+  }
+  .callout { background: rgba(96, 115, 159, 0.07); border-radius: 8px; padding: 1em 1.25em; margin: 1.5em 0; }
+  .callout-accent { border-left: 4px solid var(--accent); background: rgba(35, 55, 255, 0.04); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .callout-warm { border-left: 4px solid var(--claude); background: rgba(204, 120, 92, 0.06); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .note-box { border: 1px dashed rgba(96, 115, 159, 0.35); border-radius: 8px; padding: 0.7em 1em; margin: 1.25em 0; font-size: 0.95em; color: rgb(var(--gray-dark)); }
+  .compare-table { width: 100%; border-collapse: collapse; margin: 1.5em 0; font-size: 0.95em; line-height: 1.55; }
+  .compare-table th, .compare-table td { padding: 0.6em 0.85em; border-bottom: 1px solid rgb(var(--gray-light)); text-align: left; vertical-align: top; }
+  .compare-table th { background: rgba(var(--gray-light), 0.5); font-weight: 700; color: rgb(var(--black)); }
+  .compare-table tr.highlight { background: rgba(204, 120, 92, 0.08); }
+  .compare-table tr.highlight td { border-bottom-color: rgba(204, 120, 92, 0.3); }
+  .compare-table tr.row-accent { background: rgba(35, 55, 255, 0.05); }
+`}</style>
+
+npm 프로젝트의 모든 길은 package.json 으로 통합니다. 어떤 패키지에 의존하는지, 어떻게 실행되는지, 어떤 이름으로 npm registry 에 배포되는지. 전부 이 한 장이 결정해요. 파이썬의 pyproject.toml 과 정확히 같은 자리에 있습니다.
+
+## 한 줄 답
+
+<div class="callout-accent">
+package.json 은 프로젝트 루트에 놓이는 한 장짜리 JSON 파일입니다. 프로젝트의 <span class="key">이름 · 버전 · 의존성 · 실행 스크립트</span> 를 담는 메타 파일이에요. 파이썬의 pyproject.toml 에 정확히 대응합니다.
+</div>
+
+npm 은 이 파일을 보고 두 방향을 판단합니다.
+
+- <span class="key">업스트림</span>: 이 프로젝트가 어떤 패키지에 의존하는가
+- <span class="key">다운스트림</span>: 어떤 이름·버전으로 배포되어 누가 받아갈 수 있는가
+- 그리고 npm start 같은 실행 명령이 무엇인가
+
+## 언제 필요한가요
+
+모든 프로젝트가 반드시 가져야 하는 건 아니고, 세 경우 중 하나라도 해당되면 필요해요.
+
+<div class="callout">
+
+- <span class="key">다른 사람과 공유</span>: GitHub 에 푸시해 남이 받아 npm install 로 동일 환경을 재구성해야 할 때
+- <span class="key">npm 에 공개 패키지로 배포</span>
+- <span class="key">의존성 재현이 필요한 모든 상황</span>: CI/CD, Docker, 배포 서버 등
+
+</div>
+
+반대로, 혼자서 로컬에서 한 번 쓰고 말 임시 스크립트면 없어도 됩니다. 다만 실무에서는 거의 항상 필요해지는 파일이에요.
+
+## npm init 으로 만들기
+
+프로젝트 디렉토리에서 명령어 하나면 됩니다.
+
+```bash
+npm init        # 대화형 프롬프트. 여러 질문을 물어봄
+npm init -y     # 기본값으로 바로 생성 (실무에서 가장 흔함)
+```
+
+-y (= yes) 는 모든 질문을 기본값으로 답해 파일을 즉시 만들어줍니다. 필드는 나중에 에디터로 직접 고치면 되고요.
+
+대화형 모드가 물어보는 것:
+
+<div class="callout">
+
+- package name: 기본값은 디렉토리 이름
+- version: 기본값 1.0.0
+- description, entry point (index.js), test command
+- git repository, keywords, author, license
+
+</div>
+
+## 주요 필드
+
+최소한의 package.json 예시.
+
+```json
+{
+  "name": "my-project",
+  "version": "1.0.0",
+  "description": "A short description",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  },
+  "author": "Jet",
+  "license": "MIT"
+}
+```
+
+각 필드의 역할:
+
+<table class="compare-table">
+  <thead>
+    <tr><th>필드</th><th>역할</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>name</td><td>프로젝트/패키지 이름 (소문자 + 하이픈). npm 에 배포하면 이 이름이 URL 에 들어감</td></tr>
+    <tr><td>version</td><td>semver 형식 (다음 글). 배포할 때마다 올려야 함</td></tr>
+    <tr><td>description</td><td>짧은 설명. npm 페이지와 검색 결과에 노출됨</td></tr>
+    <tr><td>main</td><td>라이브러리로 쓰일 때의 진입점. 누가 require('my-project') 하면 이 파일이 로드됨. 파이썬 __init__.py 와 비슷한 역할이지만 <strong>고정 이름이 아니라 여기서 경로를 직접 지정</strong> (./dist/index.js 같이)</td></tr>
+    <tr><td>scripts</td><td>이름 붙인 명령어 묶음. npm run &lt;name&gt; 으로 실행 (9 번 글에서 상세)</td></tr>
+    <tr><td>dependencies</td><td>런타임에 필요한 패키지</td></tr>
+    <tr><td>devDependencies</td><td>개발 시에만 필요한 패키지 (테스트, 빌드, 린터 등)</td></tr>
+    <tr><td>bin</td><td>CLI 실행 파일 등록 (<a href={`${import.meta.env.BASE_URL}blog/bin-folder/`}>(10/14) node_modules/.bin/ — 심볼릭 링크와 shebang 한 줄의 협력</a> 에서 상세)</td></tr>
+    <tr><td>author, license</td><td>배포 정보</td></tr>
+  </tbody>
+</table>
+
+## 파이썬 pyproject.toml 과의 대응
+
+파이썬 엔지니어의 멘탈 모델에 그대로 매핑하면 이렇습니다.
+
+<table class="compare-table">
+  <thead>
+    <tr><th>pyproject.toml</th><th>package.json</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>[project] name</td><td>name</td></tr>
+    <tr><td>[project] version</td><td>version</td></tr>
+    <tr><td>[project] description</td><td>description</td></tr>
+    <tr><td>[project] authors</td><td>author</td></tr>
+    <tr><td>[project] dependencies</td><td>dependencies</td></tr>
+    <tr><td>[project.optional-dependencies] / dev group</td><td>devDependencies</td></tr>
+    <tr><td>[project.scripts]</td><td>scripts + bin</td></tr>
+    <tr><td>[build-system]</td><td>(npm 에는 별도 필드 없음 — main, files 가 부분 역할)</td></tr>
+  </tbody>
+</table>
+
+<div class="callout-warm">
+둘 다 <span class="key">"프로젝트의 신분증 + 의존성 선언 + 실행 스크립트"</span> 를 한 자리에 담는다는 점에서 정확히 같은 위치의 파일입니다. TOML 이 JSON 으로 바뀌고 필드 이름 몇 개가 다를 뿐이에요.
+</div>
+
+## JSON 포맷 주의점
+
+파이썬의 TOML 이나 YAML 에 익숙한 사람에겐 JSON 규칙이 의외로 엄격하게 느껴집니다.
+
+<div class="callout">
+
+- <span class="key">키도 반드시 큰따옴표</span>: &#123;name: "x"&#125; X, &#123;"name": "x"&#125; O
+- <span class="key">큰따옴표만 허용</span>: 작은따옴표 불가
+- <span class="key">trailing comma 금지</span>: 마지막 항목 뒤에 쉼표 있으면 parse 에러
+- <span class="key">주석 불가</span>: // 나 # 안 됨 (설명을 넣고 싶으면 별도 키로 우회)
+
+</div>
+
+<div class="callout-warm">
+문법 에러가 나면 npm 이 package.json 자체를 못 읽어서 <span class="key">모든 npm 명령이 실패</span> 합니다. 수동 편집할 때 주의. VS Code 같은 에디터가 저장 시 검증해주는 편이라 평소엔 크게 고생하지 않지만, 원격 서버에서 vim 으로 고치다 망가뜨리는 일은 종종 있어요.
+</div>
+
+## 한 줄 요약
+
+<div class="callout-accent">
+package.json 은 pyproject.toml 의 JSON 버전. 프로젝트 이름·버전·의존성·실행 스크립트를 한 자리에 선언합니다. npm init -y 로 스켈레톤을 만들고, 필요한 필드를 채워가는 식으로 써요.
+</div>
+
+다음 글에서는 package.json 안의 의존성에 붙는 ^1.2.3, ~1.2.3 같은 표기. semver. 를 짧게 정리합니다. 이 두 기호의 의미만 알면 대부분의 package.json 을 읽을 수 있어요.

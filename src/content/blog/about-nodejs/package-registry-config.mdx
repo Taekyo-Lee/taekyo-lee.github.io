@@ -1,0 +1,362 @@
+---
+title: '.npmrc 해부 — pip · uv 와 같은 구조'
+description: '폐쇄망에서 npm·pip·uv 가 ECONNREFUSED·401·SELF_SIGNED_CERT 를 뱉는 이유는 거의 같습니다. registry / auth / proxy / SSL 이라는 네 축을 각자의 설정 파일이 어떻게 표현하는지 한자리에 놓고 정리합니다.'
+pubDate: 'May 3 2026'
+category: about-nodejs
+heroImage: '../../../assets/hero-about-nodejs.png'
+---
+
+<style>{`
+  .term { color: var(--accent); font-weight: 700; }
+  .key { color: var(--claude-dark); font-weight: 700; }
+  .mod {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.92em;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(96, 115, 159, 0.10);
+    color: rgb(var(--gray-dark));
+  }
+  .callout {
+    background: rgba(96, 115, 159, 0.07);
+    border-radius: 8px;
+    padding: 1em 1.25em;
+    margin: 1.5em 0;
+  }
+  .callout-accent {
+    border-left: 4px solid var(--accent);
+    background: rgba(35, 55, 255, 0.04);
+    padding: 0.85em 1.15em;
+    margin: 1.5em 0;
+    border-radius: 0 8px 8px 0;
+  }
+  .callout-warm {
+    border-left: 4px solid var(--claude);
+    background: rgba(204, 120, 92, 0.06);
+    padding: 0.85em 1.15em;
+    margin: 1.5em 0;
+    border-radius: 0 8px 8px 0;
+  }
+  .note-box {
+    border: 1px dashed rgba(96, 115, 159, 0.35);
+    border-radius: 8px;
+    padding: 0.7em 1em;
+    margin: 1.25em 0;
+    font-size: 0.95em;
+    color: rgb(var(--gray-dark));
+  }
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5em 0;
+    font-size: 0.95em;
+    line-height: 1.55;
+  }
+  .compare-table th, .compare-table td {
+    padding: 0.6em 0.85em;
+    border-bottom: 1px solid rgb(var(--gray-light));
+    text-align: left;
+    vertical-align: top;
+  }
+  .compare-table th {
+    background: rgba(var(--gray-light), 0.5);
+    font-weight: 700;
+    color: rgb(var(--black));
+  }
+  .compare-table tr.highlight {
+    background: rgba(204, 120, 92, 0.08);
+  }
+  .compare-table tr.highlight td {
+    border-bottom-color: rgba(204, 120, 92, 0.3);
+  }
+  .compare-table tr.row-accent {
+    background: rgba(35, 55, 255, 0.05);
+  }
+`}</style>
+
+저는 보안을 엄청 중요시하는 회사에 다니고 있습니다. 외부 네트워크 접근이 통제되고, 모든 패키지는 사내 registry 를 거쳐야 받을 수 있는 환경이에요. 처음 그곳에서 <span class="term">npm install</span> 을 돌리던 날을 기억합니다. 평소엔 1초면 끝날 명령이 한참을 멈춰 있다가 <span class="key">ECONNREFUSED</span> 한 줄을 뱉고 죽었어요. registry 주소를 사내 것으로 바꿨더니 이번엔 <span class="key">401 Unauthorized</span>. 사내 registry 가 요구하는 인증 토큰을 받아 설정 파일에 적어 넣었더니, 이번엔 <span class="key">SELF_SIGNED_CERT_IN_CHAIN</span>. 한참을 헤매고 나서야, 이게 사실은 **하나의 같은 문제** 라는 걸 알았습니다.
+
+이 글의 본질은 <span class="key">npm 의 .npmrc</span> 입니다. 다만 같은 구조를 가진 <span class="term">pip</span> 의 <span class="term">pip.conf</span>, <span class="term">uv</span> 의 <span class="term">uv.toml</span> 을 곁들여 비교합니다 (파이썬에 익숙한 분들이 더 빠르게 감을 잡을 수 있도록). 핵심은 하나예요. <span class="key">package manager 는 다르지만 설정해야 할 축은 항상 네 개로 똑같습니다.</span>
+
+## 네 가지 축: 본질은 같다
+
+package manager 가 다르더라도 폐쇄망에서 손봐야 할 자리는 항상 같습니다.
+
+<table class="compare-table">
+  <thead>
+    <tr><th>축</th><th>무엇을 정하나</th><th>폐쇄망에서 흔한 설정</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Registry 주소</strong></td><td>어디서 패키지를 받아올지</td><td>공식 → 사내 Artifactory / Nexus / Verdaccio</td></tr>
+    <tr><td><strong>인증 (Auth)</strong></td><td>그 registry 에 접근할 자격</td><td>토큰 · basic auth · SSO</td></tr>
+    <tr><td><strong>프록시 (Proxy)</strong></td><td>registry 에 닿기 전 경유할 HTTP 프록시</td><td>회사 네트워크의 egress proxy</td></tr>
+    <tr><td><strong>SSL / CA 인증서</strong></td><td>TLS 검증에 쓸 인증서</td><td>사내 CA 추가 또는 검증 완화</td></tr>
+  </tbody>
+</table>
+
+<div class="note-box">
+용어가 익숙하지 않다면 아주 짧게. SSL / TLS 는 "이 서버가 진짜 그 서버인지" 를 암호로 검증하는 절차입니다 (브라우저 자물쇠 아이콘이 그것). CA (Certificate Authority) 는 그 검증의 보증인 역할을 하는 기관이고, CA 인증서 는 그 보증인 명단이에요. 사내망에선 회사가 자체 CA 를 운영하기 때문에, package manager 가 그 보증인을 모르면 "수상한 인증서" 로 판단해서 연결을 거부합니다.
+</div>
+
+<div class="callout">
+<span class="key">"인증 (Auth)" 과 "SSL / CA 인증서" 가 헷갈린다면</span>. 방향이 정반대예요.
+
+- Auth = "나는 누구다" 를 <span class="key">내가 서버에</span> 증명: 예: 토큰 · 비밀번호. 서버가 "이 사람이 받아갈 자격이 있나" 를 확인
+- SSL / CA 인증서 = "이 서버가 진짜다" 를 <span class="key">서버가 나에게</span> 증명: 내 컴퓨터가 "이 registry 가 가짜 사이트가 아닌가" 를 확인
+
+비유하자면 은행 ATM 앞에서. 비밀번호를 누르는 게 Auth (내가 본인 증명), ATM 자체가 가짜가 아닌지 확인하는 게 SSL/CA (상대가 진짜 증명) 예요. 둘 다 잘못되면 거래가 망하는데, 한쪽만 신경 쓰면 다른 쪽으로 털립니다.
+</div>
+
+<div class="callout-accent">
+각 package manager 가 이 네 축을 <span class="key">자기만의 문법으로</span> 표현할 뿐, 설정해야 할 자리는 동일합니다. 하나만 제대로 이해하면 나머지는 이름만 바뀐 같은 그림이에요.
+</div>
+
+에러 메시지도 이 네 축에 거의 1:1 로 매핑됩니다.
+
+<table class="compare-table">
+  <thead>
+    <tr><th>에러</th><th>어느 축의 문제인가</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="key">ECONNREFUSED</span> · <span class="key">ETIMEDOUT</span></td><td>프록시 — 공식 registry 로 못 나감</td></tr>
+    <tr><td>401 Unauthorized · 403 Forbidden</td><td>인증 — 사내 registry 가 자격을 요구</td></tr>
+    <tr><td><span class="key">SELF_SIGNED_CERT_IN_CHAIN</span> · SSL: CERTIFICATE_VERIFY_FAILED</td><td>SSL — 사내 CA 인증서가 없음</td></tr>
+    <tr><td>404 Not Found</td><td>Registry 주소 — 공식/내부 라우팅 잘못</td></tr>
+  </tbody>
+</table>
+
+이 매핑이 머리에 들어와 있으면, 새 회사·새 머신에서 에러를 봤을 때 **어디를 봐야 할지** 가 5초 만에 정해집니다.
+
+## <span class="term">npm</span>: <span class="term">.npmrc</span>
+
+### 어디에 있고, 어느 게 우선인가
+
+<span class="term">npm</span> 은 여러 위치의 <span class="term">.npmrc</span> 를 **병합** 합니다. 아래로 갈수록 범위가 좁아지고 우선순위가 높아집니다.
+
+<table class="compare-table">
+  <thead>
+    <tr><th>위치</th><th>용도</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="term">npm</span> 내장 기본값</td><td>아무것도 설정 안 했을 때</td></tr>
+    <tr><td>$PREFIX/etc/npmrc</td><td>시스템 전체 (거의 안 씀)</td></tr>
+    <tr><td>~/.npmrc</td><td><strong>사용자 개인 설정</strong> — 가장 흔함. 토큰·기본 registry</td></tr>
+    <tr><td>&lt;project&gt;/.npmrc</td><td>프로젝트 전용 (팀 공유 — 사내 registry 강제 등)</td></tr>
+  </tbody>
+</table>
+
+<div class="note-box">
+"rc" 는 유닉스 관례로 "run commands" 의 약자입니다. <span class="term">.bashrc</span>, .vimrc 와 같은 자리예요.
+</div>
+
+### 포맷과 주요 키
+
+```ini
+# ~/.npmrc 또는 <project>/.npmrc
+
+# 기본 registry 변경
+registry=https://my-corp.jfrog.io/artifactory/api/npm/npm-local/
+
+# Scoped registry. 특정 스코프만 다른 registry 로
+@anthropic-ai:registry=https://registry.npmjs.org/
+@my-company:registry=https://private.my-company.com/npm/
+
+# 인증 토큰 (registry 별로 지정)
+//my-corp.jfrog.io/artifactory/api/npm/npm-local/:_authToken=eyJ...
+//registry.npmjs.org/:_authToken=npm_xxxx
+
+# SSL / 프록시
+strict-ssl=true                                  # SSL 검증 강제 (기본)
+cafile=/etc/ssl/certs/my-corp-ca.pem             # 사내 CA 인증서
+proxy=http://proxy.my-corp.com:8080              # HTTP 프록시
+https-proxy=http://proxy.my-corp.com:8080
+
+# 기타
+save-exact=true                                  # install 시 ^/~ 대신 정확 버전
+engine-strict=true                               # engines 필드 검증 강제
+```
+
+CLI 로 같은 일을 할 수도 있어요. 손으로 파일을 여는 대신 명령어로 바꾸는 게 더 안전합니다.
+
+```bash
+npm config set registry https://my-corp/npm/     # ~/.npmrc 에 저장
+npm config get registry                          # 현재 값 확인
+npm config list                                  # 병합된 전체 설정 보기
+npm config list -l                               # 기본값까지 전부
+```
+
+### 환경 변수도 동등하게 작동
+
+NPM_CONFIG_&lt;KEY&gt; 형태의 환경 변수는 <span class="term">.npmrc</span> 와 똑같이 작동합니다. <span class="term">CI</span> 에서 자주 쓰는 패턴.
+
+```bash
+export NPM_CONFIG_REGISTRY=https://my-corp/npm/
+export NPM_CONFIG_//my-corp/npm/:_authToken=$CI_TOKEN
+```
+
+### <span class="term">Node.js</span> 자체의 CA 인증서: 따로 챙겨야 함
+
+여기서 한 번 더 함정이 있어요. <span class="key">npm install 은 잘 됐는데 막상 설치한 프로그램을 실행하니 인터넷에 못 나가는</span> 상황입니다.
+
+왜 이런 일이? 두 단계가 사실은 <span class="key">서로 다른 곳을 보기</span> 때문이에요.
+
+<div class="callout">
+
+- <span class="term">npm install</span> 이 사내 registry 에서 패키지를 받을 때 → <span class="term">npm</span> 이 <span class="term">.npmrc</span> 의 cafile 설정을 봄 (위에서 한 일)
+- 받아온 패키지 안의 JS 코드가 실행될 때 (예: Claude Code 가 Anthropic API 를 호출할 때, <span class="term">MCP</span> 서버가 외부 fetch 를 할 때) → <span class="term">node</span> 가 <span class="key">자기 자신의 별도 신뢰 목록</span> 을 봄: <span class="term">.npmrc</span> 와 무관
+
+</div>
+
+<span class="term">node</span> 는 보안상 OS 의 인증서 저장소를 자동으로 신뢰하지 않고 자체 목록만 씁니다. 그래서 사내 CA 를 거기에 따로 알려줘야 해요. 해결은 환경 변수 한 줄.
+
+<div class="callout-warm">
+
+```bash
+export NODE_EXTRA_CA_CERTS=/etc/ssl/certs/my-corp-ca.pem
+```
+
+이걸 ~/.bashrc 같은 곳에 박아두면 이후 모든 <span class="term">node</span> 프로세스가 사내 CA 도 신뢰하게 돼요. <span class="term">node</span>-fetch, axios, openai SDK 같은 라이브러리들이 모두 이 설정을 따라갑니다. AI CLI 가 갑자기 <span class="key">SELF_SIGNED_CERT_IN_CHAIN</span> 으로 죽을 때 자주 나오는 해결책이에요.
+</div>
+
+## <span class="term">pip</span>: <span class="term">pip.conf</span> (간단 비교)
+
+거의 같은 그림이에요. <span class="term">.npmrc</span> 와 다른 점은 INI 포맷에 [global] 섹션이 있다는 것, 키 이름이 다르다는 것 정도.
+
+```ini
+# ~/.pip/pip.conf  (가장 흔한 위치)
+[global]
+index-url = https://my-corp/pypi/simple/      # registry
+extra-index-url = https://pypi.org/simple/    # 추가 registry
+proxy = http://proxy.my-corp.com:8080         # proxy
+cert = /etc/ssl/certs/my-corp-ca.pem          # CA
+```
+
+차이점 한 가지만 짚으면, <span class="key">pip 은 인증을 별도 키 대신 URL 안</span> (https://user:pass@host/) 에 끼워 넣습니다. 평문 비밀번호가 디스크에 남기 쉬운 구조라 keyring 이나 환경 변수로 빼는 게 권장돼요.
+
+## <span class="term">uv</span>: <span class="term">uv.toml</span> (간단 비교)
+
+<span class="term">uv</span> (2024년 등장한 Rust 기반의 새 package manager) 는 <span class="term">TOML</span> 포맷을 씁니다. 키 이름은 <span class="term">pip</span> 과 거의 같아요.
+
+```toml
+# ~/.config/uv/uv.toml
+index-url = "https://my-corp/pypi/simple/"
+extra-index-url = ["https://pypi.org/simple/"]
+native-tls = true   # OS 의 CA 저장소를 쓰게 함 (사내 CA 자동 인식)
+```
+
+<div class="callout-accent">
+native-tls = true (또는 환경 변수 UV_NATIVE_TLS=true) 한 줄이 폐쇄망에서 가장 자주 쓰는 트릭이에요. <span class="term">Python</span> 의 certifi 번들 대신 <span class="key">OS 인증서 저장소</span> 를 쓰게 해서, IT 가 시스템에 깔아둔 사내 CA 를 자동으로 잡습니다.
+</div>
+
+## 세 package manager 를 한 줄에 놓으면
+
+지금까지 본 내용을 한 표로.
+
+<table class="compare-table">
+  <thead>
+    <tr><th>축</th><th><span class="term">npm</span> (<span class="term">.npmrc</span>)</th><th><span class="term">pip</span> (<span class="term">pip.conf</span>)</th><th><span class="term">uv</span> (<span class="term">uv.toml</span>)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>기본 registry</td><td>registry=...</td><td>index-url = ...</td><td>index-url = "..."</td></tr>
+    <tr><td>추가 registry</td><td>@scope:registry=...</td><td>extra-index-url = ...</td><td>extra-index-url = [...]</td></tr>
+    <tr><td>인증 토큰</td><td>//host/:_authToken=...</td><td>URL 에 basic auth</td><td>[[tool.uv.index]] + env</td></tr>
+    <tr><td>HTTP 프록시</td><td>proxy=..., https-proxy=...</td><td>proxy = ...</td><td>시스템 <span class="key">HTTPS_PROXY</span></td></tr>
+    <tr><td>사내 CA</td><td>cafile=...</td><td>cert = ...</td><td>native-tls = true</td></tr>
+    <tr><td>SSL 예외</td><td>strict-ssl=false (비권장)</td><td>trusted-host = ...</td><td>(권장 안 함)</td></tr>
+  </tbody>
+</table>
+
+문법은 다 다른데 **표를 가로로 읽으면 같은 일을 하고 있다는 게 보일 것** 입니다.
+
+## 모두에게 효과 있는 시스템 환경 변수
+
+도구별 설정 파일을 손대기 전에, 일단 셸에 환경 변수를 박아두는 편이 훨씬 유지보수가 편합니다. 여러 도구가 공유하니까요.
+
+```bash
+# HTTP 프록시. 거의 모든 도구가 따름 (npm, pip, uv, curl, git 등)
+export HTTP_PROXY=http://proxy.my-corp.com:8080
+export HTTPS_PROXY=http://proxy.my-corp.com:8080
+export NO_PROXY=localhost,127.0.0.1,.my-corp.com
+
+# Node.js 전용. 사내 CA 를 기본 신뢰 목록에 추가
+export NODE_EXTRA_CA_CERTS=/etc/ssl/certs/my-corp-ca.pem
+
+# Python 전용. requests · pip 가 참고
+export REQUESTS_CA_BUNDLE=/etc/ssl/certs/my-corp-ca.pem
+export SSL_CERT_FILE=/etc/ssl/certs/my-corp-ca.pem
+```
+
+<div class="callout-warm">
+<span class="key">권장 순서</span>. 개별 도구의 설정 파일보다 시스템 환경 변수를 먼저 설정 하는 게 좋습니다. 한 번 잡아두면 <span class="term">npm</span>, <span class="term">pip</span>, <span class="term">uv</span>, curl, git 모두에 한 번에 효과가 있고, 새 도구가 추가될 때도 별도 설정 없이 따라옵니다.
+</div>
+
+## 새 머신에서의 체크리스트
+
+새 회사·새 머신에서 위 package manager 들을 돌려야 한다면 아래 순서대로 진행하세요.
+
+### ① IT 에서 받아올 정보
+
+<div class="callout">
+
+- 사내 registry 주소 (Artifactory · Nexus · Verdaccio 등): <span class="term">npm</span> 용 / <span class="term">pip</span> 용 각각
+- 인증 방식: 사번 + 비밀번호? Token? SSO?
+- HTTP proxy 필요 여부 및 주소
+- 사내 CA 인증서 파일 (대개 /etc/ssl/certs/ 에 IT 가 배포)
+
+</div>
+
+### ② 환경 변수부터 설정
+
+```bash
+# ~/.bashrc 또는 ~/.zshrc 에 추가
+export HTTP_PROXY=http://proxy.my-corp.com:8080
+export HTTPS_PROXY=http://proxy.my-corp.com:8080
+export NO_PROXY=localhost,.my-corp.com
+export NODE_EXTRA_CA_CERTS=/etc/ssl/certs/my-corp-ca.pem
+export REQUESTS_CA_BUNDLE=/etc/ssl/certs/my-corp-ca.pem
+```
+
+### ③ 각 package manager 의 registry 설정
+
+```bash
+# npm
+npm config set registry https://my-corp/npm/
+# (인증 토큰은 npm login 으로 자동 주입되거나 수동 추가)
+
+# pip
+pip config set global.index-url https://my-corp/pypi/simple/
+
+# uv
+mkdir -p ~/.config/uv && cat > ~/.config/uv/uv.toml <<EOF
+index-url = "https://my-corp/pypi/simple/"
+EOF
+```
+
+### ④ 가장 작은 패키지로 테스트
+
+```bash
+npm install lodash       # 성공하면 npm OK
+pip install requests     # 성공하면 pip OK
+uv pip install requests  # 성공하면 uv OK
+```
+
+실패하면 에러 메시지 맨 앞부분으로 원인을 추적합니다. 위에서 봤던 에러 ↔ 축 매핑 표가 그대로 진단표가 돼요.
+
+## 인증 토큰은 절대 Git 에 커밋하지 마세요
+
+<div class="callout-warm">
+
+이 글에서 단 하나만 가져간다면 이것입니다.
+
+1. <span class="key">프로젝트 단 설정 파일은 Git 에 커밋될 수 있음</span>. 토큰은 사용자 단 (~/.npmrc 등) 에만 두세요.
+2. 프로젝트 <span class="term">.npmrc</span> 에 넣어야 한다면 <span class="term">.gitignore</span> 로 보호하거나, <span class="term">CI</span> (GitHub Actions · GitLab <span class="term">CI</span> 같은 자동 빌드 환경) 의 환경 변수 기능으로 빌드 시점에만 주입받게 하세요.
+3. <span class="key">실수로 커밋된 토큰은 즉시 revoke</span>. Git 이력에 남아 있으면 공격자가 과거 커밋에서 꺼낼 수 있습니다. 파일을 지운 다음 커밋해도 이력에서는 살아 있어요.
+4. 토큰 관리엔 keyring (<span class="term">Python</span>) · 1Password CLI · gh auth 같은 전용 도구가 더 안전합니다.
+
+</div>
+
+## 한 줄로 줄이면
+
+<div class="callout-accent">
+<span class="term">npm</span> · <span class="term">pip</span> · <span class="term">uv</span> 는 모두 <span class="key">registry / auth / proxy / SSL</span> 이라는 같은 네 축을 각자의 설정 파일 (<span class="term">.npmrc</span> · <span class="term">pip.conf</span> · <span class="term">uv.toml</span>) 로 표현합니다. 폐쇄망 환경에선 시스템 환경 변수 (<span class="key">HTTP_PROXY</span>, <span class="key">NODE_EXTRA_CA_CERTS</span>, <span class="key">REQUESTS_CA_BUNDLE</span>) 부터 잡고, 그 위에 도구별 설정을 얹는 게 가장 안정적이에요.
+</div>

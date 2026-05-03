@@ -1,0 +1,362 @@
+---
+title: '(12/14) [부록] 용어와 파이썬 치트시트 — 한 장 정리'
+description: 'npm 생태계의 헷갈리는 이름들 (node/npm/npx/yarn/pnpm/bun, dependencies 네 종류, .npmrc/.nvmrc 등) + 파이썬 ↔ npm 1:1 매핑. 시리즈를 다 읽은 뒤 책상에 띄워두는 reference.'
+pubDate: 'May 3 2026'
+category: about-nodejs
+series: 'npm-primer'
+seriesOrder: 12
+heroImage: '../../../assets/hero-about-nodejs.png'
+---
+
+<style>{`
+  .term { color: var(--accent); font-weight: 700; }
+  .key { color: var(--claude-dark); font-weight: 700; }
+  .mod {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.92em;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(96, 115, 159, 0.10);
+    color: rgb(var(--gray-dark));
+  }
+  .callout { background: rgba(96, 115, 159, 0.07); border-radius: 8px; padding: 1em 1.25em; margin: 1.5em 0; }
+  .callout-accent { border-left: 4px solid var(--accent); background: rgba(35, 55, 255, 0.04); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .callout-warm { border-left: 4px solid var(--claude); background: rgba(204, 120, 92, 0.06); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .note-box { border: 1px dashed rgba(96, 115, 159, 0.35); border-radius: 8px; padding: 0.7em 1em; margin: 1.25em 0; font-size: 0.95em; color: rgb(var(--gray-dark)); }
+  .compare-table { width: 100%; border-collapse: collapse; margin: 1.5em 0; font-size: 0.95em; line-height: 1.55; }
+  .compare-table th, .compare-table td { padding: 0.6em 0.85em; border-bottom: 1px solid rgb(var(--gray-light)); text-align: left; vertical-align: top; }
+  .compare-table th { background: rgba(var(--gray-light), 0.5); font-weight: 700; color: rgb(var(--black)); }
+  .compare-table tr.highlight { background: rgba(204, 120, 92, 0.08); }
+  .compare-table tr.highlight td { border-bottom-color: rgba(204, 120, 92, 0.3); }
+  .compare-table tr.row-accent { background: rgba(35, 55, 255, 0.05); }
+`}</style>
+
+이 글은 본문 11편을 다 읽은 뒤 <span class="key">책상에 띄워두는 reference</span> 예요. 처음부터 순서대로 읽기보다는 Ctrl+F 로 필요한 항목을 찾아 쓰는 용도. 두 부분으로 구성돼 있어요. 파트 1 은 <span class="term">npm</span> 생태계의 헷갈리는 이름들, 파트 2 는 파이썬 ↔ <span class="term">npm</span> 1:1 매핑.
+
+---
+
+# 파트 1. 헷갈리는 이름들
+
+<span class="term">npm</span> 생태계를 돌아다니다 보면 <span class="key">비슷해 보이는 이름들</span> 때문에 자주 헷갈려요. 한자리에 모아 정리합니다.
+
+## 실행 도구들: <span class="term">node</span> · <span class="term">npm</span> · <span class="term">npx</span> · <span class="term">yarn</span> · <span class="term">pnpm</span> · <span class="term">bun</span>
+
+<table class="compare-table">
+  <thead>
+    <tr><th>이름</th><th>정체</th><th>파이썬 대응</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="term">node</span></td><td><span class="term">Node.js</span> <strong>런타임</strong> 실행 명령. JS 파일을 해석 · 실행</td><td>python</td></tr>
+    <tr><td><span class="term">npm</span></td><td><strong>Node Package Manager</strong>. Node 설치 시 자동으로 딸려옴. 설치 · 업데이트 · publish 전담</td><td><span class="term">pip</span></td></tr>
+    <tr><td><span class="term">npx</span></td><td><strong>Node Package eXecute</strong>. 설치하지 않고 그 자리에서 실행. <span class="term">npm</span> 과 함께 자동 설치됨</td><td><span class="term">uvx</span> · <span class="term">pipx</span> run</td></tr>
+    <tr><td><span class="term">yarn</span></td><td>Meta (구 Facebook) 가 2016년 만든 <strong><span class="term">npm</span> 대체 패키지 매니저</strong>. <span class="term">package.json</span> 과 호환. lock 파일은 <span class="term">yarn.lock</span></td><td>(직접 대응 없음; 성격상 <span class="term">poetry</span> 정도)</td></tr>
+    <tr><td><span class="term">pnpm</span></td><td>디스크 절약형 대안. <strong>symlink + 공용 store</strong> 로 같은 패키지를 여러 프로젝트가 공유</td><td>(없음)</td></tr>
+    <tr><td><span class="term">bun</span></td><td>Zig 로 만든 신생 <strong>런타임 + 패키지 매니저 + 번들러 + 테스트 러너</strong> 올인원. <span class="term">JavaScriptCore</span> 엔진 사용</td><td><span class="term">uv</span> (역할과 포지셔닝이 유사)</td></tr>
+  </tbody>
+</table>
+
+### 한 문장 구분법
+
+<div class="callout">
+
+- <span class="term">node</span> 는 <span class="key">"JS 를 실행"</span> 하는 것
+- <span class="term">npm</span> 은 <span class="key">"패키지를 관리"</span> 하는 것
+- <span class="term">npx</span> 는 <span class="key">"잠깐 실행"</span> 하는 것
+- <span class="term">yarn</span> · <span class="term">pnpm</span> · <span class="term">bun</span> 은 <span class="key">npm 의 경쟁자</span> (호환되긴 함)
+
+</div>
+
+## 의존성 네 종류: dependencies 계열
+
+<span class="term">package.json</span> 에 들어갈 수 있는 의존성 필드들이에요. 대부분의 프로젝트는 앞의 두 개만 씁니다.
+
+<table class="compare-table">
+  <thead>
+    <tr><th>필드</th><th>의미</th><th>언제 설치되나</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>dependencies</td><td><strong>런타임</strong> 에 필요한 패키지</td><td>항상. transitive 하게 따라감</td></tr>
+    <tr><td>devDependencies</td><td><strong>개발 · 빌드 · 테스트</strong> 시에만 필요</td><td><span class="term">npm install</span> (플래그 없이), --production 시 제외, <strong>남이 의존으로 가져가면 안 따라감</strong></td></tr>
+    <tr><td>peerDependencies</td><td>"이 패키지를 쓸 사람은 <strong>당신 프로젝트에 X 를 따로 설치해야</strong> 합니다" 선언</td><td>자동 설치 안 됨 (<span class="term">npm</span> 7+ 는 자동 설치 시도). 플러그인 · React 컴포넌트 라이브러리 패턴</td></tr>
+    <tr><td>optionalDependencies</td><td>설치 실패해도 <strong>전체 설치는 성공</strong> 처리</td><td>플랫폼별 네이티브 바이너리 같은 조건부 의존성에 쓰임</td></tr>
+  </tbody>
+</table>
+
+### peerDependencies 가 뭔지 간단히
+
+예: 내가 <span class="key">React 컴포넌트 라이브러리</span> 를 만든다면, react 를 dependencies 에 넣으면 안 돼요. 사용자가 이미 자기 프로젝트에 React 를 쓰고 있을 텐데, 내 라이브러리가 또 설치하면 <span class="key">두 벌의 React</span> 가 공존해서 작동이 깨져요. 그래서:
+
+```json
+"peerDependencies": {
+  "react": ">=18.0.0"
+}
+```
+
+"내 라이브러리는 당신 프로젝트의 React 를 <span class="key">빌려 쓸 거에요</span>. 버전이 18 이상이기만 하면 됩니다" 라는 의미. 파이썬 생태계엔 <span class="key">직접 대응이 없는</span> 개념.
+
+### optionalDependencies: 언제 쓰이나
+
+주로 <span class="key">플랫폼별 네이티브 바이너리</span> (예: macOS 용 바이너리가 Linux 에서 설치 실패하는 경우) 를 우아하게 건너뛰기 위함. 일반 AI 엔지니어 입장에선 거의 만날 일 없어요.
+
+## 여러 패키지 매니저가 공존하는 이유
+
+"왜 <span class="term">npm</span> 하나만 쓰지 <span class="term">yarn</span>, <span class="term">pnpm</span>, <span class="term">bun</span> 이 있지?". 역사적 맥락이에요.
+
+<div class="callout">
+
+- <span class="key">2010년대 초반</span>: <span class="term">npm</span> 초기 버전이 느리고 (직렬 다운로드) 불안정함. node_modules 트리가 중복 · 충돌 많음
+- <span class="key">2016</span>: Facebook 이 <span class="term">yarn</span> 출시. 병렬 다운로드 · deterministic 한 lock 파일 (<span class="term">yarn.lock</span>) · offline 캐시. <span class="term">npm</span> 에 압력을 줌
+- <span class="key">2017</span>: <span class="term">npm</span> 5 가 대응. <span class="term">package-lock.json</span> 도입, 속도 개선. 많은 기능이 <span class="term">yarn</span> 과 수렴
+- <span class="key">그 이후</span>: <span class="term">pnpm</span> (2017, 디스크 절약형), <span class="term">bun</span> (2022, 속도 혁신) 등 새 도구 등장
+
+</div>
+
+각자 해결하는 문제가 다릅니다.
+
+- <span class="term">pnpm</span>: 수십 개 프로젝트의 node_modules 합산이 수십 GB 가 되는 문제. 공용 store + symlink 로 해결
+- <span class="term">bun</span>: 전체 툴체인의 속도 (설치 · 번들 · 실행 등) 를 통합적으로 가속
+
+### 그래서 뭘 써야?
+
+<div class="callout-accent">
+일단 <span class="key">npm 만 알아도 충분합니다</span>. 이유:
+
+- 모든 AI CLI · <span class="term">MCP</span> 서버의 설치 지침이 <span class="term">npm install -g</span> · <span class="term">npx</span> 를 기본으로 씀
+- <span class="term">yarn</span> · <span class="term">pnpm</span> · <span class="term">bun</span> 은 <span class="term">package.json</span> 을 그대로 읽어서 어느 것을 깔든 결과가 호환
+- 속도 · 용량 차이는 프로젝트가 <span class="key">매우 커졌을 때</span> 체감되는 것: AI CLI 사용자 수준에선 체감 차이 거의 없음
+
+</div>
+
+"이 도구를 써야 하나?" 고민하지 말고, 필요한 순간 (회사 레포가 <span class="term">bun</span> 을 쓰거나 <span class="term">pnpm-lock.yaml</span> 만 있는 등) 에 그때 배우면 돼요.
+
+## Node 관련 이름들
+
+<table class="compare-table">
+  <thead>
+    <tr><th>마주치는 이름</th><th>관계</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="term">Node.js</span> = Node = <span class="term">node</span></td><td>모두 같은 것 (공식 이름 / 입말 / 터미널 명령)</td></tr>
+    <tr><td><span class="term">JavaScript</span> ↔ <span class="term">Node.js</span></td><td>다른 층 — JS 는 언어, <span class="term">Node.js</span> 는 런타임</td></tr>
+    <tr><td>엔진 ↔ 런타임</td><td>엔진 = <span class="term">V8</span> (언어 실행 코어), 런타임 = 엔진 + API (fs, http, ...)</td></tr>
+  </tbody>
+</table>
+
+## 설치 경로 · 위치 관련 이름들
+
+<table class="compare-table">
+  <thead>
+    <tr><th>이름</th><th>정체</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>node_modules/</td><td>로컬 의존성이 설치되는 폴더</td></tr>
+    <tr><td>node_modules/.bin/</td><td>로컬 패키지들의 CLI 실행 파일이 모이는 폴더</td></tr>
+    <tr><td>전역 bin/</td><td><span class="term">npm install -g</span> 된 CLI 들의 위치 — <span class="term">nvm</span> 기준 &#126;/.nvm/versions/node/&lt;버전&gt;/bin/</td></tr>
+    <tr><td><span class="term">npm cache</span> (&#126;/.npm/_cacache/)</td><td><span class="term">npm</span> 이 다운받은 tarball 을 보관하는 캐시</td></tr>
+    <tr><td><span class="term">npx</span> cache (&#126;/.npm/_npx/)</td><td><span class="term">npx</span> 가 일회성 실행을 위해 푼 임시 캐시</td></tr>
+  </tbody>
+</table>
+
+## 설정 파일 이름들
+
+<table class="compare-table">
+  <thead>
+    <tr><th>파일</th><th>역할</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="term">package.json</span></td><td>프로젝트 메타 · 의존성 · scripts · bin 선언</td></tr>
+    <tr><td><span class="term">package-lock.json</span></td><td>정확한 설치 버전 고정</td></tr>
+    <tr><td><span class="term">.npmrc</span></td><td><span class="term">npm</span> 의 registry · auth · 프록시 설정</td></tr>
+    <tr><td><span class="term">.nvmrc</span></td><td>이 프로젝트가 요구하는 Node 버전</td></tr>
+  </tbody>
+</table>
+
+<div class="note-box">
+<span class="key">"rc" 가 뭐예요?</span>. <span class="term">.npmrc</span>, <span class="term">.nvmrc</span>, <span class="term">.bashrc</span>, .vimrc 전부 접미사가 같죠. <span class="key">"rc" = "run commands"</span>. 유닉스 관례로, 도구가 시작할 때 읽는 <span class="key">설정 · 초기화 파일</span> 에 붙이는 관용 접미사예요. 1960년대 MIT 의 CTSS OS 에서 유래한, 60년 된 작명 관습.
+</div>
+
+## 두 도메인: <span class="term">npmjs.com</span> vs <span class="term">registry.npmjs.org</span>
+
+<table class="compare-table">
+  <thead>
+    <tr><th>도메인</th><th>용도</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="term">npmjs.com</span></td><td>사람이 보는 <strong>웹사이트</strong>. 패키지 검색 · README 열람 · 계정 관리</td></tr>
+    <tr><td><span class="term">registry.npmjs.org</span></td><td>도구 (<span class="term">npm</span> CLI · <span class="term">yarn</span> · <span class="term">pnpm</span> · <span class="term">bun</span>) 가 말을 거는 <strong>API 엔드포인트</strong>. <span class="term">JSON</span> 메타데이터 + tarball 저장소</td></tr>
+  </tbody>
+</table>
+
+<div class="callout-warm">
+웹사이트도 내부적으로 registry 를 호출해서 정보를 받아요. 폐쇄망에서 <span class="term">npmjs.com</span> 은 열리는데 <span class="term">npm install</span> 이 실패한다면 <span class="key">registry 가 막힌 것</span>.
+</div>
+
+---
+
+# 파트 2. 파이썬 ↔ <span class="term">npm</span> 한 장 치트시트
+
+파이썬 배경의 AI 엔지니어가 <span class="term">npm</span> 세계를 돌아다닐 때 <span class="key">"이게 파이썬의 뭐에 해당하지?"</span> 를 빠르게 찾을 수 있도록 정리한 대조표.
+
+## 개념 매핑
+
+<table class="compare-table">
+  <thead>
+    <tr><th>축</th><th><span class="term">Python</span></th><th><span class="term">npm</span></th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>언어</strong></td><td><span class="term">Python</span></td><td><span class="term">JavaScript</span> (= <span class="term">ECMAScript</span>)</td></tr>
+    <tr><td><strong>런타임</strong></td><td><span class="term">CPython</span></td><td><span class="term">Node.js</span></td></tr>
+    <tr><td><strong>실행 명령</strong></td><td>python <span class="term">app.py</span></td><td><span class="term">node</span> <span class="term">app.js</span></td></tr>
+    <tr><td><strong>패키지 매니저</strong></td><td><span class="term">pip</span> · <span class="term">uv</span> · <span class="term">poetry</span></td><td><span class="term">npm</span> (기본) · <span class="term">yarn</span> · <span class="term">pnpm</span> · <span class="term">bun</span></td></tr>
+    <tr><td><strong>패키지 레지스트리</strong></td><td><span class="term">PyPI</span> (pypi.org)</td><td><span class="term">npm registry</span> (<span class="term">registry.npmjs.org</span>)</td></tr>
+    <tr><td><strong>일회성 실행</strong></td><td><span class="term">uvx</span> · <span class="term">pipx</span> run</td><td><span class="term">npx</span></td></tr>
+    <tr><td><strong>전역 CLI 설치</strong></td><td><span class="term">pipx</span> install · <span class="term">uv</span> tool install</td><td><span class="term">npm install -g</span></td></tr>
+    <tr><td><strong>버전 관리자</strong></td><td><span class="term">pyenv</span> · <span class="term">uv</span> python install</td><td><span class="term">nvm</span> · <span class="term">fnm</span></td></tr>
+  </tbody>
+</table>
+
+## 파일 대응
+
+<table class="compare-table">
+  <thead>
+    <tr><th>역할</th><th><span class="term">Python</span></th><th><span class="term">npm</span></th></tr>
+  </thead>
+  <tbody>
+    <tr><td>프로젝트 메타 · 의존성 선언</td><td><span class="term">pyproject.toml</span> (또는 requirements.txt)</td><td><span class="term">package.json</span></td></tr>
+    <tr><td>의존성 트리 정확 버전 고정 (lock)</td><td><span class="term">uv.lock</span> · <span class="term">poetry.lock</span></td><td><span class="term">package-lock.json</span></td></tr>
+    <tr><td>설치된 패키지 위치</td><td><span class="term">.venv</span>/</td><td>node_modules/</td></tr>
+    <tr><td>CLI 실행 파일 위치 (로컬)</td><td><span class="term">.venv</span>/bin/</td><td>node_modules/.bin/</td></tr>
+    <tr><td>인터프리터 버전 고정</td><td><span class="term">.python-version</span></td><td><span class="term">.nvmrc</span></td></tr>
+    <tr><td>도구 설정 파일</td><td>&#126;/.<span class="term">pip/pip.conf</span> · <span class="term">uv.toml</span></td><td><span class="term">.npmrc</span></td></tr>
+    <tr><td>배포 아티팩트</td><td>.whl (wheel)</td><td>registry 의 tarball (.tgz)</td></tr>
+  </tbody>
+</table>
+
+## 명령어 대응
+
+### 설치 · 업데이트
+
+<table class="compare-table">
+  <thead>
+    <tr><th>목적</th><th><span class="term">Python</span></th><th><span class="term">npm</span></th></tr>
+  </thead>
+  <tbody>
+    <tr><td>프로젝트 의존성 전부 설치</td><td><span class="term">uv</span> sync · <span class="term">pip</span> install -r requirements.txt</td><td><span class="term">npm install</span> (= <span class="term">npm i</span>)</td></tr>
+    <tr><td>패키지 하나 추가</td><td><span class="term">uv</span> add X</td><td><span class="term">npm install X</span></td></tr>
+    <tr><td>개발용 패키지 추가</td><td><span class="term">uv</span> add --dev X</td><td><span class="term">npm install -D X</span></td></tr>
+    <tr><td>특정 버전 설치</td><td><span class="term">uv</span> add X==1.2.3</td><td><span class="term">npm install X@1.2.3</span></td></tr>
+    <tr><td>전역 CLI 설치</td><td><span class="term">pipx</span> install X · <span class="term">uv</span> tool install X</td><td><span class="term">npm install -g X</span></td></tr>
+    <tr><td>일회성 실행</td><td><span class="term">uvx</span> X · <span class="term">pipx</span> run X</td><td><span class="term">npx</span> X</td></tr>
+    <tr><td>업데이트 (범위 안)</td><td><span class="term">uv</span> lock --upgrade-package X</td><td><span class="term">npm update X</span></td></tr>
+    <tr><td>MAJOR 넘기 업그레이드</td><td><span class="term">uv</span> add X@latest</td><td><span class="term">npm install X@latest</span></td></tr>
+    <tr><td>전역 설치 업데이트</td><td><span class="term">uv</span> tool upgrade X · <span class="term">pipx</span> upgrade X</td><td><span class="term">npm install -g X@latest</span></td></tr>
+  </tbody>
+</table>
+
+### <span class="term">CI</span> · 배포
+
+<table class="compare-table">
+  <thead>
+    <tr><th>목적</th><th><span class="term">Python</span></th><th><span class="term">npm</span></th></tr>
+  </thead>
+  <tbody>
+    <tr><td>엄격 재현 설치 (<span class="term">CI</span> 용)</td><td><span class="term">uv</span> sync --frozen</td><td><span class="term">npm ci</span></td></tr>
+    <tr><td>프로덕션 설치 (dev 제외)</td><td><span class="term">uv</span> sync --no-dev</td><td><span class="term">npm install</span> --production</td></tr>
+  </tbody>
+</table>
+
+### 점검 · 조회
+
+<table class="compare-table">
+  <thead>
+    <tr><th>목적</th><th><span class="term">Python</span></th><th><span class="term">npm</span></th></tr>
+  </thead>
+  <tbody>
+    <tr><td>설치된 목록</td><td><span class="term">uv</span> <span class="term">pip</span> list</td><td><span class="term">npm list</span> --depth=0</td></tr>
+    <tr><td>전역 설치 목록</td><td><span class="term">uv</span> tool list · <span class="term">pipx</span> list</td><td><span class="term">npm list -g</span> --depth=0</td></tr>
+    <tr><td>최신 버전 확인</td><td><span class="term">uv</span> <span class="term">pip</span> list --outdated</td><td><span class="term">npm outdated</span></td></tr>
+    <tr><td>패키지 상세 보기</td><td><span class="term">uv</span> <span class="term">pip</span> show X</td><td><span class="term">npm view X</span></td></tr>
+    <tr><td>버전 확인</td><td>python --version</td><td><span class="term">node</span> --version · <span class="term">npm</span> --version</td></tr>
+  </tbody>
+</table>
+
+### 버전 관리자 (<span class="term">pyenv</span> ↔ <span class="term">nvm</span>)
+
+<table class="compare-table">
+  <thead>
+    <tr><th>목적</th><th><span class="term">Python</span> (<span class="term">pyenv</span>)</th><th>Node (<span class="term">nvm</span>)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>버전 설치</td><td><span class="term">pyenv</span> install 3.12</td><td><span class="term">nvm</span> install 22 · <span class="term">nvm</span> install --lts</td></tr>
+    <tr><td>현재 셸 버전 전환</td><td><span class="term">pyenv</span> shell 3.12</td><td><span class="term">nvm</span> use 22</td></tr>
+    <tr><td>기본 버전 설정</td><td><span class="term">pyenv</span> global 3.12</td><td><span class="term">nvm</span> alias default 22</td></tr>
+    <tr><td>설치된 목록</td><td><span class="term">pyenv</span> versions</td><td><span class="term">nvm</span> ls</td></tr>
+    <tr><td>현재 사용 버전</td><td><span class="term">pyenv</span> version</td><td><span class="term">nvm</span> current</td></tr>
+    <tr><td>프로젝트별 고정 파일</td><td><span class="term">.python-version</span></td><td><span class="term">.nvmrc</span></td></tr>
+  </tbody>
+</table>
+
+## 개념 차이: 헷갈리지 말 것
+
+### ① 격리 모델
+
+<div class="callout">
+
+- <span class="key">Python</span>: venv 를 명시적으로 만들어 활성화 (<span class="term">uv</span> venv · source <span class="term">.venv</span>/bin/activate). 활성화 안 하면 시스템 <span class="term">Python</span> 을 씀
+- <span class="key">npm</span>: 폴더별 node_modules/ 가 자동 격리. 활성화 개념 없음. 현재 디렉토리의 node_modules 가 자동으로 쓰임
+
+</div>
+
+### ② Transitive 의존성의 dev 처리
+
+<div class="callout">
+
+- <span class="key">Python (pip 기본)</span>: dev 그룹의 transitive 구분이 약함
+- <span class="key">npm</span>: 구조적으로 명확. 4 번 글의 규칙 3 (내 패키지의 devDependencies 는 남에게 안 따라감)
+
+</div>
+
+### ③ 빌드의 의미
+
+<div class="callout">
+
+- <span class="key">Python</span>: 컴파일 · wheel 생성 정도가 "빌드". 라이브러리 배포는 소스 그대로 올리는 경우도 흔함
+- <span class="key">npm</span>: TS → JS 변환 + 번들링을 통칭
+
+</div>
+
+### ④ 스크립트 · 태스크 러너
+
+<div class="callout">
+
+- <span class="key">Python</span>: Makefile · justfile · tox 등 외부 도구로 해결. <span class="term">pyproject.toml</span> 의 [project.scripts] 는 패키지가 노출할 CLI 만 담당
+- <span class="key">npm</span>: <span class="term">package.json</span> 의 scripts 가 내부 태스크 러너 + bin 이 외부 CLI 선언. 한 파일에 둘 다
+
+</div>
+
+## "이건 파이썬의 뭐지?": 자주 받는 질문들
+
+<table class="compare-table">
+  <thead>
+    <tr><th><span class="term">npm</span> 에서 만난 것</th><th>파이썬으로 치면</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="term">package.json</span> 의 scripts</td><td>Makefile · justfile</td></tr>
+    <tr><td><span class="term">package.json</span> 의 bin</td><td><span class="term">pyproject.toml</span> 의 [project.scripts]</td></tr>
+    <tr><td>node_modules/.bin/tsc</td><td><span class="term">.venv</span>/bin/black</td></tr>
+    <tr><td>Shebang #!/usr/bin/env <span class="term">node</span></td><td>Shebang #!/usr/bin/env python3</td></tr>
+    <tr><td><span class="term">npx</span> create-react-app my-app</td><td><span class="term">uvx</span> cookiecutter &lt;template&gt;</td></tr>
+    <tr><td><span class="term">npm run build</span></td><td>make build · just build</td></tr>
+    <tr><td><span class="term">package-lock.json</span> 을 커밋한다</td><td><span class="term">uv.lock</span> · <span class="term">poetry.lock</span> 을 커밋한다</td></tr>
+    <tr><td><span class="term">nvm</span> install --lts + <span class="term">nvm</span> use</td><td><span class="term">uv</span> python install 3.12 + <span class="term">uv</span> run</td></tr>
+    <tr><td><span class="term">.npmrc</span> 에 사내 registry 설정</td><td><span class="term">pip.conf</span> 에 index-url 설정</td></tr>
+  </tbody>
+</table>
+
+## 한 줄 요약
+
+<div class="callout-warm">
+<span class="term">Python</span> 과 <span class="term">npm</span> 은 <span class="key">구조적으로 거의 같은 설계</span> 를 공유해요. <span class="term">package.json</span> ≈ <span class="term">pyproject.toml</span>, node_modules ≈ <span class="term">.venv</span>, <span class="term">npm</span> = <span class="term">pip</span>, <span class="term">npx</span> = <span class="term">uvx</span>, <span class="term">nvm</span> = pyenv. <span class="key">용어만 다를 뿐 개념은 대부분 1:1</span>. 헷갈릴 때는 "이게 파이썬의 뭐에 해당하지?" 를 물으면 답이 나옵니다.
+</div>
+
+다음 글은 본문에서 배운 모든 개념을 <span class="key">실전 시나리오 중심</span> 으로 재조립한 생존 가이드. Claude Code · Codex · <span class="term">MCP</span> 서버를 돌리면서 만나는 현실의 문제 패턴과 대응법을 다룹니다.

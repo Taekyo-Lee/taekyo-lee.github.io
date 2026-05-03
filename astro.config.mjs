@@ -31,6 +31,9 @@ export default defineConfig({
 	build: {
 		assets: isCompany ? 'assets' : '_astro',
 	},
+	markdown: {
+		smartypants: false,  // disable -- → – and --- → — auto-conversion
+	},
 	integrations: [mdx(), sitemap()],
 	fonts: [
 		{

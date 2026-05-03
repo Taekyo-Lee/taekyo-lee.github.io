@@ -1,0 +1,179 @@
+---
+title: '(5/14) global vs local — -g 플래그가 정확히 바꾸는 것'
+description: 'CLI 는 -g, 라이브러리는 로컬. AI CLI 들이 거의 다 전역 설치를 권장하는 이유, 그리고 sudo <span class="term">npm install -g</span> 를 피해야 하는 이유.'
+pubDate: 'May 3 2026'
+category: about-nodejs
+series: 'npm-primer'
+seriesOrder: 5
+heroImage: '../../../assets/hero-about-nodejs.png'
+---
+
+<style>{`
+  .term { color: var(--accent); font-weight: 700; }
+  .key { color: var(--claude-dark); font-weight: 700; }
+  .mod {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.92em;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(96, 115, 159, 0.10);
+    color: rgb(var(--gray-dark));
+  }
+  .callout { background: rgba(96, 115, 159, 0.07); border-radius: 8px; padding: 1em 1.25em; margin: 1.5em 0; }
+  .callout-accent { border-left: 4px solid var(--accent); background: rgba(35, 55, 255, 0.04); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .callout-warm { border-left: 4px solid var(--claude); background: rgba(204, 120, 92, 0.06); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .note-box { border: 1px dashed rgba(96, 115, 159, 0.35); border-radius: 8px; padding: 0.7em 1em; margin: 1.25em 0; font-size: 0.95em; color: rgb(var(--gray-dark)); }
+  .compare-table { width: 100%; border-collapse: collapse; margin: 1.5em 0; font-size: 0.95em; line-height: 1.55; }
+  .compare-table th, .compare-table td { padding: 0.6em 0.85em; border-bottom: 1px solid rgb(var(--gray-light)); text-align: left; vertical-align: top; }
+  .compare-table th { background: rgba(var(--gray-light), 0.5); font-weight: 700; color: rgb(var(--black)); }
+  .compare-table tr.highlight { background: rgba(204, 120, 92, 0.08); }
+  .compare-table tr.highlight td { border-bottom-color: rgba(204, 120, 92, 0.3); }
+  .compare-table tr.row-accent { background: rgba(35, 55, 255, 0.05); }
+`}</style>
+
+Claude Code 설치 안내를 처음 봤을 때 의아했던 게 있어요. <span class="term">npm install -g @anthropic-ai/claude-code</span>. 다른 npm 명령들은 다 프로젝트 폴더 안에서 치는 것 같던데 왜 이건 -g 가 붙는 거지? 답을 알고 보면 단순합니다. <span class="key">CLI 와 라이브러리의 자리가 다르기 때문</span> 이에요.
+
+## 한 줄 답
+
+<div class="callout-accent">
+<span class="term">npm install &lt;패키지&gt;</span> 는 현재 프로젝트 폴더의 node_modules/ 에 설치 (로컬). <span class="term">npm install -g &lt;패키지&gt;</span> 는 시스템 전역에 설치해서 <span class="key">터미널 어디서나 이름만 치면 실행</span> 되게 만듭니다 (global). AI CLI (Claude Code, Codex, Cursor CLI 등) 를 깔 때 보통 만나는 게 후자예요. 파이썬으로 치면 <span class="key">프로젝트 venv 에 uv add</span> 와 <span class="key">pipx install</span> 의 구분과 같은 자리입니다.
+</div>
+
+## Default 는 "로컬 설치"
+
+지금까지 본 <span class="term">npm install</span> 은 전부 로컬 설치였어요.
+
+```bash
+npm install react
+```
+
+<div class="callout">
+
+- react 가 <span class="key">현재 디렉토리의 node_modules/react/</span> 에 놓임
+- package.json 의 dependencies 에 기록
+- 현재 프로젝트 안에서 import 해서 쓸 수 있음
+- <span class="key">다른 프로젝트 폴더에서는 안 보임</span>: 자동으로 격리됨
+
+</div>
+
+이 격리 덕분에 프로젝트마다 다른 버전의 라이브러리를 쓸 수 있어요. 파이썬에서 venv 를 폴더마다 만드는 것과 같은 효과인데, 명시적으로 venv 를 만들 필요조차 없습니다.
+
+## 전역 설치: -g 플래그
+
+```bash
+npm install -g <패키지>      # 풀 네임: --global
+```
+
+<div class="callout">
+
+- 프로젝트 폴더가 아니라 <span class="key">시스템 한 곳</span> 에 설치됨
+- 해당 패키지가 CLI 를 제공하는 경우, 그 실행 파일이 <span class="key">시스템 PATH</span> 에 등록됨
+- 결과: 터미널 어디서든 &lt;패키지명&gt; 만 쳐서 실행 가능
+
+</div>
+
+전역 설치된 패키지는 특정 프로젝트 폴더에 속하지 않아요. 어느 폴더에 들어가 있든 이름만 치면 실행됩니다.
+
+### 어디에 설치되는가
+
+OS 와 Node 설치 방식에 따라 위치가 다릅니다.
+
+<table class="compare-table">
+  <thead>
+    <tr><th>환경</th><th>전역 설치 위치</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>nvm 으로 Node 설치 (권장 경로)</td><td>&#126;/.nvm/versions/node/&lt;version&gt;/lib/node_modules/</td></tr>
+    <tr><td>macOS / Linux (시스템 Node)</td><td>/usr/local/lib/node_modules/ + CLI 는 /usr/local/bin/</td></tr>
+    <tr><td>Windows (공식 설치)</td><td>%AppData%&#92;npm&#92;node_modules&#92;</td></tr>
+  </tbody>
+</table>
+
+<div class="note-box">
+💡 <span class="term">npm root -g</span> 를 치면 현재 환경의 전역 설치 경로를 알려줘요.
+</div>
+
+## 🎯 언제 -g 를 써야 하나
+
+결정 기준은 간단합니다. <span class="key">"그 패키지가 CLI 인가, 라이브러리인가"</span>.
+
+### CLI 라면 → 전역 설치
+
+터미널에서 <span class="key">이름만 쳐서 실행</span> 하는 게 목적인 것들. 예:
+
+```bash
+npm install -g @anthropic-ai/claude-code   # Claude Code CLI
+```
+
+설치 후 아무 폴더에서나 claude 를 치면 실행됩니다. 프로젝트 폴더별로 설치해 쓰는 개발자 도구가 아니니 전역 위치가 자연스러워요.
+
+### 라이브러리라면 → 로컬 설치
+
+코드에서 import 로 <span class="key">가져다 쓰는</span> 것들 (react, lodash, express 등). 이건 <span class="key">절대 -g 로 깔면 안 됩니다</span>. 이유:
+
+<div class="callout">
+
+- 프로젝트마다 필요한 버전이 다름: 전역 한 개로는 부족
+- 내 코드가 의존성을 명시적으로 선언해야 package.json 이 의미가 있음. 전역 설치된 걸 쓰면 package.json 에 안 남음
+- 다른 컴퓨터에서 <span class="term">npm install</span> 만으로 재현 불가능해짐
+
+</div>
+
+<div class="callout-warm">
+기본 원칙: <span class="key">"CLI 만 -g, 라이브러리는 로컬"</span>.
+</div>
+
+## 파이썬과의 대응
+
+거의 1:1 로 대응됩니다.
+
+<table class="compare-table">
+  <thead>
+    <tr><th>npm</th><th>Python</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="term">npm install &lt;pkg&gt;</span> (로컬)</td><td>uv add &lt;pkg&gt; · pip install &lt;pkg&gt; (venv 안에서)</td></tr>
+    <tr><td><span class="term">npm install -g &lt;pkg&gt;</span></td><td>pipx install &lt;pkg&gt; · uv tool install &lt;pkg&gt;</td></tr>
+  </tbody>
+</table>
+
+pipx 는 CLI 도구를 venv 격리 + PATH 등록해서 깔아 주는 개발자 도구예요. <span class="term">npm install -g</span> 와 <span class="key">목적이 같습니다</span>. 라이브러리는 프로젝트 venv 에, CLI 는 시스템 어디서든 부르게.
+
+## <span class="term">sudo npm install -g</span>: 피해야 할 패턴
+
+macOS / Linux 에서 시스템 Node 를 그대로 쓰면 전역 설치 시 권한 에러가 나서 sudo <span class="term">npm install -g</span> ... 를 치게 되는 경우가 있어요. <span class="key">이건 하지 마세요</span>. 이유:
+
+<div class="callout-warm">
+
+- 시스템 디렉토리 (/usr/local/) 에 패키지를 쓰게 되어 <span class="key">시스템 파일을 오염</span>
+- 설치 스크립트가 루트 권한으로 실행됨 → <span class="key">보안 리스크</span> (악성 패키지의 피해 범위가 커짐)
+- 권한이 꼬이기 시작하면 복구가 귀찮음
+
+</div>
+
+<span class="key">해결책은 nvm 으로 Node 를 설치하는 것</span>. nvm 으로 깔면 Node 본체와 전역 패키지가 <span class="key">홈 디렉토리 (&#126;/.nvm/)</span> 아래에 들어가서, sudo 없이도 <span class="term">npm install -g</span> 가 그냥 됩니다 (시리즈 마지막 글에서 상세).
+
+이미 시스템 Node 를 sudo 로 쓰고 있다면, nvm 으로 갈아타는 게 장기적으로 가장 깔끔한 해결입니다.
+
+## 전역 업데이트와 제거
+
+```bash
+npm update -g <패키지>                  # 전역 설치 패키지 업데이트
+npm install -g <패키지>@latest          # 최신으로 덮어씀 (더 확실)
+npm uninstall -g <패키지>               # 전역 설치 제거
+npm list -g --depth=0                   # 전역 설치 목록 보기 (top-level 만)
+```
+
+AI CLI 는 업데이트가 잦으니 @latest 로 다시 설치해서 갱신하는 패턴을 많이 씁니다.
+
+## 그런데: CLI 를 **설치 없이** 한 번만 쓰고 싶다면?
+
+npx 라는 방법이 있어요. 전역 설치하지 않고 레지스트리에서 그때그때 내려받아 실행하는 방식입니다. 파이썬의 uvx 와 같은 자리예요. 다음 글에서 상세히 다룹니다.
+
+## 한 줄 요약
+
+<div class="callout-accent">
+<span class="key">로컬 설치 (기본)</span> 는 프로젝트 폴더의 node_modules/ 에, <span class="key">전역 설치 (-g)</span> 는 시스템 공통 위치에 깔림. <span class="key">CLI 는 -g, 라이브러리는 로컬</span> 이 원칙. sudo <span class="term">npm install -g</span> 는 피하고 <span class="key">nvm 경로</span> 를 쓰세요. 파이썬의 pipx · uv tool install 과 같은 개념입니다.
+</div>
+
+다음 글에서는 npx 가 정확히 무엇이고, 왜 MCP 서버 설정에서 항상 npx 가 등장하는지를 풀어 봅니다.

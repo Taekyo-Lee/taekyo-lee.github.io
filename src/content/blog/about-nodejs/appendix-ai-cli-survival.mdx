@@ -1,0 +1,250 @@
+---
+title: '(13/14) [부록] AI CLI 사용자 생존 가이드 — 실전 시나리오'
+description: '본문 11편의 개념을 시나리오 중심으로 재조립. MCP 설정 한 줄 해부, 흔한 에러 메시지 독해표, 점검 명령, 안티패턴.'
+pubDate: 'May 3 2026'
+category: about-nodejs
+series: 'npm-primer'
+seriesOrder: 13
+heroImage: '../../../assets/hero-about-nodejs.png'
+---
+
+<style>{`
+  .term { color: var(--accent); font-weight: 700; }
+  .key { color: var(--claude-dark); font-weight: 700; }
+  .mod {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.92em;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(96, 115, 159, 0.10);
+    color: rgb(var(--gray-dark));
+  }
+  .callout { background: rgba(96, 115, 159, 0.07); border-radius: 8px; padding: 1em 1.25em; margin: 1.5em 0; }
+  .callout-accent { border-left: 4px solid var(--accent); background: rgba(35, 55, 255, 0.04); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .callout-warm { border-left: 4px solid var(--claude); background: rgba(204, 120, 92, 0.06); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .note-box { border: 1px dashed rgba(96, 115, 159, 0.35); border-radius: 8px; padding: 0.7em 1em; margin: 1.25em 0; font-size: 0.95em; color: rgb(var(--gray-dark)); }
+  .compare-table { width: 100%; border-collapse: collapse; margin: 1.5em 0; font-size: 0.95em; line-height: 1.55; }
+  .compare-table th, .compare-table td { padding: 0.6em 0.85em; border-bottom: 1px solid rgb(var(--gray-light)); text-align: left; vertical-align: top; }
+  .compare-table th { background: rgba(var(--gray-light), 0.5); font-weight: 700; color: rgb(var(--black)); }
+  .compare-table tr.highlight { background: rgba(204, 120, 92, 0.08); }
+  .compare-table tr.highlight td { border-bottom-color: rgba(204, 120, 92, 0.3); }
+  .compare-table tr.row-accent { background: rgba(35, 55, 255, 0.05); }
+`}</style>
+
+본문 11편을 다 읽었으니 이제 그 개념들을 <span class="key">실전 시나리오 중심</span> 으로 재조립한 생존 가이드를 정리합니다. Claude Code · Codex · Cursor CLI · <span class="term">MCP</span> 서버를 돌리면서 만나는 현실의 문제 패턴과 대응법.
+
+## 출발선: Node · <span class="term">npm</span> 환경 세팅 (딱 한 번)
+
+새 머신에서 AI CLI 를 돌리려면 가장 먼저 할 일.
+
+```bash
+# 1) nvm 설치 (공식 명령은 github.com/nvm-sh/nvm 에서 확인)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+
+# 2) 새 터미널 열고 LTS Node 설치
+nvm install --lts
+nvm alias default --lts
+
+# 3) 확인
+node --version      # v22.x.x 등
+npm --version       # 10.x.x 등
+```
+
+이후 모든 <span class="term">npm install -g</span> 가 <span class="key">sudo 없이</span> 작동합니다.
+
+## AI CLI 설치: 두 가지 패턴
+
+### 패턴 ①: 자주 쓰는 CLI 는 전역 설치
+
+```bash
+npm install -g @anthropic-ai/claude-code
+# 설치 후:
+claude --version
+```
+
+Claude Code 처럼 <span class="key">매일 쓰는 CLI</span> 는 전역 설치가 오버헤드 적음.
+
+### 패턴 ②: 자주 안 쓰는 CLI 는 <span class="term">npx</span>
+
+```bash
+npx -y @some-org/one-time-tool
+```
+
+한 번만 쓰고 말 도구는 전역 설치 안 함.
+
+## <span class="term">MCP</span> 서버 설정: 가장 흔한 실전 패턴
+
+Claude Code · Cursor · Claude Desktop 의 <span class="term">MCP</span> 설정 <span class="term">JSON</span> 에 들어가는 표준 형태.
+
+```json
+{
+  "mcpServers": {
+    "example-server": {
+      "command": "npx",
+      "args": ["-y", "@some-org/example-mcp-server"]
+    }
+  }
+}
+```
+
+### 이 한 줄을 해부하면
+
+<table class="compare-table">
+  <thead>
+    <tr><th>부분</th><th>의미</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>"command": "npx"</td><td>실행 도구는 npx. 설치 없이 매번 실행</td></tr>
+    <tr><td>"-y"</td><td>설치 확인 프롬프트 자동 yes (자동화 환경 필수)</td></tr>
+    <tr><td>"@some-org/example-mcp-server"</td><td>scoped package 이름. @some-org 는 배포자 namespace</td></tr>
+  </tbody>
+</table>
+
+### 버전 고정하고 싶다면
+
+```json
+"args": ["-y", "@some-org/example-mcp-server@1.2.3"]
+```
+
+<span class="term">npx</span> 도 @latest · @&lt;버전&gt; 표기를 그대로 지원해요.
+
+### <span class="term">MCP</span> 서버가 bin 이름을 따로 가진다면
+
+```json
+"command": "npx",
+"args": ["-y", "-p", "@some-org/tools", "example-server"]
+```
+
+-p 로 패키지 명시 + 실행할 CLI 이름을 뒤에. bin 이 하나뿐이면 -p 생략 가능.
+
+## 흔한 에러 메시지 독해
+
+<span class="term">npm</span> 세계에서 자주 만나는 에러들. <span class="key">원인이 뻔하니 독해법만 알면 대부분 빨리 풀려요</span>.
+
+<table class="compare-table">
+  <thead>
+    <tr><th>에러 메시지</th><th>원인</th><th>대응</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="key">ENOENT</span> (no such file or directory)</td><td>경로가 틀렸거나 node_modules/ 가 없음</td><td><span class="term">npm install</span> 을 먼저 실행했는지 확인</td></tr>
+    <tr><td><span class="key">EACCES</span> (permission denied)</td><td>시스템 디렉토리에 쓰려는데 권한 없음</td><td><strong>sudo 대신 <span class="term">nvm</span> 쓰세요</strong> — Node 를 홈 디렉토리로 옮기면 해결</td></tr>
+    <tr><td><span class="key">ERESOLVE</span> (dependency conflict)</td><td>peerDependencies 충돌</td><td><span class="term">npm install</span> --legacy-peer-deps 시도, 또는 문제 패키지 버전 수동 조정</td></tr>
+    <tr><td>Cannot find module 'X'</td><td>X 패키지가 안 깔렸거나 Node 버전 불일치</td><td><span class="term">npm install X</span> · <span class="term">node</span> --version 확인</td></tr>
+    <tr><td>Cannot find module 'X' imported from /<span class="term">path/to/file.mjs</span></td><td>ESM/CommonJS 혼용 문제</td><td><span class="term">package.json</span> 의 "type" 필드, 확장자 (.<span class="term">mjs/.cjs</span>) 확인</td></tr>
+    <tr><td><span class="key">EBADENGINE</span> (unsupported engine)</td><td><span class="term">package.json</span> 의 engines.node 보다 현재 Node 가 낮음</td><td><span class="term">nvm</span> install --lts + <span class="term">nvm</span> use</td></tr>
+    <tr><td><span class="key">ECONNREFUSED</span> · <span class="key">ETIMEDOUT</span></td><td>registry 에 못 나감 (폐쇄망 · 프록시)</td><td><span class="term">.npmrc</span> 의 registry 주소, <span class="key">HTTP_PROXY</span> 확인</td></tr>
+    <tr><td>401 Unauthorized · 403 Forbidden</td><td>사내 registry 인증 실패</td><td><span class="term">.npmrc</span> 의 _authToken 갱신, <span class="term">npm login</span> 재실행</td></tr>
+    <tr><td><span class="key">SELF_SIGNED_CERT_IN_CHAIN</span></td><td>사내 CA 인증서 문제</td><td><span class="key">NODE_EXTRA_CA_CERTS</span> 환경 변수 설정</td></tr>
+    <tr><td>integrity checksum failed</td><td><span class="term">package-lock.json</span> 과 다운로드된 tarball 불일치</td><td>node_modules/ · <span class="term">package-lock.json</span> 삭제 후 <span class="term">npm install</span> 재실행</td></tr>
+  </tbody>
+</table>
+
+## 자주 쓰는 점검 명령
+
+문제 생겼을 때 <span class="key">상태를 파악</span> 하는 명령들.
+
+```bash
+# Node · npm 기본
+which node                  # 어디에 설치된 node 가 쓰이나 (nvm 경로여야 정상)
+node --version
+npm --version
+
+# 전역 설치 상태
+npm list -g --depth=0       # 전역 설치된 top-level 패키지 목록
+npm root -g                 # 전역 설치 위치 경로
+npm config get prefix       # npm 이 전역 설치 경로로 쓰는 prefix
+
+# 로컬 프로젝트
+npm list --depth=0          # 현재 프로젝트의 top-level 의존성
+npm outdated                # 업데이트 가능 목록
+npm config list             # 현재 적용 중인 설정 (사용자·프로젝트 병합 결과)
+
+# registry 연결 테스트
+npm view react version      # registry 에 접근해 react 최신 버전 조회
+npm ping                    # registry 연결 확인
+```
+
+## 피해야 할 안티패턴
+
+### sudo <span class="term">npm install -g</span> 쓰지 않기
+
+<div class="callout-warm">
+
+- 시스템 디렉토리 (/usr/local/lib/) 를 root 로 오염
+- 패키지의 install 스크립트가 root 로 실행 → <span class="key">보안 리스크</span>
+- 대안: <span class="term">nvm</span>
+
+</div>
+
+### node_modules/ 를 Git 에 커밋 안 하기
+
+<div class="callout">
+
+- 용량 수백 MB: Git 저장소가 비대해짐
+- <span class="term">package-lock.json</span> 만 있으면 완벽하게 재생성 가능
+- <span class="term">.gitignore</span> 에 반드시 node_modules/ 추가
+
+</div>
+
+### <span class="term">package-lock.json</span> 은 **반드시** 커밋하기
+
+<div class="callout-accent">
+
+- 재현성의 근거
+- <span class="term">.gitignore</span> 에 넣으면 <span class="key">절대 안 됨</span>
+
+</div>
+
+### <span class="term">npm install</span> 뒤 git status 확인하기
+
+<div class="callout">
+
+- lock 파일이 조용히 바뀔 수 있음
+- 의도하지 않은 변경은 커밋 전에 이해하거나 되돌리기
+
+</div>
+
+### --ignore-scripts 를 고려하기
+
+<div class="callout-warm">
+
+- postinstall 은 임의 코드 실행 벡터: 공급망 공격이 이 경로를 자주 이용
+- 신중한 환경에선 <span class="term">npm install</span> --ignore-scripts 를 기본으로 쓸 것
+
+</div>
+
+## Claude Code fork 를 빌드 · 개발한다면
+
+다음 글 (시리즈 마지막) 에서 한 실제 fork 프로젝트의 <span class="term">setup.sh</span> 를 한 줄씩 분해합니다. 핵심 흐름만 미리 보면:
+
+<div class="callout-accent">
+
+1. <span class="term">nvm</span> install --lts → Node 준비
+2. git clone → 소스 받기
+3. ./<span class="term">scripts/fork/setup.sh</span> → 의존성 설치 + Bun 전역 설치 + 빌드 + <span class="term">npm link
+4. claude-fork</span> 가 전역에서 호출 가능해짐
+
+</div>
+
+코드 수정 후 재빌드는 <span class="term">npm run build</span> 한 번. <span class="term">npm link</span> 로 연결된 전역 claude-fork 가 자동으로 새 번들을 봅니다.
+
+## 폐쇄망 · 사내 registry 환경
+
+이전에 쓴 <span class="key">사내망에서 npm install 이 안 될 때</span> 글 (<span class="term">npm</span> · <span class="term">pip</span> · <span class="term">uv</span> 의 설정 파일 정리) 을 참고하세요. 핵심 체크리스트만 요약:
+
+<div class="callout">
+
+- IT 에서 받아올 것: 사내 registry 주소 · HTTP 프록시 주소 · 사내 CA 인증서 · 인증 방식
+- 시스템 환경 변수 먼저 설정: <span class="key">HTTP_PROXY</span>, <span class="key">HTTPS_PROXY</span>, <span class="key">NODE_EXTRA_CA_CERTS</span>
+- 도구별 설정: <span class="term">.npmrc</span>, <span class="term">pip.conf</span>, <span class="term">uv.toml</span>
+- 토큰은 절대 Git 에 커밋하지 않기
+
+</div>
+
+## 한 줄 요약
+
+<div class="callout-warm">
+AI CLI 사용자가 정말로 외워야 할 것. <span class="key">nvm install --lts 로 Node 세팅, npm install -g 로 자주 쓰는 CLI, npx 로 일회성 실행, MCP 설정엔 npx -y, 에러 뜨면 which node · npm config list 부터 확인</span>. 이 다섯 조각이 AI 엔지니어 일상의 90% 를 커버합니다.
+</div>
+
+다음 글은 시리즈 마지막. 한 실제 AI CLI fork 프로젝트의 <span class="term">setup.sh</span> 를 한 줄씩 분해하면서 지금까지 배운 모든 <span class="term">npm</span> 개념이 어떻게 한 흐름에 모이는지 봅니다.

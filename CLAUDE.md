@@ -125,7 +125,7 @@ git commit -m "Merge upstream: resolve conflicts for company repo"
 - `src/consts.ts` — `SITE_TITLE`, `CATEGORY_LABELS`
 - `src/styles/global.css` — 색 토큰 (`--accent` 블루, `--claude` 오렌지)
 - `src/components/` — `Header`, `Footer`, 시각 컴포넌트 (`GuiVsCli`, `EraTimeline`, `LayerStack`, `ClosingHero`)
-- `src/content/blog/` — 포스트 (`.md` 또는 `.mdx`)
+- `src/content/blog/<category>/` — 포스트 (`.md` 또는 `.mdx`). 카테고리별 서브폴더에 배치 (예: `about-nodejs/foo.mdx`). URL 은 `/blog/<slug>/` 로 폴더 무관하게 평평 (basename 추출 처리됨). `heroImage`/component import 는 `../../../` (3단계 위) 로 참조.
 
 ---
 
@@ -179,9 +179,9 @@ git commit -m "Merge upstream: resolve conflicts for company repo"
 - **클래스는 포스트 상단 `<style>{` … `}</style>` 블록에 정의**. 컴포넌트로 추출은 안 함 (포스트마다 미세 조정 자유 확보). 색은 반드시 글로벌 토큰 (`var(--accent)`, `var(--claude)`, `var(--claude-dark)`, `rgb(var(--gray))`, `rgba(96, 115, 159, …)` 등) 으로.
 
 레퍼런스 포스트:
-- `src/content/blog/about-astro-03-astro.mdx` — `.term`/`.key` 와 HTML 테이블 사용의 전형
-- `src/content/blog/claude-code-langfuse-trace-keys.mdx` — 인라인 모노스페이스 (`.k`), 콜아웃 박스, 트리 시각화의 종합판
-- `src/content/blog/javascript-ecosystem-primer.mdx` — `.term`/`.key`/`.mod`/`.callout*`/`.compare-table` 의 풀 셋
+- `src/content/blog/about-astro/about-astro-03-astro.mdx` — `.term`/`.key` 와 HTML 테이블 사용의 전형
+- `src/content/blog/lab-notes/claude-code-langfuse-trace-keys.mdx` — 인라인 모노스페이스 (`.k`), 콜아웃 박스, 트리 시각화의 종합판
+- `src/content/blog/about-nodejs/javascript-ecosystem-primer.mdx` — `.term`/`.key`/`.mod`/`.callout*`/`.compare-table` 의 풀 셋
 
 ---
 
@@ -235,7 +235,7 @@ import ClosingHero from '../../components/ClosingHero.astro';
 npm run dev   # http://localhost:4321
 
 # 배포 (저자가 직접 실행)
-git add src/content/blog/<slug>.mdx
+git add src/content/blog/<category>/<slug>.mdx
 git commit -m "Add post: <title>"
 git push
 ```

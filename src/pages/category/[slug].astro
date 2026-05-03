@@ -22,9 +22,18 @@ export async function getStaticPaths() {
 const { slug } = Astro.params;
 const base = import.meta.env.BASE_URL;
 const label = CATEGORY_LABELS[slug as string] ?? slug;
-const posts = (await getCollection('blog', ({ data }) => data.category === slug)).sort(
-	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
-);
+const posts = (await getCollection('blog', ({ data }) => data.category === slug)).sort((a, b) => {
+	const aHasSeries = a.data.series != null;
+	const bHasSeries = b.data.series != null;
+	// Standalone posts first
+	if (aHasSeries !== bHasSeries) return aHasSeries ? 1 : -1;
+	// Same series → by seriesOrder (reading order)
+	if (aHasSeries && bHasSeries && a.data.series === b.data.series) {
+		return (a.data.seriesOrder ?? 0) - (b.data.seriesOrder ?? 0);
+	}
+	// Both standalone OR different series → pubDate ascending (oldest first = reading order)
+	return a.data.pubDate.valueOf() - b.data.pubDate.valueOf();
+});
 const pageTitle = `${label} — ${SITE_TITLE}`;
 ---
 
@@ -134,7 +143,7 @@ const pageTitle = `${label} — ${SITE_TITLE}`;
 						{
 							posts.map((post) => (
 								<li>
-									<a href={`${base}blog/${post.id}/`}>
+									<a href={`${base}blog/${post.id.split('/').pop()}/`}>
 										{post.data.heroImage && (
 											<Image width={720} height={360} src={post.data.heroImage} alt="" />
 										)}

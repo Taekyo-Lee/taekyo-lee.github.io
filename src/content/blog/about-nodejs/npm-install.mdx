@@ -1,0 +1,229 @@
+---
+title: '(4/14) npm install — dependencies vs devDependencies 의 진짜 차이'
+description: 'npm install 의 기본 동작과, dependencies / devDependencies 가 실제로 다르게 작동하는 세 가지 규칙. 공개 패키지를 만들 때만 진짜로 중요해지는 그 구분.'
+pubDate: 'May 3 2026'
+category: about-nodejs
+series: 'npm-primer'
+seriesOrder: 4
+heroImage: '../../../assets/hero-about-nodejs.png'
+---
+
+<style>{`
+  .term { color: var(--accent); font-weight: 700; }
+  .key { color: var(--claude-dark); font-weight: 700; }
+  .mod {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.92em;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(96, 115, 159, 0.10);
+    color: rgb(var(--gray-dark));
+  }
+  .callout { background: rgba(96, 115, 159, 0.07); border-radius: 8px; padding: 1em 1.25em; margin: 1.5em 0; }
+  .callout-accent { border-left: 4px solid var(--accent); background: rgba(35, 55, 255, 0.04); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .callout-warm { border-left: 4px solid var(--claude); background: rgba(204, 120, 92, 0.06); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .note-box { border: 1px dashed rgba(96, 115, 159, 0.35); border-radius: 8px; padding: 0.7em 1em; margin: 1.25em 0; font-size: 0.95em; color: rgb(var(--gray-dark)); }
+  .compare-table { width: 100%; border-collapse: collapse; margin: 1.5em 0; font-size: 0.95em; line-height: 1.55; }
+  .compare-table th, .compare-table td { padding: 0.6em 0.85em; border-bottom: 1px solid rgb(var(--gray-light)); text-align: left; vertical-align: top; }
+  .compare-table th { background: rgba(var(--gray-light), 0.5); font-weight: 700; color: rgb(var(--black)); }
+  .compare-table tr.highlight { background: rgba(204, 120, 92, 0.08); }
+  .compare-table tr.highlight td { border-bottom-color: rgba(204, 120, 92, 0.3); }
+  .compare-table tr.row-accent { background: rgba(35, 55, 255, 0.05); }
+`}</style>
+
+<span class="term">npm install</span> 은 <span class="term">npm</span> 사용자가 가장 자주 치는 명령어입니다. 동작 자체는 단순해 보이지만, dependencies 와 devDependencies 사이의 차이는 한 가지 결정적인 지점에서 갈려요. 그 한 가지를 모르면 공개 패키지를 만들 때 사용자에게 "Cannot find module" 에러를 안기게 됩니다.
+
+## 한 줄 답
+
+<div class="callout-accent">
+<span class="term">npm install</span> 은 <span class="term">package.json</span> 에 적힌 패키지들을 <span class="term">npmjs.com</span> 에서 다운로드해서 현재 프로젝트의 node_modules/ 에 풀어둡니다. 이 패키지들은 <span class="key">dependencies</span> 와 <span class="key">devDependencies</span> 두 그룹으로 나뉘는데, 겉보기엔 사소해 보여도 <span class="key">공개 패키지를 만들거나 프로덕션 배포</span> 를 할 때 동작이 완전히 달라지는 중요한 구분이에요. 파이썬으로 치면 [project.dependencies] 와 [project.optional-dependencies.dev] (또는 <span class="term">uv</span> 의 --dev 그룹) 의 구분과 같은 자리입니다.
+</div>
+
+## <span class="term">npm install</span>: 기본 동작
+
+<span class="term">package.json</span> 이 있는 폴더에서 이 명령을 치면:
+
+```bash
+npm install           # 또는 축약: npm i
+```
+
+<div class="callout">
+
+- <span class="term">package.json</span> 의 dependencies + devDependencies 를 <span class="key">전부</span> 읽음. <span class="key">install 관점에서는 두 그룹의 차이가 없습니다.</span> 기본 동작은 둘 다 똑같이 다운로드 (차이는 뒤에서 설명하는 세 가지 규칙에서 드러나요)
+- 각 패키지를 <span class="term">npm registry</span> 에서 다운로드해서 <span class="key">현재 폴더의 node_modules/</span> 에 풀어둠
+- 다운로드한 내용을 <span class="term">package-lock.json</span> 에 기록 (<a href={`${import.meta.env.BASE_URL}blog/package-lock/`}>(7/14) package-lock.json — "내 컴퓨터에선 되는데" 를 없애는 한 파일</a> 에서 상세)
+
+</div>
+
+중요한 건 설치 위치가 <span class="key">현재 디렉토리</span> 라는 점이에요. venv 를 명시적으로 만들지 않아도 프로젝트별 격리가 자동입니다. 다른 폴더에 같은 패키지의 다른 버전이 깔려 있어도 서로 간섭하지 않아요.
+
+## 특정 패키지 추가하기: dependencies 로
+
+```bash
+npm install react            # react 설치 + dependencies 에 추가
+npm i react                  # 축약
+```
+
+node_modules/ 에 react 를 설치하고, 동시에 <span class="term">package.json</span> 의 dependencies 필드에 자동으로 한 줄 추가됩니다.
+
+```json
+"dependencies": {
+  "react": "^18.3.1"
+}
+```
+
+## devDependencies 로 추가하기: -D 플래그
+
+```bash
+npm install --save-dev jest  # 풀 네임
+npm install -D jest          # 축약 (대문자 D)
+```
+
+같은 방식으로 설치되지만 <span class="term">package.json</span> 의 <span class="key">devDependencies</span> 필드에 들어갑니다.
+
+```json
+"devDependencies": {
+  "jest": "^29.7.0"
+}
+```
+
+## 두 그룹의 실제 차이: 세 가지 규칙
+
+많은 사람이 dependencies 와 devDependencies 를 "런타임이냐 개발 도구냐" 정도로만 뭉뚱그려 이해하는데, 실제로 동작이 갈리는 지점은 다음 세 가지 규칙입니다.
+
+### 규칙 1: 내 프로젝트 안에서 기본 동작은 동일
+
+<span class="term">npm install</span> 을 맨손으로 치면 <span class="key">둘 다 설치</span> 됩니다. <span class="key">내 컴퓨터에서 개발할 때는 차이가 안 느껴져요.</span>
+
+### 규칙 2: --production 플래그에서 devDependencies 는 빠짐
+
+```bash
+npm install --production
+# 또는 환경 변수로:
+NODE_ENV=production npm install
+```
+
+이때는 <span class="key">dependencies 만</span> 설치되고 devDependencies 는 건너뜁니다. 배포 서버·Docker 이미지처럼 테스트 러너나 빌드 도구가 필요 없는 환경에서 용량·시간을 아끼는 용도예요.
+
+### ⭐ 규칙 3 (가장 중요): Transitive 설치가 다르게 동작
+
+<span class="key">의존성의 의존성</span> 이 어떻게 설치되는지가 핵심입니다.
+
+<div class="callout-accent">
+
+규칙은 <span class="key">단계마다 동일하게 적용</span> 됩니다. A → B → C 로 의존성이 이어진다고 할 때, 각 단계에서:
+
+- <span class="key">dependencies 는 따라온다</span>: A 의 dependencies → 깔림 → 그 안의 B 가 또 자기 dependencies 를 가지고 있으면 → 그것도 깔림 → C 까지 끝까지 transitive 하게
+- <span class="key">devDependencies 는 따라오지 않는다</span>: 어느 단계에서 만나든 무시. A 의 devDependencies 도, B 의 devDependencies 도, C 의 devDependencies 도 전부 건너뜀
+
+즉 내가 A 를 설치하면 <span class="key">A 의 dependencies 만</span> 깔리는 거예요. A 의 devDependencies (= A 작성자가 A 를 개발할 때 쓰던 테스트 러너·린터·빌더 같은 것들) 는 나와 무관하니 따라오지 않습니다.
+
+</div>
+
+## 그래서 무엇을 어디에 넣어야 하나: 두 가지 경우
+
+결정은 <span class="key">내가 만들고 있는 것이 무엇이냐</span> 에 달렸습니다. 그리고 많은 beginner 가 여기서 헷갈려요.
+
+### 경우 1: 내가 "애플리케이션" 을 만들 때 (대부분의 상황)
+
+내가 만드는 게 <span class="key">최종적으로 실행될 것</span> 인 경우. 웹 앱·서버·CLI 도구 같은 것들. 핵심은 <span class="key">"다른 패키지가 나를 의존성으로 가져가지 않는다"</span> 는 점이에요. 남들이 내 코드를 import 해서 쓰는 게 아니라, 그냥 설치해서 실행하거나 브라우저에서 띄우기만 하는 거죠.
+
+<div class="note-box">
+예: Claude Code 도 <span class="term">npm registry</span> 에 올라가 있지만, 다른 패키지가 import 해서 쓰는 라이브러리가 아니라 <span class="term">npx</span> @anthropic-ai/claude-code 처럼 <span class="key">실행</span> 하는 CLI 입니다. 그래서 이 경우에 속해요.
+</div>
+
+이때 <span class="key">반드시 지켜야 할 한 가지 원칙</span> 이 있어요.
+
+<div class="callout-warm">
+
+- 내 앱이 <span class="key">실행될 때 실제로 필요한</span> 라이브러리 → dependencies
+- <span class="key">내가 개발할 때만</span> 쓰는 것 (테스트 러너·빌더·타입 체커 등) → devDependencies
+
+</div>
+
+왜 중요하냐면. 서버에 배포할 때 많은 경우 <span class="term">npm install</span> --production 을 씁니다. 용량·시간 절약 목적이에요. 그런데 이때 devDependencies 는 <span class="key">설치되지 않습니다</span> (규칙 2). 그래서 실행에 꼭 필요한 라이브러리를 devDependencies 에 잘못 넣어 두면, 배포 시점에 "Cannot find module" 에러로 앱이 터져요. <span class="key">내가 직접 배포한다면 "--production 안 쓰면 되지" 라고 생각할 수 있지만, 팀원이나 <span class="term">CI/CD</span> 파이프라인이 기본 컨벤션대로 --production 을 쓸 거라 가정해야 안전합니다.</span>
+
+
+### ⭐ 경우 2: 내가 "공개 패키지" 를 만들 때 (이때 진짜 중요)
+
+내가 만든 걸 <span class="term">npm registry</span> 에 올려서 <span class="key">다른 사람들이 설치해 쓸 라이브러리</span> 를 만드는 경우. 이때는 두 그룹을 제대로 구분해야 합니다. 앞에서 본 <span class="key">규칙 3 (transitive 규칙)</span> 때문이에요. 다시 떠올려 보면:
+
+<div class="callout">
+
+- dependencies → 남에게도 <span class="key">같이</span> 따라 깔림
+- devDependencies → 남에게는 <span class="key">안 따라감</span>
+
+</div>
+
+두 가지 실수 시나리오를 보면 바로 이해가 됩니다.
+
+#### 실수 ①. 개발용 라이브러리를 dependencies 에 잘못 넣은 경우
+
+예를 들어 내가 만든 패키지의 테스트 러너를 실수로 dependencies 에 넣었다고 해 봐요. 그럼 <span class="key">내 패키지를 설치하는 모든 사람에게</span> 이 테스트 러너가 따라 깔립니다. 그 사람들은 내 패키지 코드를 돌리기만 할 뿐, 내 패키지를 테스트할 일이 없는데도요. 결과: 불필요한 용량이 사용자에게 딸려감.
+
+#### 실수 ②. 런타임에 진짜 필요한 라이브러리를 devDependencies 에 잘못 넣은 경우
+
+반대로, 내 패키지 코드가 실제 실행될 때 lodash 같은 게 필요하다고 해 봐요. 그런데 이걸 devDependencies 에 넣었다면? <span class="key">내 컴퓨터에서는 잘 돌아가요</span>. 내 프로젝트 폴더에서 <span class="term">npm install</span> 하면 내 devDependencies 도 같이 깔리니까. 근데 다른 사람이 자기 프로젝트에서 <span class="term">npm install my-package</span> 를 하면, 규칙 3 (transitive 규칙) 에 따라 <span class="key">내 패키지의 dependencies 만</span> 따라오고 devDependencies 는 안 따라와요. 그래서 lodash 가 그 사람의 node_modules/ 에 없고, 내 패키지를 실행하는 순간 "Cannot find module 'lodash'" 같은 에러가 떨어집니다.
+
+<div class="callout-warm">
+⚠️ 결정적인 포인트. <span class="key">그 사람이 --production 을 썼든 안 썼든 상관없습니다.</span> 규칙 2 (--production) 와는 별개의 메커니즘이에요. <span class="key">내 패키지의 devDependencies 는 어떤 경우에도 사용자에게 따라가지 않습니다.</span>
+</div>
+
+<div class="callout-warm">
+헷갈리기 쉬운 포인트. devDependencies 가 안 깔리는 두 가지 상황이 있습니다.
+
+- <span class="key">규칙 2</span> (--production): <span class="key">내 프로젝트</span> 에서, 배포용으로 dev 를 빼고 설치. 여기서의 "dev" 는 내 프로젝트의 devDependencies
+- <span class="key">규칙 3</span> (transitive): 남이 내 <span class="key">패키지를 의존성으로 가져갈 때</span>, 내 패키지의 devDependencies 는 따라가지 않음. --production 여부와 무관
+
+실수 ② 는 후자의 문제입니다.
+</div>
+
+이 두 실수가 실제로 자주 일어나기 때문에, <span class="key">공개 패키지를 만들 때는 두 그룹 구분이 진짜로 중요</span> 해요.
+
+## node_modules/: 커밋하지 않습니다
+
+<span class="term">npm install</span> 로 생기는 node_modules/ 는:
+
+<div class="callout">
+
+- 패키지 하나만 깔아도 수 MB ~ 수백 MB
+- 완벽하게 재생성 가능: <span class="term">package.json</span> + <span class="term">package-lock.json</span> 만 있으면 다시 만들 수 있음
+- 그래서 <span class="key">Git 에 커밋하지 않습니다</span>: <span class="term">.gitignore</span> 에 기본으로 node_modules/ 를 넣는 것이 관례
+
+</div>
+
+파이썬의 venv/ 폴더를 커밋하지 않는 것과 같은 이유입니다.
+
+## 파이썬과의 대응
+
+<table class="compare-table">
+  <thead>
+    <tr><th>npm</th><th>Python (uv / pyproject.toml)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>dependencies</td><td>[project.dependencies]</td></tr>
+    <tr><td>devDependencies</td><td>[dependency-groups.dev] (또는 [project.optional-dependencies.dev])</td></tr>
+    <tr><td>npm install</td><td>uv sync</td></tr>
+    <tr><td>npm install X</td><td>uv add X</td></tr>
+    <tr><td>npm install -D X</td><td>uv add --dev X</td></tr>
+    <tr><td>npm install --production</td><td>uv sync --no-dev</td></tr>
+    <tr><td>node_modules/</td><td>.venv/</td></tr>
+  </tbody>
+</table>
+
+개념은 거의 1:1. 차이점 두 가지:
+
+<div class="callout">
+
+- <span class="key">격리 방식</span>: 파이썬은 venv 를 직접 만들어 활성화하는 반면 <span class="term">npm</span> 은 폴더별 node_modules/ 가 자동으로 격리됨 (활성화 개념이 없음)
+- <span class="key">Transitive 규칙의 dev 구분</span>: 파이썬도 <span class="term">pyproject.toml</span> 에서 dev 그룹을 구분하지만, "공개 패키지를 만들 때 dev 가 transitive 하지 않다" 는 <span class="term">npm</span> 의 원칙은 구조적으로 더 명확하게 작동합니다 (<span class="term">npm registry</span> 가 devDependencies 정보를 함께 퍼블리시하기 때문)
+
+</div>
+
+## 한 줄 요약
+
+<div class="callout-accent">
+<span class="term">npm install</span> 은 <span class="term">package.json</span> 기반으로 node_modules/ 를 재생성. <span class="key">dependencies 는 transitive</span> (내 의존성의 의존성까지 따라 깔림), <span class="key">devDependencies 는 non-transitive</span> (내 개발용은 남에게 안 따라감). 애플리케이션을 만들 땐 거의 상관없지만 <span class="key">공개 패키지를 만들 땐 두 그룹의 구분이 진짜로 중요</span> 해집니다.
+</div>
+
+다음 글에서는 -g 플래그가 정확히 뭘 하는지. global 설치와 local 설치의 차이를 풀어봅니다. AI CLI 들이 거의 다 "global 설치를 권장" 하는 이유도 여기서 나와요.

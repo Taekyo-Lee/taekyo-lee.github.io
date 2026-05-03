@@ -1,0 +1,161 @@
+---
+title: '(3/14) semver — package.json 의 ^ 와 ~ 가 진짜로 뭘 뜻하는가'
+description: 'MAJOR.MINOR.PATCH 세 자리, 그리고 ^, ~, 정확 버전, pre-release 접미사. 이 표기만 읽을 줄 알면 대부분의 package.json 을 해석할 수 있습니다.'
+pubDate: 'May 3 2026'
+category: about-nodejs
+series: 'npm-primer'
+seriesOrder: 3
+heroImage: '../../../assets/hero-about-nodejs.png'
+---
+
+<style>{`
+  .term { color: var(--accent); font-weight: 700; }
+  .key { color: var(--claude-dark); font-weight: 700; }
+  .mod {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.92em;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(96, 115, 159, 0.10);
+    color: rgb(var(--gray-dark));
+  }
+  .callout { background: rgba(96, 115, 159, 0.07); border-radius: 8px; padding: 1em 1.25em; margin: 1.5em 0; }
+  .callout-accent { border-left: 4px solid var(--accent); background: rgba(35, 55, 255, 0.04); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .callout-warm { border-left: 4px solid var(--claude); background: rgba(204, 120, 92, 0.06); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .note-box { border: 1px dashed rgba(96, 115, 159, 0.35); border-radius: 8px; padding: 0.7em 1em; margin: 1.25em 0; font-size: 0.95em; color: rgb(var(--gray-dark)); }
+  .compare-table { width: 100%; border-collapse: collapse; margin: 1.5em 0; font-size: 0.95em; line-height: 1.55; }
+  .compare-table th, .compare-table td { padding: 0.6em 0.85em; border-bottom: 1px solid rgb(var(--gray-light)); text-align: left; vertical-align: top; }
+  .compare-table th { background: rgba(var(--gray-light), 0.5); font-weight: 700; color: rgb(var(--black)); }
+  .compare-table tr.highlight { background: rgba(204, 120, 92, 0.08); }
+  .compare-table tr.highlight td { border-bottom-color: rgba(204, 120, 92, 0.3); }
+  .compare-table tr.row-accent { background: rgba(35, 55, 255, 0.05); }
+`}</style>
+
+package.json 을 처음 본 사람이 가장 먼저 마주치는 낯선 기호가 ^ 와 ~ 입니다. "react": "^18.3.1". 이 캐럿 (^) 이 도대체 뭘 의미하는지. 알고 보면 정말 단순한 규칙인데, 모르면 평생 미스터리예요.
+
+이 글에서는 그 표기. semver. 의 핵심 30분 분량만 정리합니다.
+
+## 한 줄 답
+
+<div class="callout-accent">
+semver (semantic versioning) = <span class="key">MAJOR.MINOR.PATCH</span> 형식으로 버전을 붙이는 관례 (예: 5.21.17). package.json 에 의존성을 적을 때 ^1.2.3, ~1.2.3 같은 <span class="key">범위 지정자</span> 를 붙여 "이 범위 안의 어떤 버전이든 괜찮다" 를 선언합니다. 파이썬의 PEP 440 표기 (&gt;=1.2,&lt;2.0 같은 것) 와 같은 자리예요.
+</div>
+
+## 버전 번호의 세 조각: MAJOR.MINOR.PATCH
+
+버전이 5.21.17 이라면:
+
+<div class="callout">
+
+- MAJOR (5): 호환성이 깨지는 변경. "API 가 바뀌어서 옛날 코드가 안 돌아갈 수 있음"
+- MINOR (21): 호환성은 유지하면서 <span class="key">새 기능</span> 추가
+- PATCH (17): 버그 수정만. 동작은 그대로
+
+</div>
+
+패키지 저자가 새 버전을 찍을 때의 관례:
+
+<table class="compare-table">
+  <thead>
+    <tr><th>변화</th><th>올라가는 숫자</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>버그 수정</td><td>PATCH</td></tr>
+    <tr><td>호환성 유지 + 기능 추가</td><td>MINOR (PATCH 는 0 으로 리셋)</td></tr>
+    <tr><td>호환성 깨짐</td><td>MAJOR (MINOR · PATCH 는 0)</td></tr>
+  </tbody>
+</table>
+
+모든 npm 패키지가 이 관례를 따르는 게 원칙입니다 (현실에선 종종 어기긴 합니다).
+
+## package.json 의 범위 지정자: ^, ~, 정확
+
+package.json 의 dependencies 에 적힌 버전은 대부분 <span class="key">단일 버전이 아니라 범위</span> 를 표현합니다.
+
+```json
+"dependencies": {
+  "react": "^18.3.1",
+  "express": "~4.19.2",
+  "legacy-lib": "3.2.1"
+}
+```
+
+각 표기의 의미:
+
+<table class="compare-table">
+  <thead>
+    <tr><th>표기</th><th>허용 범위</th><th>해석</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1.2.3</td><td>1.2.3 만</td><td><strong>정확 버전</strong>. 다른 어떤 버전도 허용 안 함</td></tr>
+    <tr><td>~1.2.3</td><td>&gt;=1.2.3 &lt;1.3.0</td><td><strong>PATCH 만 자유</strong>. 버그 수정 업데이트만 허용</td></tr>
+    <tr><td>^1.2.3</td><td>&gt;=1.2.3 &lt;2.0.0</td><td><strong>MINOR + PATCH 자유</strong>. 기능 추가·버그 수정 업데이트 허용. <span class="key">npm 기본값</span> — npm install X 하면 자동으로 이 형태로 들어감</td></tr>
+    <tr><td>&gt;=1.2.3</td><td>1.2.3 이상 전부</td><td>상한 없음. 실전에선 거의 안 씀 (MAJOR 올라가면 깨질 수 있어서)</td></tr>
+  </tbody>
+</table>
+
+<div class="callout-warm">
+<span class="key">왜 ^ 가 기본인가</span>. 대부분의 실용 상황에서 "버그 수정·기능 추가는 받고, 호환성 깨지는 변경은 막는" 게 안전한 타협이기 때문입니다. semver 자체가 이 타협이 성립하도록 만들어진 관례예요.
+</div>
+
+## Pre-release 접미사: -alpha, -beta.3, -rc.1
+
+정식 릴리스 이전 단계를 표현하는 접미사가 있습니다.
+
+```
+1.0.0-alpha         ← 알파 (가장 이른 단계)
+1.0.0-alpha.1
+1.0.0-beta          ← 베타
+1.0.0-beta.3
+1.0.0-rc.1          ← release candidate (정식 직전)
+1.0.0               ← 정식 릴리스
+```
+
+npm 이 "어느 게 더 나중 버전인가" 를 판정할 때의 우선순위는 alpha &lt; beta &lt; rc &lt; (접미사 없음) 이에요. 같은 단계 안에서는 뒤에 붙는 숫자 (예: <span class="key">beta.3</span> 이 <span class="key">beta.1</span> 보다 나중) 로 다시 비교됩니다.
+
+<div class="note-box">
+<span class="key">주의</span>. pre-release 버전은 ^, ~ 범위에 <span class="key">자동으로 포함되지 않습니다</span>. 쓰고 싶다면 명시적으로 지정해야 해요 ("react": "^18.0.0-beta" 식으로).
+</div>
+
+## Python PEP 440 과의 대응
+
+파이썬 버전 표기와 나란히 두면.
+
+<table class="compare-table">
+  <thead>
+    <tr><th>npm</th><th>Python (PEP 440)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>^1.2.3</td><td>&gt;=1.2.3,&lt;2.0.0</td></tr>
+    <tr><td>~1.2.3</td><td>&gt;=1.2.3,&lt;1.3.0</td></tr>
+    <tr><td>1.2.3</td><td>==1.2.3</td></tr>
+    <tr><td>&gt;=1.2.3</td><td>&gt;=1.2.3</td></tr>
+    <tr><td>1.0.0-alpha</td><td>1.0.0a0</td></tr>
+    <tr><td>1.0.0-beta.3</td><td>1.0.0b3</td></tr>
+    <tr><td>1.0.0-rc.1</td><td>1.0.0rc1</td></tr>
+  </tbody>
+</table>
+
+개념은 거의 1:1.
+
+## 실전: 언제 어떤 범위를 쓰나
+
+<div class="callout">
+
+- <span class="key">^ (기본값)</span>: 대부분의 경우. 자동 업데이트를 받아서 버그 수정·기능 개선 이득을 취함. 보통은 "그냥 npm install 하면 이게 들어감" 정도만 알고 넘어가도 됩니다
+- <span class="key">~ (보수적)</span>: 안정성이 중요한 라이브러리에서 "새 기능은 원치 않고 버그 수정만 받겠다" 할 때
+- <span class="key">정확 버전 (가장 보수적)</span>: 이론상 결정적 재현이 필요할 때. <span class="key">실전에선 이걸 쓸 필요 없는 게 보통</span>. 재현성은 package-lock.json 이 훨씬 더 나은 방식으로 해결해줍니다 (7 번 글에서 상세)
+
+</div>
+
+<div class="callout-accent">
+<span class="key">AI CLI 사용자 입장에선</span>. 본인이 패키지를 직접 만드는 게 아니라 쓰기만 한다면, 버전 표기는 대부분 이미 정해진 채 package.json 에 들어 있으니 ^ / ~ 의 의미만 읽을 줄 알면 충분합니다.
+</div>
+
+## 한 줄 요약
+
+<div class="callout-warm">
+<span class="key">MAJOR.MINOR.PATCH</span> 세 자리 + ^ (MINOR/PATCH 자유) · ~ (PATCH 만 자유) · 정확 버전 · pre-release 접미사 (-beta.3 등). <span class="key">^ 가 npm 의 기본값</span> 이고, 이 표기만 읽을 줄 알면 대부분의 package.json 을 해석할 수 있어요.
+</div>
+
+다음 글에서는 실제로 npm install 이 무슨 일을 하는지, 그리고 dependencies 와 devDependencies 의 진짜 차이가 어디서 드러나는지를 풀어 봅니다.
