@@ -1,6 +1,6 @@
 ---
 title: '(10/14) node_modules/.bin/ — 심볼릭 링크와 shebang 한 줄의 협력'
-description: 'npm install 이 bin 필드를 만났을 때 정확히 뭘 하는지. 심볼릭 링크, shebang, Windows .cmd 래퍼. npm 의 모든 CLI 실행 경로가 거치는 한 폴더.'
+description: 'npm install 이 bin 필드를 만났을 때 정확히 뭘 하는지. 심볼릭 링크와 shebang 한 줄의 협력으로 어떻게 한 줄의 명령이 실제 코드 실행으로 이어지는지. npm 의 모든 CLI 실행 경로가 거치는 한 폴더.'
 pubDate: 'May 3 2026'
 category: about-nodejs
 series: 'npm-primer'
@@ -31,94 +31,89 @@ heroImage: '../../../assets/hero-about-nodejs.png'
   .compare-table tr.row-accent { background: rgba(35, 55, 255, 0.05); }
 `}</style>
 
-이전 글에서 "npm run build 안에선 tsc 를 이름만으로 호출할 수 있다" 는 편의를 봤어요. 그게 정확히 어디 있고, 어떤 구조로 작동하는지를 풀어봅니다. 심볼릭 링크와 shebang 한 줄의 합작품이에요.
+이전 글에서 "<span class="term">npm run build</span> 안에선 tsc 를 이름만으로 호출할 수 있다" 는 편의를 봤어요. 그게 정확히 어디 있고, 어떤 구조로 작동하는지를 풀어봅니다. 심볼릭 링크와 shebang 한 줄의 합작품이에요.
 
 ## 한 줄 답
 
 <div class="callout-accent">
-node_modules/.bin/ 은 설치된 패키지들이 제공하는 <span class="key">CLI 실행 파일</span> 이 모이는 폴더예요. 패키지의 <span class="term">package.json</span> 에 <span class="key">bin</span> 필드가 선언돼 있으면, <span class="term">npm</span> 이 설치 시점에 .bin/ 에 <span class="key">심볼릭 링크 (Unix) 또는 .cmd 래퍼 (Windows)</span> 를 자동으로 만들어 줍니다. 이전 글에서 본 "npm run 안에선 tsc 를 이름만으로 호출할 수 있다" 의 <span class="key">물리적 실체</span> 가 바로 이 폴더예요. 파이썬의 venv <span class="term">.venv</span>/bin/ 과 같은 자리입니다.
+node_modules/.bin/ 은 설치된 패키지들이 제공하는 <span class="key">CLI 실행 파일</span> 이 모이는 폴더예요. 패키지의 package.json 에 <span class="key">bin</span> 필드가 선언돼 있으면, npm 이 설치 시점에 .bin/ 에 <span class="key">심볼릭 링크</span> 를 자동으로 만들어 줍니다. 이전 글에서 본 "<span class="term">npm run</span> 안에선 tsc 를 이름만으로 호출할 수 있다" 의 <span class="key">물리적 실체</span> 가 바로 이 폴더예요. 파이썬의 venv .venv/bin/ 과 같은 자리입니다.
 </div>
 
 ## .bin/ 이 뭔가요?
 
 프로젝트에 패키지 몇 개를 설치한 뒤 들여다보면 이런 구조가 보여요.
 
-```
-claude-code-fork/
+<div class="callout">
+<pre style="margin: 0; font-size: 0.88em; line-height: 1.6; background: none; padding: 0; white-space: pre;">{`my-project/
 ├── package.json
 ├── node_modules/
 │   ├── typescript/              ← devDependencies
 │   ├── tsx/                     ← devDependencies
 │   ├── commander/               ← dependencies (라이브러리, bin 없음)
-│   ├── @anthropic-ai/
-│   │   └── sdk/                 ← dependencies (라이브러리, bin 없음)
+│   ├── axios/                   ← dependencies (라이브러리, bin 없음)
 │   └── .bin/                    ← 여기!
 │       ├── tsc                  (→ ../typescript/bin/tsc)
 │       ├── tsserver             (→ ../typescript/bin/tsserver)
 │       ├── tsx                  (→ ../tsx/dist/cli.mjs)
-│       └── ...
-```
+│       └── ...`}</pre>
+</div>
 
 .bin/ 안의 각 파일은 <span class="key">실제 실행 파일이 아니라 "바로 가기"</span> 예요. 원본 JS 파일은 각 패키지 폴더 안에 있고, .bin/ 의 것들은 거기로 연결되는 링크 · 래퍼일 뿐.
 
 ## <span class="term">npm install</span> 이 bin 을 만났을 때: 설치 순간에 벌어지는 일
 
-패키지 작성자가 자기 <span class="term">package.json</span> 에 이렇게 선언했다고 해 봐요.
+패키지 작성자가 자기 package.json 에 이렇게 선언했다고 해 봐요.
 
 ```json
 {
   "name": "my-cli",
   "bin": {
-    "my-cli": "./cli/index.js"
+    "hello": "./cli/index.js"
   }
 }
 ```
 
-여러분이 <span class="term">npm install my-cli</span> 를 치는 순간 <span class="term">npm</span> 이 아래 단계를 거칩니다.
+<div class="note-box">
+패키지 이름 (<span class="term">my-cli</span>) 과 bin 의 key (<span class="term">hello</span>) 는 <span class="key">달라도 됩니다</span>. 일부러 다르게 둔 예시예요. 사용자는 <span class="term">npm install my-cli</span> 로 패키지를 설치하지만, 터미널에서는 <span class="term">hello</span> 라고 칩니다. 둘이 어떻게 독립적인지는 아래 "bin 이름과 name 은 같을 필요 없음" 섹션에서 자세히 다룹니다.
+</div>
+
+여러분이 <span class="term">npm install my-cli</span> 를 치는 순간 npm 이 아래 단계를 거칩니다.
 
 ### 단계 ①: 패키지 tarball 다운로드 + 풀기
 
 registry 에서 tarball 을 받아 node_modules/my-cli/ 에 압축 해제.
 
-```
-node_modules/
+<div class="callout">
+<pre style="margin: 0; font-size: 0.88em; line-height: 1.6; background: none; padding: 0; white-space: pre;">{`node_modules/
 └── my-cli/
     ├── package.json      ← bin 필드를 선언하는 곳
     ├── cli/
     │   └── index.js      ← bin 이 가리키는 실제 진입점 (shebang 포함)
-    └── ...
-```
+    └── ...`}</pre>
+</div>
 
-### 단계 ②: <span class="term">package.json</span> 에서 bin 필드 읽기
+### 단계 ②: package.json 에서 bin 필드 읽기
 
-<span class="term">npm</span> 이 방금 푼 <span class="term">node_modules/my-cli/package.json</span> 을 열어 bin 필드가 있는지 확인. 있으면 그 안의 key-value 쌍을 하나씩 꺼내 옵니다.
+npm 이 방금 푼 node_modules/my-cli/package.json 을 열어 bin 필드가 있는지 확인. 있으면 그 안의 key-value 쌍을 하나씩 꺼내 옵니다.
 
-```
-bin 의 key   = ".bin/ 에 만들 실행 파일 이름"
-bin 의 value = "패키지 안의 어느 파일을 가리킬지 (상대 경로)"
-```
+<div class="callout">
+
+- <strong>bin 의 key</strong> = <span class="key">.bin/ 에 만들 실행 파일 이름</span>
+- <strong>bin 의 value</strong> = <span class="key">패키지 안의 어느 파일을 가리킬지 (상대 경로)</span>
+
+</div>
 
 ### 단계 ③: .bin/ 에 링크 · 래퍼 생성
 
-각 key-value 에 대해 OS 별로 다른 방식으로 생성.
-
-<span class="key">Linux / macOS</span>. 심볼릭 링크 하나:
+각 key-value 에 대해 .bin/ 안에 심볼릭 링크 하나를 만듭니다.
 
 ```bash
-node_modules/.bin/my-cli  →  ../my-cli/cli/index.js   # 심볼릭 링크
+node_modules/.bin/hello  →  ../my-cli/cli/index.js   # 심볼릭 링크
 ```
 
-<span class="key">Windows</span>. 래퍼 파일 세 개:
+### 단계 ④: 원본 파일에 실행 권한 부여
 
-```
-node_modules/.bin/my-cli          ← Git Bash · Cygwin 호환 스크립트
-node_modules/.bin/my-cli.cmd      ← Windows CMD 용 래퍼
-node_modules/.bin/my-cli.ps1      ← PowerShell 용 래퍼
-```
-
-### 단계 ④: 원본 파일에 실행 권한 부여 (Unix 한정)
-
-<span class="term">cli/index.js</span> 같은 진입점은 <span class="key">그냥 텍스트 파일</span> 로 tarball 에 들어와요. Unix 에선 "실행 권한" (x 비트) 이 있어야 실제로 돌릴 수 있는데, <span class="term">npm</span> 이 설치 직후 <span class="key">자동으로 chmod +x</span> 를 걸어 줍니다.
+cli/index.js 같은 진입점은 <span class="key">그냥 텍스트 파일</span> 로 tarball 에 들어와요. Unix 에선 "실행 권한" (x 비트) 이 있어야 실제로 돌릴 수 있는데, npm 이 설치 직후 <span class="key">자동으로 chmod +x</span> 를 걸어 줍니다.
 
 ```bash
 # 설치 전 (tarball 에서 막 풀린 상태)
@@ -128,11 +123,11 @@ node_modules/.bin/my-cli.ps1      ← PowerShell 용 래퍼
 -rwxr-xr-x  cli/index.js        # x 비트 추가됨
 ```
 
-이게 없으면 <span class="term">cli/index.js</span> 가 실행 가능해지지 않아요. 단계 ① + ② + ③ 만으로는 링크를 부르는 시점에 <span class="key">"Permission denied"</span> 에러가 떨어집니다. 단계 ④ 가 마무리해 줘야 실행 가능한 CLI 가 완성돼요.
+이게 없으면 cli/index.js 가 실행 가능해지지 않아요. 단계 ① + ② + ③ 만으로는 링크를 부르는 시점에 <span class="key">"Permission denied"</span> 에러가 떨어집니다. 단계 ④ 가 마무리해 줘야 실행 가능한 CLI 가 완성돼요.
 
 ### 여러 CLI 를 노출하는 패키지
 
-bin 필드가 key 를 여러 개 가질 수도 있어요. <span class="term">npm</span>-run-all 같은 패키지는 한 번 설치로 세 개의 CLI 를 노출합니다.
+bin 필드가 key 를 여러 개 가질 수도 있어요. npm-run-all 같은 패키지는 한 번 설치로 세 개의 CLI 를 노출합니다.
 
 ```json
 "bin": {
@@ -142,7 +137,7 @@ bin 필드가 key 를 여러 개 가질 수도 있어요. <span class="term">npm
 }
 ```
 
-<span class="term">npm install</span> <span class="term">npm</span>-run-all 하면 .bin/ 에 세 개의 링크가 한꺼번에 생겨요. 즉 .bin/ 파일 개수는 <span class="key">설치한 패키지 개수가 아니라 모든 패키지의 bin key 합산</span> 이에요.
+<span class="term">npm install npm-run-all</span> 하면 .bin/ 에 세 개의 링크가 한꺼번에 생겨요. 즉 .bin/ 파일 개수는 <span class="key">설치한 패키지 개수가 아니라 모든 패키지의 bin key 합산</span> 이에요.
 
 ### bin 이름과 name 은 같을 필요 없음
 
@@ -156,8 +151,7 @@ bin 필드가 key 를 여러 개 가질 수도 있어요. <span class="term">npm
     <tr><td>prettier</td><td>prettier</td><td>같은 케이스 — 단순</td></tr>
     <tr><td>typescript</td><td>tsc, tsserver</td><td>짧은 CLI 이름 + 패키지 하나가 여러 CLI 노출</td></tr>
     <tr><td>@anthropic-ai/claude-code</td><td>claude</td><td>scoped name 은 치기 불편 → 짧은 별명</td></tr>
-    <tr><td>@anthropic-ai/claude-code-fork</td><td>claude-fork</td><td>같은 이유</td></tr>
-    <tr><td><span class="term">npm</span>-run-all</td><td><span class="term">npm</span>-run-all, run-p, run-s</td><td>주 CLI 한 개 + 보조 CLI 두 개</td></tr>
+    <tr><td>npm-run-all</td><td>npm-run-all, run-p, run-s</td><td>주 CLI 한 개 + 보조 CLI 두 개</td></tr>
   </tbody>
 </table>
 
@@ -166,14 +160,14 @@ bin 필드가 key 를 여러 개 가질 수도 있어요. <span class="term">npm
 <div class="callout">
 
 1. <span class="key">Scoped 패키지는 CLI 이름으로 불편</span>. @org/pkg 형태를 매번 터미널에 치긴 어색해서 짧은 별명을 bin 으로 노출
-2. <span class="key">한 패키지가 여러 CLI 를 노출</span>. <span class="term">TypeScript</span> 처럼 tsc · tsserver 두 개. 패키지 이름 typescript 는 CLI 로 쓰기엔 길어요
+2. <span class="key">한 패키지가 여러 CLI 를 노출</span>. TypeScript 처럼 tsc · tsserver 두 개. 패키지 이름 typescript 는 CLI 로 쓰기엔 길어요
 3. <span class="key">레거시 이름 유지</span>. 패키지명은 registry 상 한 번 정하면 바꾸기 어렵지만 CLI 이름은 자유롭게 업데이트 가능
 
 </div>
 
-### bin 필드가 없는 패키지
+### 📚 bin 필드가 없는 패키지
 
-라이브러리 (react, lodash, axios 같은) 는 대부분 bin 필드가 없어요. import 용이지 실행용이 아니니까. 이런 패키지는 <span class="term">npm install</span> 해도 <span class="key">.bin/ 에 아무것도 안 만들어지고</span> 단계 ② 에서 끝. 이게 <span class="term">npx</span> 글에서 본 <span class="key">"npx 는 bin 이 있는 패키지만 실행 가능"</span> 의 근원이에요. .bin/ 에 없으니 호출할 대상이 없음.
+라이브러리 (react, lodash, axios 같은) 는 대부분 bin 필드가 없어요. import 용이지 실행용이 아니니까. 이런 패키지는 <span class="term">npm install</span> 해도 <span class="key">.bin/ 에 아무것도 안 만들어지고</span> 단계 ② 에서 끝. 이게 npx 글에서 본 <span class="key">"npx 는 bin 이 있는 패키지만 실행 가능"</span> 의 근원이에요. .bin/ 에 없으니 호출할 대상이 없음.
 
 ### 두 패키지가 같은 이름의 bin 을 가지면?: 조용한 덮어쓰기
 
@@ -187,7 +181,7 @@ npx server              # bar 의 server 가 실행됨
 ```
 
 <div class="callout-warm">
-<span class="key">결과. 나중에 설치된 게 이김</span> (먼저 것은 조용히 덮어써짐). 에러도 아니고, <span class="term">npm</span> 7+ 에서는 약한 경고 (<span class="term">npm</span> warn ...) 가 뜨긴 하지만 설치는 그대로 진행돼요.
+<span class="key">결과. 나중에 설치된 게 이김</span> (먼저 것은 조용히 덮어써짐). 에러도 아니고, npm 7+ 에서는 약한 경고 (npm warn ...) 가 뜨긴 하지만 설치는 그대로 진행돼요.
 </div>
 
 중요. foo 의 server 실행 파일은 <span class="key">여전히 node_modules/foo/bin/server.js 에 존재</span> 해요. 다만 .bin/ 의 공용 이름 server 를 부를 때는 bar 가 차지했을 뿐. 파일이 사라진 게 아니라 <span class="key">링크가 덮어써진 것</span>.
@@ -206,21 +200,17 @@ node ./node_modules/bar/bin/server.js
 
 ## bin vs scripts: 헷갈리기 쉬운 지점
 
-둘 다 <span class="term">package.json</span> 최상위 필드이고 둘 다 "명령 실행" 과 관련돼서 자주 혼동돼요. 하지만 <span class="key">관점이 정반대</span> 입니다.
+둘 다 package.json 최상위 필드이고 둘 다 "명령 실행" 과 관련돼서 자주 혼동돼요. 핵심은 <span class="key">방향이 반대</span> 라는 것.
 
-<table class="compare-table">
-  <thead>
-    <tr><th>축</th><th>scripts</th><th>bin</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>역할</td><td>프로젝트의 <strong>내부 태스크 러너</strong></td><td>패키지가 <strong>외부에 노출하는 CLI 선언</strong></td></tr>
-    <tr><td>대상</td><td>이 프로젝트 <strong>개발자</strong></td><td>이 패키지를 <strong>사용하는 사람</strong></td></tr>
-    <tr><td>호출</td><td><span class="term">npm run</span> &lt;이름&gt; (프로젝트 안에서)</td><td>설치 후 터미널에서 이름만</td></tr>
-    <tr><td>.bin/ 에 링크 생성?</td><td>X (쉘 명령 실행만)</td><td>O (사용자의 .bin/ 에 자동 생성)</td></tr>
-    <tr><td>관점</td><td><strong>안쪽</strong> 으로 향함</td><td><strong>바깥쪽</strong> 으로 향함</td></tr>
-    <tr><td>파이썬 비유</td><td>Makefile · justfile</td><td>[project.scripts] (<span class="term">pyproject.toml</span>)</td></tr>
-  </tbody>
-</table>
+<div class="callout-accent">
+<strong>scripts</strong> 는 <span class="key">안쪽</span>: 내 프로젝트 개발자가 <span class="term">npm run build</span> 같은 짧은 이름으로 긴 명령을 부르는 자리예요.
+</div>
+
+<div class="callout-warm">
+<strong>bin</strong> 은 <span class="key">바깥쪽</span>: 내 패키지를 설치한 사용자가 터미널에서 이름만 쳐서 실행할 수 있도록 CLI 를 노출하는 자리예요.
+</div>
+
+같은 package.json 안에 있지만 향하는 방향이 정반대라서, 하나는 .bin/ 에 링크가 안 만들어지고 (scripts) 하나는 만들어집니다 (bin).
 
 ### 둘이 만나는 지점: scripts 가 .bin/ 을 쓰는 구조
 
@@ -242,11 +232,11 @@ node ./node_modules/bar/bin/server.js
 
 </div>
 
-즉 <span class="key">"내 scripts 가 남의 bin 을 호출"</span> 하는 구조. <span class="term">npm scripts</span> 안에서 로컬 CLI 를 이름으로 부를 수 있는 기술적 근거예요.
+즉 <span class="key">"내 scripts 가 남의 bin 을 호출"</span> 하는 구조. npm scripts 안에서 로컬 CLI 를 이름으로 부를 수 있는 기술적 근거예요.
 
 ## Shebang 한 줄: Unix 가 JS 파일을 "실행" 하게 만드는 법
 
-.bin/ 안의 파일을 실제로 열어 보면 첫 줄이 특이해요.
+위에서 봤듯이 .bin/tsc 는 심볼릭 링크라서, 그 자체에는 내용이 없어요. 링크를 따라간 <span class="key">원본 파일</span> (typescript/bin/tsc) 의 첫 줄이 특이합니다.
 
 ```javascript
 #!/usr/bin/env node
@@ -256,13 +246,13 @@ const { Command } = require('commander');
 // ...
 ```
 
-이 #!/usr/bin/env <span class="term">node</span> 한 줄을 shebang (셔뱅) 이라고 불러요. Unix 계열의 오래된 관례예요.
+이 #!/usr/bin/env node 한 줄을 shebang (셔뱅) 이라고 불러요. Unix 계열의 오래된 관례예요.
 
 <div class="callout-accent">
 파일 첫 줄이 #! 로 시작하면, OS 가 이걸 <span class="key">"이 파일을 어떤 인터프리터로 실행해야 하는지"</span> 의 지시로 읽습니다.
 </div>
 
-#!/usr/bin/env <span class="term">node</span> 는 "이 파일을 <span class="term">node</span> 로 실행해라" 는 뜻. OS 가 이 줄을 보고 <span class="term">node</span> &lt;파일&gt; 로 해석합니다.
+#!/usr/bin/env node 는 "이 파일을 node 로 실행해라" 는 뜻. OS 가 이 줄을 보고 node &lt;파일&gt; 로 해석합니다.
 
 ```bash
 ./node_modules/.bin/tsc --version
@@ -275,7 +265,7 @@ const { Command } = require('commander');
 파일 확장자가 .js 가 아니어도, shebang 만 있으면 텍스트 파일이 <span class="key">실행 가능한 프로그램</span> 처럼 동작해요. 파이썬의 #!/usr/bin/env python3 과 같은 원리.
 
 <div class="note-box">
-실험. shebang 한 줄을 지우고 .bin/tsc 를 실행하면 OS 가 "이 파일을 뭘로 돌리지?" 를 모르니까 에러가 나요. /bin/sh 로 돌리려다가 <span class="term">JavaScript</span> 문법에서 깨짐. 그 한 줄이 없으면 <span class="term">npm</span> 생태계의 CLI 들이 <span class="key">전부 작동 불능</span> 이에요.
+실험. shebang 한 줄을 지우고 .bin/tsc 를 실행하면 OS 가 "이 파일을 뭘로 돌리지?" 를 모르니까 에러가 나요. /bin/sh 로 돌리려다가 JavaScript 문법에서 깨짐. 그 한 줄이 없으면 npm 생태계의 CLI 들이 <span class="key">전부 작동 불능</span> 이에요.
 </div>
 
 ## Behind the scenes: 실제로 들여다보기
@@ -310,12 +300,18 @@ $ cat node_modules/typescript/bin/tsc
 require('../lib/tsc.js')
 ```
 
-딱 이 두 줄. 첫 줄이 shebang 이고, 두 번째 줄이 실제 <span class="term">TypeScript</span> 컴파일러 코드가 있는 <span class="term">lib/tsc.js</span> 를 require 해서 로드.
+<div class="note-box">
+<span class="key">두 개의 다른 "bin" 에 주의</span>: <span class="term">.bin/</span> (점 있음, npm 이 만든 심볼릭 링크 모음) 과 <span class="term">typescript/bin/</span> (점 없음, typescript 패키지 자체의 폴더) 는 서로 다릅니다. 위 cat 의 대상이 점 없는 쪽인 이유는, .bin/tsc 가 심볼릭 링크여서 그게 가리키는 <span class="key">진짜 파일</span> 이 <span class="term">typescript/bin/tsc</span> 에 있기 때문이에요.
+</div>
 
-### 단계 ③: 실행 연쇄 (<span class="term">npm run build</span> 한 줄이 거치는 전체 경로)
+딱 이 두 줄. 첫 줄이 shebang 이고, 두 번째 줄이 실제 TypeScript 컴파일러 코드가 있는 lib/tsc.js 를 require 해서 로드.
 
-```
-사용자: npm run build
+### 단계 ③: 둘이 합쳐져 실행되는 흐름
+
+심볼릭 링크 (단계 ①) 와 shebang (단계 ②) 이 어떻게 협력해서 한 줄의 명령이 실제 코드 실행으로 이어지는지를 따라가 봅니다. 예시는 <span class="term">npm run build</span> (이 한 줄이 안에서 tsc 를 호출한다고 가정). 다른 호출 경로 (npx, 전역 설치) 도 단계의 중간만 다를 뿐 같은 골격이에요.
+
+<div class="callout-accent">
+<pre style="margin: 0; font-size: 0.88em; line-height: 1.6; background: none; padding: 0; white-space: pre;">{`사용자: npm run build
          │
          ▼
 npm: PATH 에 node_modules/.bin/ 을 임시 주입하고 쉘을 띄움
@@ -339,41 +335,16 @@ env: PATH 에서 node 를 찾아 실행
 node: 파일 내용을 JavaScript 로 해석 → require('../lib/tsc.js') 실행
          │
          ▼
-실제 TypeScript 컴파일러 코드 가동
-```
+실제 TypeScript 컴파일러 코드 가동`}</pre>
+</div>
 
-이 모든 게 사용자 눈에는 <span class="key">npm run build 한 줄</span> 로 보일 뿐이에요. <span class="key">symlink + shebang + env + node + js</span> 가 한 줄 뒤에서 차례로 협력합니다.
-
-### Windows 는 어떻게 다른가: .cmd 래퍼
-
-Windows 는 <span class="key">symlink 지원이 제한적</span> 이고 <span class="key">shebang 을 OS 가 이해하지 못해요</span>. 그래서 <span class="term">npm</span> 이 패키지 설치 시 .bin/ 에 세 개의 파일을 만들어 줍니다.
-
-```
-node_modules/.bin/
-├── tsc              ← Unix 호환 스크립트 (Git Bash · Cygwin 용)
-├── tsc.cmd          ← Windows CMD 용 래퍼
-└── tsc.ps1          ← PowerShell 용 래퍼
-```
-
-tsc.cmd 파일 내용은 대충 이런 모양:
-
-```cmd
-@IF EXIST "%~dp0\node.exe" (
-  "%~dp0\node.exe"  "%~dp0\..\typescript\bin\tsc" %*
-) ELSE (
-  node  "%~dp0\..\typescript\bin\tsc" %*
-)
-```
-
-즉 .cmd 가 <span class="key">내부에서 node &lt;원본 파일&gt;</span> 을 명시적으로 호출. Unix 의 shebang 자리를 Windows 에선 .cmd 래퍼가 대신하는 셈이에요.
-
-덕분에 <span class="key">package.json 의 "build": "tsc" 한 줄이 Windows · Mac · Linux 에서 모두 동일하게 작동</span>. OS 별 구현 차이를 <span class="term">npm</span> 이 흡수해 주니까요.
+이 모든 게 사용자 눈에는 <span class="key"><span class="term">npm run build</span> 한 줄</span> 로 보일 뿐이에요. <span class="key">symlink + shebang + env + node + js</span> 가 한 줄 뒤에서 차례로 협력합니다.
 
 ## 여러 경로에서 .bin/ 이 쓰이는 방식
 
 지금까지 본 "CLI 실행" 경로 세 가지가 <span class="key">전부 .bin/ 을 경유</span> 해요.
 
-### ① <span class="term">npm scripts</span> 안
+### ① npm scripts 안
 
 ```json
 "scripts": {
@@ -381,15 +352,15 @@ tsc.cmd 파일 내용은 대충 이런 모양:
 }
 ```
 
-<span class="term">npm run build</span> 를 치면 <span class="term">npm</span> 이 node_modules/.bin/ 을 PATH 에 임시 주입하고 쉘을 띄워요. 쉘에서 tsc 를 찾을 때 PATH 에서 .bin/tsc 를 먼저 발견 → 실행. 터미널에서 직접 tsc 를 치면 command not found 가 나는데 script 안에선 되는 이유.
+<span class="term">npm run build</span> 를 치면 npm 이 node_modules/.bin/ 을 PATH 에 임시 주입하고 쉘을 띄워요. 쉘에서 tsc 를 찾을 때 PATH 에서 .bin/tsc 를 먼저 발견 → 실행. 터미널에서 직접 tsc 를 치면 command not found 가 나는데 script 안에선 되는 이유.
 
-### ② <span class="term">npx</span> 로 호출
+### ② npx 로 호출
 
 ```bash
 npx tsc
 ```
 
-<span class="term">npx</span> 의 탐색 순서:
+npx 의 탐색 순서:
 
 <div class="callout">
 
@@ -398,7 +369,7 @@ npx tsc
 
 </div>
 
-2번 단계에서 함정이 생길 수 있어요. <span class="key">bin 이름 ≠ 패키지 이름</span> 인 경우. tsc 라는 CLI 는 typescript 패키지가 bin 으로 노출하는 건데, <span class="term">npx</span> tsc 를 치면 <span class="term">npx</span> 는 "tsc 라는 이름의 패키지" 를 찾으려 해요. 비슷하게 <span class="term">npx</span> claude 는 claude 패키지를 찾지, @anthropic-ai/claude-code 를 찾지 않아요.
+2번 단계에서 함정이 생길 수 있어요. <span class="key">bin 이름 ≠ 패키지 이름</span> 인 경우. tsc 라는 CLI 는 typescript 패키지가 bin 으로 노출하는 건데, npx tsc 를 치면 npx 는 "tsc 라는 이름의 패키지" 를 찾으려 해요. 비슷하게 npx claude 는 claude 패키지를 찾지, @anthropic-ai/claude-code 를 찾지 않아요.
 
 정확히 원하는 패키지의 CLI 를 돌리려면 -p (또는 --package) 플래그로 둘을 분리:
 
@@ -410,12 +381,12 @@ npx -p npm-run-all run-p ...
 ```
 
 <div class="note-box">
-<span class="key">휴리스틱 편의</span>. 패키지의 bin 엔트리가 <span class="key">하나뿐</span> 이면 <span class="term">npx</span> &lt;패키지이름&gt; 만으로도 알아서 실행돼요. <span class="term">MCP</span> 서버 설정 (<span class="term">npx</span> -y @some-org/mcp-server) 이 잘 돌아가는 이유가 이거예요. <span class="term">MCP</span> 서버 패키지는 보통 bin 하나뿐이라 자동 매칭이 먹힘. 반면 typescript 처럼 bin 이 여러 개 (tsc · tsserver) 인 패키지는 -p 분리가 필요해요.
+💡 <span class="key">편의 동작</span>. 패키지의 bin 엔트리가 <span class="key">하나뿐</span> 이면 npx &lt;패키지이름&gt; 만으로도 알아서 실행돼요. MCP 서버 설정 (npx -y @some-org/mcp-server) 이 잘 돌아가는 이유가 이거예요. MCP 서버 패키지는 보통 bin 하나뿐이라 자동 매칭이 먹힘. 반면 typescript 처럼 bin 이 여러 개 (tsc · tsserver) 인 패키지는 -p 분리가 필요해요.
 </div>
 
 ### ③ 전역 설치된 CLI
 
-<span class="term">npm install -g</span> &lt;pkg&gt; 하면 <span class="term">npm</span> 이 <span class="key">시스템 전역 위치의 .bin/</span> (예: &#126;/.nvm/versions/node/&lt;ver&gt;/bin/) 에 링크를 만듭니다. 이 경로는 원래부터 시스템 PATH 에 들어 있어서 → <span class="key">터미널 어디서나 이름만으로</span> 호출 가능.
+<span class="term">npm install -g &lt;pkg&gt;</span> 하면 npm 이 <span class="key">시스템 전역 위치의 .bin/</span> (예: &#126;/.nvm/versions/node/&lt;ver&gt;/bin/) 에 링크를 만듭니다. 이 경로는 원래부터 시스템 PATH 에 들어 있어서 → <span class="key">터미널 어디서나 이름만으로</span> 호출 가능.
 
 <div class="callout-accent">
 로컬 .bin/ vs 전역 .bin/. 메커니즘은 똑같아요. 다만 로컬은 node_modules/.bin/ (프로젝트별) 에 만들고, 전역은 시스템 PATH 에 이미 있는 bin/ 디렉토리에 만들 뿐.
@@ -425,22 +396,22 @@ npx -p npm-run-all run-p ...
 
 <table class="compare-table">
   <thead>
-    <tr><th><span class="term">npm</span></th><th><span class="term">Python</span></th></tr>
+    <tr><th>npm</th><th>Python</th></tr>
   </thead>
   <tbody>
-    <tr><td>node_modules/.bin/</td><td><span class="term">.venv</span>/bin/ (또는 Windows 의 <span class="term">.venv</span>/Scripts/)</td></tr>
-    <tr><td>bin 필드 (<span class="term">package.json</span>)</td><td>[project.scripts] (<span class="term">pyproject.toml</span>)</td></tr>
-    <tr><td>Shebang #!/usr/bin/env <span class="term">node</span></td><td>Shebang #!/usr/bin/env python3</td></tr>
-    <tr><td>전역 .bin/ (<span class="term">nvm</span> 경로 등)</td><td><span class="term">pipx</span> · <span class="term">uv</span> tool 이 만드는 PATH 디렉토리</td></tr>
+    <tr><td>node_modules/.bin/</td><td>.venv/bin/</td></tr>
+    <tr><td>bin 필드 (package.json)</td><td>[project.scripts] (pyproject.toml)</td></tr>
+    <tr><td>Shebang #!/usr/bin/env node</td><td>Shebang #!/usr/bin/env python3</td></tr>
+    <tr><td>전역 .bin/ (nvm 경로 등)</td><td>pipx · uv tool 이 만드는 PATH 디렉토리</td></tr>
   </tbody>
 </table>
 
-개념은 거의 1:1. 파이썬 venv 안에 들어가면 <span class="term">.venv</span>/bin/pytest, <span class="term">.venv</span>/bin/black 같은 게 있죠. 그것과 완전히 같은 위치의 개념입니다.
+개념은 거의 1:1. 파이썬 venv 안에 들어가면 .venv/bin/pytest, .venv/bin/black 같은 게 있죠. 그것과 완전히 같은 위치의 개념입니다.
 
 ## 한 줄 요약
 
 <div class="callout-warm">
-node_modules/.bin/ 은 설치된 패키지들이 <span class="key">bin 필드로 선언한 CLI</span> 를 모아 두는 폴더예요. Unix 에선 <span class="key">심볼릭 링크 + shebang 한 줄</span> 로, Windows 에선 .cmd 래퍼로 구현됨. <span class="term">npm scripts</span> 가 PATH 에 자동 주입하고, <span class="term">npx</span> 가 먼저 찾아보고, 전역 설치는 시스템 PATH 의 bin/ 에 같은 구조로 놓이고. <span class="key">npm 의 "CLI 실행" 이 전부 이 구조 위에서 돕니다.</span>
+node_modules/.bin/ 은 설치된 패키지들이 <span class="key">bin 필드로 선언한 CLI</span> 를 모아 두는 폴더예요. <span class="key">심볼릭 링크 + shebang 한 줄</span> 로 구현됨. npm scripts 가 PATH 에 자동 주입하고, npx 가 먼저 찾아보고, 전역 설치는 시스템 PATH 의 bin/ 에 같은 구조로 놓이고. <span class="key">npm 의 "CLI 실행" 이 전부 이 구조 위에서 돕니다.</span>
 </div>
 
 다음 글에서는 그 모든 것이 작동할 Node 자체를 어떻게 깔고 관리하는지. nvm. 을 풀어 봅니다. 사실은 시리즈의 첫 글에서 잠깐 등장한 그 도구의 본격 해부.
