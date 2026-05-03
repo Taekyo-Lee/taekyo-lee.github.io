@@ -134,19 +134,7 @@ npm scripts 가 있으면 이렇게 줄어듭니다.
 
 ### ① 쉘이 다릅니다 (가장 헷갈리는 지점)
 
-<span class="key">bash 가 아닌 sh</span> (또는 Windows 에선 cmd.exe) 로 실행돼요.
-
-<table class="compare-table">
-  <thead>
-    <tr><th>OS</th><th>npm scripts 의 기본 쉘</th><th>여러분 터미널의 기본 쉘</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Linux / macOS</td><td>/bin/sh (POSIX sh — bash 아님)</td><td>대개 bash 또는 zsh</td></tr>
-    <tr><td>Windows</td><td>cmd.exe</td><td>PowerShell 또는 cmd</td></tr>
-  </tbody>
-</table>
-
-즉 터미널에서 쓰던 <span class="key">bash 특수 문법이 안 될 수 있어요</span>.
+npm scripts 는 <span class="key">/bin/sh (POSIX sh, bash 가 아님)</span> 로 실행돼요. 여러분이 평소 터미널에서 쓰는 게 보통 bash 나 zsh 라서, 거기서 잘 되던 <span class="key">bash 특수 문법이 script 안에서는 안 될 수 있어요</span>.
 
 ```bash
 # 터미널 (bash) 에선 동작
@@ -163,7 +151,7 @@ diff <(sort a) <(sort b)                   # process substitution, bash 전용
 npm config set script-shell /bin/bash      # 항상 bash 로 실행
 ```
 
-하지만 팀 프로젝트라면 <span class="key">sh 로 돌려도 되게 써 두는 게 이식성상 안전</span>. Windows 를 쓰는 팀원이 있으면 더 그래요.
+하지만 팀 프로젝트라면 <span class="key">sh 로 돌려도 되게 써 두는 게 이식성상 안전</span> 합니다.
 
 ### ② PATH 가 일시적으로 다름
 
@@ -229,7 +217,7 @@ npm run test --watch         # X. --watch 가 npm 자체의 플래그로 먹힘
     <tr><th>축</th><th>터미널 bash</th><th>npm scripts</th></tr>
   </thead>
   <tbody>
-    <tr><td>쉘</td><td>bash · zsh</td><td><strong>sh · cmd.exe</strong> (제한적)</td></tr>
+    <tr><td>쉘</td><td>bash · zsh</td><td><strong>sh</strong> (제한적)</td></tr>
     <tr><td>PATH</td><td>시스템 PATH</td><td><strong>+ node_modules/.bin/</strong> (일시적)</td></tr>
     <tr><td>환경 변수</td><td>시스템 기본</td><td><strong>+ npm_* 다수</strong></td></tr>
     <tr><td>작업 디렉토리</td><td>현재 디렉토리</td><td><strong>프로젝트 루트</strong> ($INIT_CWD 로 원래 위치 참조)</td></tr>
@@ -356,7 +344,7 @@ npm install -D npm-run-all        # 또는 concurrently
 }
 ```
 
-병렬 실행은 OS · 쉘 간 호환 문제가 있어서 (bash 의 & 는 Windows CMD 에선 안 됨) 이런 도구를 쓰는 게 안전합니다.
+병렬 실행은 쉘 간 호환 문제가 있어서 이런 도구를 쓰는 게 안전합니다.
 
 ## AI 엔지니어가 마주치는 패턴
 
