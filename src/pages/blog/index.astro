@@ -9,9 +9,26 @@ import Header from '../../components/Header.astro';
 import { CATEGORY_LABELS, SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
 
 const base = import.meta.env.BASE_URL;
-const posts = (await getCollection('blog')).sort(
-	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
-);
+const posts = (await getCollection('blog')).sort((a, b) => {
+	const dateDiff = b.data.pubDate.valueOf() - a.data.pubDate.valueOf();
+	if (dateDiff !== 0) return dateDiff;
+	const aSeries = a.data.series;
+	const bSeries = b.data.series;
+	// Same series → latest seriesOrder first
+	if (
+		aSeries &&
+		bSeries &&
+		aSeries === bSeries &&
+		a.data.seriesOrder !== undefined &&
+		b.data.seriesOrder !== undefined
+	) {
+		return b.data.seriesOrder - a.data.seriesOrder;
+	}
+	// Same date, one in a series and one standalone → series member first (don't interrupt the series flow)
+	if (aSeries && !bSeries) return -1;
+	if (!aSeries && bSeries) return 1;
+	return 0;
+});
 ---
 
 <!doctype html>
