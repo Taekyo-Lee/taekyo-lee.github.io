@@ -8,11 +8,6 @@ seriesOrder: 5
 heroImage: '../../../assets/hero-about-astro.png'
 ---
 
-<style>{`
-  .term { color: var(--accent); font-weight: 700; }
-  .key { color: var(--claude-dark); font-weight: 700; }
-`}</style>
-
 시리즈의 마지막 글입니다. 1편에서 파이프라인을 한 장에 그렸고, 2~4편에서 도구들을 하나씩 떼어 봤습니다. 이번 글은 그 모든 게 모여 있는 <span class="key">이 블로그가 실제로 쓰고 있는 workflow 파일</span> 한 장을 한 줄씩 읽는 자리입니다. 가상의 예시가 아니라, 지금 이 글이 GitHub Pages 위에 떠 있도록 굴리고 있는 그 39줄입니다.
 
 길이는 39줄. 안에 들어 있는 진짜 로직은 더 적습니다. 큰 일은 공식 액션들 (예: actions/checkout@v4, withastro/action@v3, actions/deploy-pages@v4) 이 다 해주기 때문입니다. 그 짧은 39줄이 어떻게 "글을 작성하고 push 하면 끝" 이라는 경험을 만들어내는지, 위에서 아래로 따라가봅니다.
