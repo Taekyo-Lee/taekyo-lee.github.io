@@ -166,17 +166,25 @@ git commit -m "Merge upstream: resolve conflicts for company repo"
 
 원본은 markdown 으로 적혀 있어도, **블로그 포스트는 최대한 HTML 스타일로** 옮깁니다. 이유: 인라인 색·강조·콜아웃·테이블 하이라이트가 markdown 만으로는 표현이 빈약함.
 
-- **인라인 backtick (`xxx`) 최대한 자제**. 진짜 multi-line 코드는 fenced code block (` ``` `) 으로 두되, 인라인은 아래 클래스로 대체:
-  - `<span class="term">…</span>` — 블루 (`var(--accent)`), 기술 용어·고유명사 (JavaScript, Node.js, V8)
-  - `<span class="key">…</span>` — 오렌지 (`var(--claude-dark)`), 핵심 강조·결론 문구
-  - `<span class="mod">…</span>` — 모노스페이스 + 옅은 슬레이트 배경, 모듈/명령/식별자 (`fs`, `npm install`, `.ts`)
-- **테이블은 HTML `<table class="compare-table">`** 로. markdown pipe 테이블은 행 하이라이트 (`class="highlight"`, `class="row-accent"`) 가 안 되어 시각이 단조로움.
+**핵심 원칙 — markdown 잔재 제거**:
+- 원본 markdown 의 fenced code block (` ``` `) 과 인라인 backtick (`` `xxx` ``) 은 자동 변환의 흔적임. **진짜 shell 명령어 블록이 아니라면 모두 HTML 스타일로 옮긴다.**
+- 음영 (회색 박스, `.mod`) 은 **반드시 필요한 경우가 아니면 모두 제거**. 단순 파일명 (`.nvmrc`, `~/.bashrc`), 경로 (`/usr/lib/...`), 단일 단어 도구명 (`fnm`, `volta`), 버전 번호 (`22.12.0`) 등은 평문으로 두는 게 깔끔함. 음영은 시각 노이즈를 만들어 산문 흐름을 끊음.
+
+**클래스 가이드** (`src/styles/post-classes.css` 에 글로벌 정의):
+- `<span class="term">…</span>` — 블루 (`var(--accent)`), 기술 용어·고유명사의 **첫 등장 한 번만** (JavaScript, Node.js, V8 등). 같은 단어를 한 포스트에서 반복할 때 매번 칠하면 산만해짐.
+- `<span class="key">…</span>` — 오렌지 (`var(--claude-dark)`), 핵심 강조·결론 문구.
+- `<span class="mod">…</span>` — 모노스페이스 + 옅은 슬레이트 배경. **여러 토큰으로 이뤄진 shell 명령**에만 사용 (`npm install -g`, `nvm install <버전>`, `apt install nodejs`, `cd <프로젝트>`). 단일 토큰·파일명·버전번호엔 쓰지 않음.
+
+**구조 요소**:
+- **테이블**: HTML `<table class="compare-table">` 로. markdown pipe 테이블은 행 하이라이트 (`class="highlight"`, `class="row-accent"`) 가 안 되어 시각이 단조로움. 비교 표에서 모든 셀이 같은 종류 (예: 명령어 ↔ 명령어) 면 셀에 `.mod` 를 붙이지 말 것 — 컬럼 헤더가 이미 의미를 전달함.
 - **콜아웃·인사이트 박스**:
   - `<div class="callout">` — 쿨 슬레이트 배경, 일반 사이드 노트
   - `<div class="callout-accent">` — 블루 좌측 보더, 정의·핵심 매핑
   - `<div class="callout-warm">` — 오렌지 좌측 보더, 결론·요약
   - `<div class="note-box">` — 점선 테두리, 작은 메타 노트
-- **클래스는 포스트 상단 `<style>{` … `}</style>` 블록에 정의**. 컴포넌트로 추출은 안 함 (포스트마다 미세 조정 자유 확보). 색은 반드시 글로벌 토큰 (`var(--accent)`, `var(--claude)`, `var(--claude-dark)`, `rgb(var(--gray))`, `rgba(96, 115, 159, …)` 등) 으로.
+- **헤더 안에는 `.term`/`.mod` 를 쓰지 말 것** — 헤더 자체가 이미 강조이므로 컬러·음영이 중복.
+
+**스타일 정의 위치**: `.term`/`.key`/`.mod`/`.callout*`/`.note-box`/`.compare-table` 은 `src/styles/post-classes.css` 에 정의되어 모든 포스트에 자동 적용. 포스트별로 다른 클래스 (예: `.ssg-table`, `.trace-span-*`) 가 필요하면 해당 포스트 상단에 `<style>{` … `}</style>` 블록을 추가해서 정의·오버라이드. 색은 반드시 글로벌 토큰 (`var(--accent)`, `var(--claude)`, `var(--claude-dark)`, `rgb(var(--gray))`, `rgba(96, 115, 159, …)`) 으로.
 
 레퍼런스 포스트:
 - `src/content/blog/about-astro/about-astro-03-astro.mdx` — `.term`/`.key` 와 HTML 테이블 사용의 전형
