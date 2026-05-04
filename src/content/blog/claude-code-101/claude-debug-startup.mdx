@@ -1,0 +1,298 @@
+---
+title: 'Claude Code 가 부팅되는 0.3초, claude --debug 로 들여다보기'
+description: '터미널에 claude 한 줄 치면 프롬프트가 뜨기까지 200~500ms. 그 사이에 무슨 일이 일어나는지 --debug 로 로그를 펼쳐 보면, 반복되는 4계층 설정 패턴, 단 하나의 동기 네트워크 호출, 거짓말처럼 보이지만 정상인 로그 줄들이 눈에 들어옵니다.'
+pubDate: 'May 4 2026'
+category: claude-code-101
+series: 'understanding-claude-code'
+seriesOrder: 2
+heroImage: '../../../assets/hero-claude-code-101.png'
+---
+
+<style>{`
+  .boot-timeline { display: grid; grid-template-columns: 90px 1fr; gap: 0.6rem 1.1rem; margin: 1.6em 0; align-items: start; }
+  .boot-time { font-family: ui-monospace, "SF Mono", Consolas, Menlo, monospace; font-size: 0.82rem; font-weight: 700; color: var(--claude-dark); padding: 0.5em 0.7em; background: rgba(204, 120, 92, 0.08); border-radius: 6px; text-align: center; white-space: nowrap; align-self: stretch; display: flex; align-items: center; justify-content: center; }
+  .boot-step { padding: 0.5em 0.2em; }
+  .boot-step .boot-title { font-weight: 700; color: rgb(var(--black)); font-size: 0.98rem; line-height: 1.4; margin-bottom: 0.15em; }
+  .boot-step .boot-desc { font-size: 0.88rem; color: rgb(var(--gray-dark)); line-height: 1.55; }
+  .boot-step .boot-desc code { font-family: ui-monospace, "SF Mono", Consolas, Menlo, monospace; font-size: 0.86em; background: rgba(96, 115, 159, 0.1); padding: 1px 5px; border-radius: 3px; color: rgb(var(--gray-dark)); }
+  @media (max-width: 720px) {
+    .boot-timeline { grid-template-columns: 1fr; gap: 0.3rem; }
+    .boot-time { justify-self: start; padding: 0.25em 0.7em; }
+    .boot-step { padding: 0.1em 0.2em 0.7em; }
+  }
+
+  .layer-table th, .layer-table td { font-size: 0.92em; }
+  .layer-table .layer-name { font-weight: 700; white-space: nowrap; }
+  .layer-table .layer-path { font-family: ui-monospace, "SF Mono", Consolas, Menlo, monospace; font-size: 0.85em; color: rgb(var(--gray-dark)); }
+
+  .lie-card { background: #fff; border: 1px solid rgb(var(--gray-light)); border-left: 3px solid var(--claude); border-radius: 8px; padding: 0.95em 1.15em; margin: 0.85em 0; }
+  .lie-card .lie-line { font-family: ui-monospace, "SF Mono", Consolas, Menlo, monospace; font-size: 0.85em; background: #1a1a24; color: #e8e8f0; padding: 0.5em 0.7em; border-radius: 4px; margin-bottom: 0.55em; display: inline-block; max-width: 100%; overflow-x: auto; white-space: pre; }
+  .lie-card .lie-truth { font-size: 0.93rem; color: rgb(var(--gray-dark)); line-height: 1.6; }
+  .lie-card .lie-truth strong { color: rgb(var(--black)); }
+
+  .log-details { margin: 2em 0; border: 1px solid rgb(var(--gray-light)); border-radius: 8px; overflow: hidden; }
+  .log-details > summary { cursor: pointer; padding: 0.7em 1em; background: rgba(96, 115, 159, 0.08); font-weight: 700; user-select: none; list-style: none; display: flex; align-items: center; gap: 0.5em; }
+  .log-details > summary::-webkit-details-marker { display: none; }
+  .log-details > summary::before { content: "▶"; font-size: 0.7em; color: rgb(var(--gray)); transition: transform 0.15s ease; }
+  .log-details[open] > summary::before { transform: rotate(90deg); }
+  .log-details > summary:hover { background: rgba(96, 115, 159, 0.14); }
+  .log-details pre { max-height: 480px; overflow: auto; margin: 0; border-radius: 0; font-size: 0.76rem; line-height: 1.55; padding: 0.9em 1.1em; background: #1a1a24; }
+  .log-details pre code { font-size: inherit; line-height: inherit; }
+`}</style>
+
+이전 글에서 Claude Code 가 왜 터미널에 사는지를 이야기했어요. 그렇다면 이 친구가 켜지는 순간엔 정확히 무슨 일이 벌어질까요. 화면엔 그저 프롬프트 한 줄이 깜빡이지만, 그 200~500ms 사이에 꽤 많은 것이 동시다발로 굴러갑니다. 한 번 뚜껑을 열어 보고 싶었어요.
+
+방법은 의외로 단순합니다. <span class="mod">claude --debug</span> 한 줄.
+
+## 🔍 어떻게 들여다보나
+
+가장 단순한 방법은 그냥 <span class="mod">--debug</span> 플래그를 붙여서 띄우는 거예요.
+
+```bash
+claude --debug
+```
+
+이러면 CLI 가 찍는 모든 디버그 로그가 자동으로 <span class="mod">&#126;/.claude/debug/&lt;sessionId&gt;.txt</span> 에 저장됩니다 (예: <span class="mod">&#126;/.claude/debug/f99a5fea-5fa1-46fb-bd57-77a5642da460.txt</span>). 위치·이름을 직접 지정하고 싶으면:
+
+```bash
+claude --debug-file ./startup.log
+```
+
+어느 쪽이든 100~200줄짜리 로그가 떨어져요. 매 줄이 코드의 어떤 지점을 통과했다는 흔적이고, 시간 정보까지 함께 박혀 있어서 부팅이 어떤 순서·어떤 페이스로 진행됐는지 그대로 보입니다.
+
+<details class="log-details">
+<summary>📜 원본 로그 전문 (한 환경의 실제 캡처)</summary>
+
+```log
+2026-05-04T03:43:24.448Z [DEBUG] MDM settings load completed in 25ms
+2026-05-04T03:43:24.463Z [DEBUG] Broken symlink or missing file encountered for settings.json at path: /home/user/myproject/.claude/settings.json
+2026-05-04T03:43:24.465Z [DEBUG] Broken symlink or missing file encountered for settings.json at path: /etc/claude-code/managed-settings.json
+2026-05-04T03:43:24.466Z [DEBUG] [init] configureGlobalMTLS starting
+2026-05-04T03:43:24.466Z [DEBUG] [init] configureGlobalMTLS complete
+2026-05-04T03:43:24.466Z [DEBUG] [init] configureGlobalAgents starting
+2026-05-04T03:43:24.466Z [DEBUG] CA certs: stores=bundled,system, extraCertsPath=/etc/ssl/certs/ca-certificates.crt
+2026-05-04T03:43:24.466Z [DEBUG] CA certs: Loaded 145 bundled root certificates
+2026-05-04T03:43:24.469Z [DEBUG] CA certs: Loaded 147 system CA certificates
+2026-05-04T03:43:24.469Z [DEBUG] CA certs: Appended extra certificates from NODE_EXTRA_CA_CERTS (/etc/ssl/certs/ca-certificates.crt)
+2026-05-04T03:43:24.469Z [DEBUG] mTLS: Creating HTTPS agent with custom certificates
+2026-05-04T03:43:24.469Z [DEBUG] [init] configureGlobalAgents complete
+2026-05-04T03:43:24.471Z [DEBUG] Error log sink initialized
+2026-05-04T03:43:24.495Z [DEBUG] [STARTUP] Loading MCP configs...
+2026-05-04T03:43:24.503Z [DEBUG] [STARTUP] Running setup()...
+2026-05-04T03:43:24.505Z [DEBUG] Loading skills from: managed=/etc/claude-code/.claude/skills, user=/home/user/.claude/skills, project=[/home/user/myproject/.claude/skills]
+2026-05-04T03:43:24.507Z [DEBUG] Failed to stat directory /etc/claude-code/.claude/commands: ENOENT: no such file or directory
+2026-05-04T03:43:24.507Z [DEBUG] Failed to stat directory /etc/claude-code/.claude/agents: ENOENT: no such file or directory
+2026-05-04T03:43:24.507Z [DEBUG] Failed to stat directory /home/user/.claude/agents: ENOENT: no such file or directory
+2026-05-04T03:43:24.509Z [DEBUG] [STARTUP] setup() completed in 6ms
+2026-05-04T03:43:24.509Z [DEBUG] [STARTUP] Loading commands and agents...
+2026-05-04T03:43:24.509Z [DEBUG] [ToolSearch:optimistic] mode=tst, ENABLE_TOOL_SEARCH=undefined, result=true
+2026-05-04T03:43:24.524Z [DEBUG] Loaded 3 installed plugins from /home/user/.claude/plugins/installed_plugins.json
+2026-05-04T03:43:24.525Z [DEBUG] Loaded 3 unique skills (3 unconditional, 0 conditional, managed: 0, user: 3, project: 0, additional: 0, legacy commands: 0)
+2026-05-04T03:43:24.526Z [DEBUG] Git remote URL: https://github.com/user/myproject.git
+2026-05-04T03:43:24.526Z [DEBUG] Parsed repository: github.com/user/myproject from URL: https://github.com/user/myproject.git
+2026-05-04T03:43:24.528Z [DEBUG] [Claude in Chrome] Extension not found in any browser
+2026-05-04T03:43:24.533Z [DEBUG] Found 2 plugins (2 enabled, 0 disabled)
+2026-05-04T03:43:24.535Z [DEBUG] Total plugin skills loaded: 17
+2026-05-04T03:43:24.536Z [DEBUG] getSkills returning: 3 skill dir commands, 17 plugin skills, 11 bundled skills, 0 builtin plugin skills
+2026-05-04T03:43:24.537Z [DEBUG] [STARTUP] Commands and agents loaded in 28ms
+2026-05-04T03:43:24.538Z [DEBUG] [STARTUP] Running showSetupScreens()...
+2026-05-04T03:43:24.559Z [DEBUG] [keybindings] Loaded 116 user bindings from /home/user/.claude/keybindings.json
+2026-05-04T03:43:24.560Z [DEBUG] [keybindings] KeybindingSetup initialized with 276 bindings, 0 warnings
+2026-05-04T03:43:24.583Z [DEBUG] systemTheme: OSC 11 response=rgb:1919/1a1a/1b1b detected=dark via=direct
+2026-05-04T03:43:24.583Z [DEBUG] XTVERSION: terminal identified as "xterm.js(6.1.0-beta.197)"
+2026-05-04T03:43:25.113Z [DEBUG] [STARTUP] showSetupScreens() completed in 575ms
+2026-05-04T03:43:25.113Z [DEBUG] [LSP MANAGER] initializeLspServerManager() called
+2026-05-04T03:43:25.114Z [DEBUG] [LSP MANAGER] Starting async initialization (generation 1)
+2026-05-04T03:43:25.114Z [DEBUG] Starting background startup prefetches
+2026-05-04T03:43:25.114Z [DEBUG] [Bootstrap] Fetching
+2026-05-04T03:43:25.116Z [DEBUG] [STARTUP] MCP configs resolved in 40ms (awaited at +621ms)
+2026-05-04T03:43:25.118Z [DEBUG] [Reconnection] computeInitialTeamContext: No teammate context set (not a teammate)
+2026-05-04T03:43:25.120Z [DEBUG] Preserving file permissions: 100600
+2026-05-04T03:43:25.120Z [DEBUG] Writing to temp file: /home/user/.claude.json.tmp.406206.1777866205120
+2026-05-04T03:43:25.125Z [DEBUG] Temp file written successfully, size: 76833 bytes
+2026-05-04T03:43:25.125Z [DEBUG] Renaming /home/user/.claude.json.tmp.406206.1777866205120 to /home/user/.claude.json
+2026-05-04T03:43:25.125Z [DEBUG] File /home/user/.claude.json written atomically
+2026-05-04T03:43:25.125Z [DEBUG] Initialized versioned plugins system with 3 plugins
+2026-05-04T03:43:25.224Z [DEBUG] [keybindings] KeybindingSetup initialized with 276 bindings, 0 warnings
+2026-05-04T03:43:25.242Z [DEBUG] [FileIndex] getProjectFiles called, respectGitignore=true
+2026-05-04T03:43:25.242Z [DEBUG] [FileIndex] getFilesUsingGit called
+2026-05-04T03:43:25.246Z [DEBUG] [REPL:mount] REPL mounted, disabled=false
+2026-05-04T03:43:25.247Z [DEBUG] performStartupChecks called
+2026-05-04T03:43:25.247Z [DEBUG] Starting background plugin installations
+2026-05-04T03:43:25.287Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2026-05-04T03:43:25.305Z [DEBUG] Total LSP servers loaded: 0
+2026-05-04T03:43:25.305Z [DEBUG] LSP manager initialized with 0 servers
+2026-05-04T03:43:25.306Z [DEBUG] Failed to stat directory /etc/claude-code/.claude/output-styles: ENOENT
+2026-05-04T03:43:25.306Z [DEBUG] Failed to stat directory /home/user/.claude/output-styles: ENOENT
+2026-05-04T03:43:25.306Z [DEBUG] Failed to stat directory /etc/claude-code/.claude/skills: ENOENT
+2026-05-04T03:43:25.306Z [DEBUG] Failed to stat directory /home/user/.claude/workflows: ENOENT
+2026-05-04T03:43:25.314Z [DEBUG] Loading plugin playwright from source: "./external_plugins/playwright"
+2026-05-04T03:43:25.314Z [DEBUG] Loading plugin document-skills from source: "./"
+2026-05-04T03:43:25.316Z [DEBUG] Watching for changes in setting files /home/user/.claude/settings.json, /home/user/myproject/.claude/settings.json...
+2026-05-04T03:43:25.331Z [DEBUG] Loaded 3 CLAUDE.md/rules files:
+  [User] /home/user/.claude/CLAUDE.md (326 chars)
+  [Project] /home/user/myproject/CLAUDE.md (~7K chars)
+  [AutoMem] /home/user/.claude/projects/.../memory/MEMORY.md (~1K chars)
+2026-05-04T03:43:25.343Z [DEBUG] [FileIndex] git ls-files (tracked) took 101ms
+2026-05-04T03:43:25.355Z [DEBUG] Ripgrep first use test: PASSED (mode=embedded, path=/home/user/.nvm/versions/node/v22.22.2/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe)
+2026-05-04T03:43:25.359Z [DEBUG] [FileIndex] git ls-files: ~2,000 tracked files in 117ms
+2026-05-04T03:43:25.360Z [DEBUG] [FileIndex] using git ls-files result (~2,000 files)
+2026-05-04T03:43:25.367Z [DEBUG] [FileIndex] background untracked fetch: 0 files
+2026-05-04T03:43:25.368Z [DEBUG] [LSP MANAGER] Starting async initialization (generation 2)
+2026-05-04T03:43:25.368Z [DEBUG] Loaded plugins - Enabled: 2, Disabled: 0, Commands: 0, Agents: 0, Errors: 0
+2026-05-04T03:43:25.368Z [DEBUG] LSP manager initialized with 0 servers
+2026-05-04T03:43:25.386Z [DEBUG] [Bootstrap] Fetch ok
+2026-05-04T03:43:25.386Z [DEBUG] [Bootstrap] Cache unchanged, skipping write
+2026-05-04T03:43:25.391Z [DEBUG] [FileIndex] cache refresh completed in 149ms
+2026-05-04T03:43:25.520Z [DEBUG] Org fast mode: disabled (extra_usage_disabled)
+2026-05-04T03:43:25.649Z [DEBUG] Fast mode unavailable: Fast mode requires extra usage billing · /extra-usage to enable
+2026-05-04T03:43:25.909Z [DEBUG] MCP server "ide": Successfully connected (transport: ws-ide) in 22ms
+2026-05-04T03:43:26.356Z [DEBUG] MCP server "fs-test": Successfully connected (transport: stdio) in 1214ms
+2026-05-04T03:43:26.389Z [DEBUG] MCP server "plugin:playwright:playwright": Successfully connected (transport: stdio) in 1264ms
+2026-05-04T03:43:26.573Z [DEBUG] [mcp-registry] Loaded 197 official MCP URLs (legacy)
+2026-05-04T03:43:26.883Z [DEBUG] Fast mode unavailable: Fast mode requires extra usage billing · /extra-usage to enable
+... (이후 동일 패턴의 "Fast mode unavailable" 줄이 UI 리렌더링마다 반복)
+```
+
+</details>
+
+<div class="note-box">
+이 글이 인용하는 메시지 문구는 <span class="key">Claude Code 의 캡처 시점·버전에 따라 달라질 수 있습니다</span>. 본문에서 다루는 패턴 (어떤 줄이 어떤 의미인지, 4 계층 구조, Bootstrap 단일 호출 등) 은 동일하지만, 정확한 글자나 숫자는 위의 예시 로그와 본인 환경에서 약간 다르게 보일 수 있어요.
+</div>
+
+이제 이 로그를 손에 들고, 시간순으로 무슨 일이 벌어지는지 따라가 봅니다.
+
+## ⏱ 0.3초 안에 일어나는 일
+
+전형적인 cold start (첫 실행이 아니고 네트워크가 멀쩡한 환경) 의 흐름을 시간순으로 펼치면 이렇게 생겼어요.
+
+<div class="boot-timeline">
+  <div class="boot-time">T+0.00s</div>
+  <div class="boot-step">
+    <div class="boot-title">MDM · settings 탐색 · HTTPS 계층 구성</div>
+    <div class="boot-desc">엔터프라이즈 정책 (MDM), 4 계층 설정 파일, mTLS · CA 인증서 · keep-alive Agent 같은 Node 의 전역 HTTP 계층 세팅. <code>configureGlobalMTLS</code>, <code>configureGlobalAgents</code> 같은 줄들이 이 구간.</div>
+  </div>
+
+  <div class="boot-time">T+0.03s</div>
+  <div class="boot-step">
+    <div class="boot-title">MCP 설정 · setup() 단계</div>
+    <div class="boot-desc">MCP 서버 4 스코프 병합, Skills · Plugins 탐색, 동봉된 ripgrep 바이너리 헬스 체크.</div>
+  </div>
+
+  <div class="boot-time">T+0.07s</div>
+  <div class="boot-step">
+    <div class="boot-title">Git remote · 터미널 감지</div>
+    <div class="boot-desc"><code>git remote get-url origin</code> 으로 저장소 식별, <code>CSI &gt; q</code> 시퀀스로 터미널 종류 (xterm.js / kitty / iTerm2 등) 질의.</div>
+  </div>
+
+  <div class="boot-time">T+0.07s</div>
+  <div class="boot-step">
+    <div class="boot-title">showSetupScreens — onboarding 게이트</div>
+    <div class="boot-desc">로그인 / trust 다이얼로그 / 테마 선택. 처음 한 번만 사용자 입력을 받고, 이후엔 거의 즉시 통과 (10~50ms).</div>
+  </div>
+
+  <div class="boot-time">T+0.10s</div>
+  <div class="boot-step">
+    <div class="boot-title">LSP manager · 백그라운드 prefetch · Bootstrap</div>
+    <div class="boot-desc">언어 서버 매니저 초기화, MCP 스키마·모델 카탈로그 백그라운드 페치, <code>api.anthropic.com</code> 한 번 호출 (feature flag · 사용 가능한 모델).</div>
+  </div>
+
+  <div class="boot-time">T+0.20s</div>
+  <div class="boot-step">
+    <div class="boot-title">파일 인덱스 · REPL 마운트</div>
+    <div class="boot-desc"><code>git ls-files</code> 로 프로젝트 파일 목록 (보통 1,000~5,000 개) 인덱스 구축, Ink 기반 터미널 UI 마운트. <span class="key">이 시점에 프롬프트가 화면에 보입니다.</span></div>
+  </div>
+
+  <div class="boot-time">T+0.30s</div>
+  <div class="boot-step">
+    <div class="boot-title">설정 파일 watcher · LSP 재초기화 · MCP 레지스트리</div>
+    <div class="boot-desc"><code>&#126;/.claude/settings.json</code> 변경 감시 시작, 플러그인 로딩 끝난 뒤 LSP 매니저 재스캔, 바이너리 내장 MCP 카탈로그 로드.</div>
+  </div>
+</div>
+
+총 CPU 시간으로는 ~300ms. 첫 실행이거나 onboarding 입력이 필요하거나 네트워크가 느린 경우 길어지지만, 일상적인 흐름은 이 그래프 안에 다 들어갑니다.
+
+## 🧱 반복되는 한 패턴: 4계층 설정
+
+부팅 로그를 처음부터 끝까지 따라가면 같은 모양의 구조가 네 번 반복돼요. **system → user → project shared → project local** 의 4 계층. 매 계층이 독립적으로 발견되고 병합됩니다.
+
+<table class="compare-table layer-table">
+  <thead>
+    <tr><th>계층</th><th>경로 (예: settings)</th><th>의도</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="layer-name">System / 엔터프라이즈</td><td class="layer-path">/etc/claude-code/managed-settings.json</td><td>IT 관리자가 머신 전체에 강제하는 정책</td></tr>
+    <tr><td class="layer-name">User 전역</td><td class="layer-path">&#126;/.claude/settings.json</td><td>개인 환경 (테마·단축키·기본 모델)</td></tr>
+    <tr><td class="layer-name">Project 공유</td><td class="layer-path">&lt;repo&gt;/.claude/settings.json</td><td>git 에 커밋, 팀 전체 공유</td></tr>
+    <tr><td class="layer-name">Project 로컬</td><td class="layer-path">&lt;repo&gt;/.claude/settings.local.json</td><td>gitignore, 개인 오버라이드</td></tr>
+  </tbody>
+</table>
+
+이 4 계층이 <span class="key">settings.json, MCP 서버, Skills, Plugins</span> 네 영역에서 그대로 똑같이 반복됩니다. 한 번 익혀두면 어떤 항목을 어디에 두어야 하는지 헷갈릴 일이 없어요. "팀 공유면 저장소 안의 .claude/, 내 개인 환경이면 홈의 &#126;/.claude/" 한 줄 규칙으로 거의 모든 결정이 풀립니다.
+
+## 🤔 거짓말처럼 보이지만 정상인 로그
+
+처음 디버그 로그를 보면 깜짝 놀라는 줄들이 있어요. 그런데 자세히 들여다보면 모두 의도된 동작입니다. 자주 나오는 네 가지를 모아봤어요.
+
+<div class="lie-card">
+<span class="lie-line">[DEBUG] Broken symlink or missing file encountered for settings.json...</span>
+<div class="lie-truth"><strong>실제로는 그냥 "파일이 없음".</strong> 설정 로더가 "broken symlink" 와 "파일 없음" 두 경우를 한 코드 경로로 처리하다 보니 메시지가 무서워 보일 뿐. 4 계층 중 비어 있는 항목마다 한 줄씩 찍힙니다.</div>
+</div>
+
+<div class="lie-card">
+<span class="lie-line">[mcp-registry] Loaded 47 official MCP URLs</span>
+<div class="lie-truth"><strong>활성 MCP 서버가 47개라는 뜻이 아닙니다.</strong> 바이너리에 내장된 <span class="key">설치 가능한 서버 카탈로그</span> (예: github, linear, playwright 등의 등록 정보). 실제 활성 서버 수와는 무관해요. 0개여도 47개여도 이 줄은 똑같이 찍힙니다.</div>
+</div>
+
+<div class="lie-card">
+<span class="lie-line">[DEBUG] rg error ... /home/user/.claude/agents: No such file or directory</span>
+<div class="lie-truth"><strong>최초 설치 시 예상되는 정상 동작.</strong> Skills 로더가 여러 선택적 디렉토리를 ripgrep 으로 스캔해 보는데, 아직 아무것도 설치되지 않은 상태라 디렉토리 자체가 없을 뿐. 각 디렉토리는 해당 기능을 처음 설치할 때 부수 효과로 생성됩니다.</div>
+</div>
+
+<div class="lie-card">
+<span class="lie-line">[DEBUG] Fast mode unavailable: ...   ← 같은 줄이 20번 넘게 반복</span>
+<div class="lie-truth"><strong>버그가 아니라 호출 지점이 많은 것.</strong> <span class="mod">isFastModeAvailable()</span> 함수가 모델 선택기, 상태 표시줄, <span class="mod">/model</span> 명령, 매 리렌더링 등 여러 UI 지점에서 호출됩니다. 매번 같은 결과를 다시 찍을 뿐 외형적 노이즈예요.</div>
+</div>
+
+이 네 가지를 알아두면 디버그 로그를 처음 봤을 때의 "어, 뭐 잘못된 거야?" 가 사라집니다.
+
+## 🌐 단 하나의 동기 네트워크 호출
+
+흥미로운 사실 하나. 부팅 과정 전체에서 **반드시 끝나야 다음으로 넘어갈 수 있는 네트워크 호출은 단 하나** 입니다.
+
+<div class="callout-accent">
+<span class="key">Bootstrap</span>: Claude Code 가 켜질 때 Anthropic 서버 (<span class="mod">api.anthropic.com</span>) 에 한 번 짧게 묻는 인사 같은 호출이에요. <span class="key">"이 사용자는 어떤 Claude 모델을 쓸 수 있는지", "지금 새로 켜진 기능 중 이 사용자에게 보여줄 게 있는지", "혹시 일부 사용자에게 시험 중인 새 화면이 있다면 이 사람도 그 그룹인지"</span> 같은 답을 받아옵니다. 모델 선택기·메뉴·UI 가 그려지기 전에 이 답이 손에 있어야 하니까 한 번은 꼭 끝내고 넘어가야 해요. 로그엔 <span class="mod">[Bootstrap] Fetching</span> 으로 시작해서 응답이 오면 <span class="mod">[Bootstrap] Fetch ok</span> 로 마무리됩니다.
+</div>
+
+다른 모든 네트워크 작업 (MCP 스키마, 모델 카탈로그, 사용자 설정 prefetch 등) 은 백그라운드로 돌고, 화면 렌더링·파일 인덱스 같은 로컬 작업과 병렬로 진행됩니다. 그래서 인터넷이 멀쩡할 때는 부팅 시간 = 로컬 작업 시간이지만, 인터넷이 느릴 때는 Bootstrap 한 호출이 시작 시간 전체를 잡아먹어요. "Claude Code 가 처음 뜨는 게 유난히 느린 날" 의 원인이 거의 항상 여기 있습니다.
+
+## 🎬 REPL mounted — 프롬프트가 보이는 그 순간
+
+로그를 따라가다 보면 정확히 이 한 줄이 등장합니다.
+
+```
+[DEBUG] [REPL:mount] REPL mounted, disabled=false
+```
+
+이 시점이 사용자 입장에서 "Claude Code 가 켜졌다" 라고 느끼는 순간이에요. 화면에 깜빡이는 커서가 처음 뜨고, 입력을 받기 시작합니다. 그 뒤에도 백그라운드 작업 (LSP 재초기화, MCP 카탈로그 로드, 설정 watcher 시작) 이 몇십~몇백 ms 더 굴러가지만, 이미 대화는 시작 가능한 상태입니다.
+
+## ✅ "정상" 의 모습 — 체크리스트
+
+내 Claude Code 가 건강하게 부팅됐는지 한 눈에 확인하려면 이 항목들을 보면 됩니다.
+
+<div class="callout">
+
+- 디버그 로그에 <span class="key">[ERROR] 또는 [WARN] 0 건</span>
+- <span class="mod">Ripgrep first use test: PASSED</span>
+- <span class="mod">[Bootstrap] Fetch ok</span> (네트워크 정상)
+- <span class="mod">git ls-files: N tracked files in Xms</span> (N 은 실제 파일 수)
+- <span class="mod">REPL mounted, disabled=false</span>
+- "거짓말처럼 보이는 줄들" (`Broken symlink`, `47 official MCP URLs`, `rg error No such file`, `Fast mode unavailable` 반복) 만 보인다면 **모두 정상**
+
+</div>
+
+## 💡 한 줄 요약
+
+<div class="callout-warm">
+<span class="mod">claude --debug</span> 한 줄로 0.3 초 부팅의 내부를 펼쳐 보면, <span class="key">4 계층 설정 패턴</span> 이 영역마다 반복되고, <span class="key">동기 네트워크 호출은 Bootstrap 단 한 번</span> 이며, 무서워 보이는 로그 줄들의 대부분은 <span class="key">의도된 정상 동작</span> 임을 알 수 있습니다. 그 이후로는 디버그 로그가 무섭지 않아져요.
+</div>
