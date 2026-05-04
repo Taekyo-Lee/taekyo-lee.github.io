@@ -8,29 +8,6 @@ seriesOrder: 7
 heroImage: '../../../assets/hero-about-nodejs.png'
 ---
 
-<style>{`
-  .term { color: var(--accent); font-weight: 700; }
-  .key { color: var(--claude-dark); font-weight: 700; }
-  .mod {
-    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
-    font-size: 0.92em;
-    padding: 1px 6px;
-    border-radius: 4px;
-    background: rgba(96, 115, 159, 0.10);
-    color: rgb(var(--gray-dark));
-  }
-  .callout { background: rgba(96, 115, 159, 0.07); border-radius: 8px; padding: 1em 1.25em; margin: 1.5em 0; }
-  .callout-accent { border-left: 4px solid var(--accent); background: rgba(35, 55, 255, 0.04); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
-  .callout-warm { border-left: 4px solid var(--claude); background: rgba(204, 120, 92, 0.06); padding: 0.85em 1.15em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
-  .note-box { border: 1px dashed rgba(96, 115, 159, 0.35); border-radius: 8px; padding: 0.7em 1em; margin: 1.25em 0; font-size: 0.95em; color: rgb(var(--gray-dark)); }
-  .compare-table { width: 100%; border-collapse: collapse; margin: 1.5em 0; font-size: 0.95em; line-height: 1.55; }
-  .compare-table th, .compare-table td { padding: 0.6em 0.85em; border-bottom: 1px solid rgb(var(--gray-light)); text-align: left; vertical-align: top; }
-  .compare-table th { background: rgba(var(--gray-light), 0.5); font-weight: 700; color: rgb(var(--black)); }
-  .compare-table tr.highlight { background: rgba(204, 120, 92, 0.08); }
-  .compare-table tr.highlight td { border-bottom-color: rgba(204, 120, 92, 0.3); }
-  .compare-table tr.row-accent { background: rgba(35, 55, 255, 0.05); }
-`}</style>
-
 신입 시절, 분명 동료와 같은 코드를 받았는데 "내 컴퓨터에선 잘 도는 게 동료 컴퓨터에선 죽는" 일이 있었어요. 며칠을 헤맨 끝에 범인은 의외로 단순했습니다. 두 컴퓨터에 깔린 라이브러리 버전이 미세하게 달랐던 것. 이 한 파일이 그런 일을 90% 막아줍니다.
 
 ## 한 줄 답
@@ -310,7 +287,7 @@ uv sync (유연) vs uv sync --frozen (엄격) 의 구분과 같은 자리예요.
 
 <div class="callout-warm">
 
-- Claude Code fork · plugin · MCP 서버를 <span class="key">빌드 · 개발</span> 하는 경우
+- AI CLI 를 소스로 빌드하거나 plugin · MCP 서버를 <span class="key">빌드 · 개발</span> 하는 경우
 - <span class="key">Node.js 기반 백엔드 서비스</span> 를 짜는 경우 (AI 에이전트가 호출하는 API, 데이터 수집 서버 등)
 - <span class="key">팀 프로젝트 레포</span> 에 기여하면서 <span class="term">npm install</span> 을 돌리는 경우
 - <span class="key">Docker 이미지</span> 에 Node 기반 코드를 넣어 배포하는 경우
