@@ -14,11 +14,6 @@ Jekyll, Hugo, Sphinx, MkDocs 같은 기존 도구가 정확히 그 일을 합니
 
 Astro 가 그 자리에서 한 발 더 나간 도구입니다. 단순 정리하면, <span class="key">마크다운으로 글을 쓰되, 필요한 자리에 component를 끼워 넣을 수 있는 도구.</span> 여기서 component 는 HTML/CSS/JS 한 묶음을 하나의 재사용 단위로 쓸 수 있게 만든 작은 단위입니다. 예를 들어 카드 모양 도식 한 개, 또는 클릭하면 펼쳐지는 토글 박스 한 개를 component로 만들어두면, 본문 어느 자리에서든 한 줄로 불러서 띄울 수 있습니다.
 
-<style>{`
-  .term { color: var(--accent); font-weight: 700; }
-  .key { color: var(--claude-dark); font-weight: 700; }
-`}</style>
-
 ## 먼저, Astro 는 정적 사이트 생성기입니다
 
 Astro 가 어떤 카테고리에 속하는지부터 짚습니다. Sphinx 나 MkDocs 를 써본 적이 있다면, 그 도구들이 정적 사이트 생성기 (Static Site Generator, SSG) 라는 분류에 속한다는 걸 알 것입니다. SSG 는 빌드 시점에 모든 페이지를 미리 HTML 로 만들어두는 프로그램입니다.
