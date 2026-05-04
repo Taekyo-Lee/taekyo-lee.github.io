@@ -1,0 +1,156 @@
+---
+title: '[Real-world plugin #2] OpenAI codex'
+description: 'OpenAI 의 codex marketplace 들여다보기. Anthropic agent-skills 가 cherry-pick 패턴이었다면, codex 는 single plugin 안에 거의 모든 component type 을 박아 넣은 정반대 설계. 두 패턴의 비교로 시리즈 마무리.'
+pubDate: 'May 4 2026'
+category: claude-code-101
+series: 'claude-code-must-knows'
+seriesOrder: 4
+heroImage: '../../../assets/hero-claude-code-101.png'
+---
+
+<style>{`
+  .repo-tree { background: rgba(96, 115, 159, 0.06); border: 1px solid rgb(var(--gray-light)); border-radius: 8px; padding: 1em 1.2em; margin: 1.4em 0 0.6em; font-family: ui-monospace, "SF Mono", Consolas, Menlo, monospace; font-size: 0.85rem; line-height: 1.7; color: rgb(var(--gray-dark)); white-space: pre; overflow-x: auto; }
+  .repo-tree .tree-comment { color: var(--claude-dark); font-weight: 700; }
+`}</style>
+
+이 시리즈의 [#3 에서 Anthropic 의 공식 marketplace](/blog/real-world-plugin-anthropic-agent-skills/) 를 봤어요 — *"17 skills 를 페르소나별 3 plugin 으로 carve-up"* 패턴. 이번엔 정반대 모양의 marketplace 로 가 봅니다. OpenAI 가 만든 [codex marketplace](https://github.com/openai/codex-plugin-cc). **Plugin 은 단 한 개인데, 그 한 개가 plugin component type 거의 전부 (skills · commands · agents · scripts · hooks) 를 안에 박아 넣은 '풍성한 single plugin'** 의 모범 사례예요.
+
+## 🎯 무엇을 하는 plugin 인가
+
+이름 그대로 — OpenAI 의 자체 코딩 agent **Codex 를 Claude Code 안에서 호출할 수 있게 만든 다리**. 두 가지 큰 시나리오:
+
+- **Code review**: `/codex:review` — 현재 작업을 OpenAI 의 reviewer 에게 보여 줌. `/codex:adversarial-review` 는 좀 더 공격적인 challenge 모드.
+- **Task delegation**: `/codex:rescue` — Claude 가 막혔거나 다른 시각이 필요할 때 Codex 에 작업을 넘김. `/codex:status` · `/codex:result` · `/codex:cancel` 로 백그라운드 job 을 관리.
+
+전제 조건: ChatGPT 구독 또는 OpenAI API 키 + Node 18.18 이상. `@openai/codex` CLI 가 시스템에 깔려 있어야 하고요. (`/codex:setup` 이 환경 점검과 자동 설치까지 도와줍니다.)
+
+## 🧰 한 plugin 안에 거의 모든 것
+
+Layout 패턴부터 #3 과 다릅니다. Anthropic 은 `source: "./"` 로 repo 루트를 공유했지만, OpenAI 는 plugin 을 별도 sub-directory 로 분리해 두었어요.
+
+<pre class="repo-tree"><span>openai-codex/</span>
+<span>├── .claude-plugin/</span>
+<span>│   └── marketplace.json           <span class="tree-comment">← 1개 plugin 등록</span></span>
+<span>├── plugins/</span>
+<span>│   └── codex/                     <span class="tree-comment">← 진짜 plugin 디렉터리</span></span>
+<span>│       ├── .claude-plugin/plugin.json</span>
+<span>│       ├── commands/              <span class="tree-comment">← 7 개 slash command</span></span>
+<span>│       ├── skills/                <span class="tree-comment">← 3 개 skill (대부분 internal)</span></span>
+<span>│       ├── agents/                <span class="tree-comment">← codex-rescue subagent</span></span>
+<span>│       ├── hooks/hooks.json       <span class="tree-comment">← lifecycle hooks</span></span>
+<span>│       ├── scripts/               <span class="tree-comment">← Node.js 실행 스크립트들</span></span>
+<span>│       └── prompts/, schemas/</span>
+<span>├── package.json                   <span class="tree-comment">← Node project (Apache 2.0)</span></span>
+<span>└── ...</span></pre>
+
+이 layout 은 plugins 시리즈 [#2](/blog/claude-code-plugins/) 에서 한 번 언급한 **Pattern B** — repo 안에 plugin 이 sub-directory 로 따로 있고, `marketplace.json` 의 `source` 가 `./plugins/codex` 로 가리키는 형태. Plugin 이 여러 개로 늘어날 여지를 둔 구조예요 (실제로 지금은 1개지만 같은 패턴으로 codex-experimental 같은 두 번째 plugin 을 옆에 추가할 수 있음).
+
+이 한 plugin 안에 들어 있는 것들:
+
+<table class="compare-table">
+  <thead>
+    <tr><th>Component</th><th>개수</th><th>무엇</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>commands</strong></td>
+      <td>7</td>
+      <td>/codex:review · /codex:adversarial-review · /codex:rescue · /codex:status · /codex:result · /codex:cancel · /codex:setup</td>
+    </tr>
+    <tr>
+      <td><strong>skills</strong></td>
+      <td>3</td>
+      <td>내부 helper (codex-cli-runtime, codex-result-handling, gpt-5-4-prompting). 대부분 <code>user-invocable: false</code> — agent 가 내부적으로만 사용</td>
+    </tr>
+    <tr>
+      <td><strong>agents</strong></td>
+      <td>1</td>
+      <td>codex-rescue — Claude 가 막혔을 때 자동으로 Codex 에 위임하는 subagent</td>
+    </tr>
+    <tr>
+      <td><strong>scripts (Node.js)</strong></td>
+      <td>5</td>
+      <td>session lifecycle, app server broker, codex companion 등 — 진짜 실행 가능한 .mjs 파일들</td>
+    </tr>
+    <tr>
+      <td><strong>hooks</strong></td>
+      <td>3</td>
+      <td>SessionStart · SessionEnd · Stop — 모두 위 Node 스크립트와 wired</td>
+    </tr>
+  </tbody>
+</table>
+
+이 catalog 자체가 자기 plugin 만들 때 *"이런 것까지 가능하구나"* 의 reference 예요.
+
+## 🪝 lifecycle hook 의 실전 사용
+
+이전 [plugins 글의 trust 섹션](/blog/claude-code-plugins/#%EF%B8%8F-plugin-%EC%84%A4%EC%B9%98%EB%8A%94-%EC%8B%A0%EB%A2%B0-%EA%B2%B0%EC%A0%95%EC%9E%85%EB%8B%88%EB%8B%A4--%ED%95%9C-%EB%B2%88-%EB%A9%88%EC%B6%94%EC%84%B8%EC%9A%94) 에서 *"plugin 안에는 hook 의 셸 명령, MCP 서버, 실행 파일 같은 실제로 실행되는 코드도 함께 담길 수 있다"* 라고 했죠. codex plugin 의 `hooks.json` 이 정확히 그 산 증거예요.
+
+```json
+{
+  "hooks": {
+    "SessionStart": [{ "hooks": [{
+      "type": "command",
+      "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/session-lifecycle-hook.mjs\" SessionStart",
+      "timeout": 5
+    }]}],
+    "SessionEnd": [{ "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/session-lifecycle-hook.mjs\" SessionEnd", "timeout": 5 }]}],
+    "Stop": [{ "hooks": [{
+      "type": "command",
+      "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/stop-review-gate-hook.mjs\"",
+      "timeout": 900
+    }]}]
+  }
+}
+```
+
+Claude Code 세션이 **시작될 때 / 끝날 때 / stop 신호를 받을 때** 마다 OpenAI 가 작성한 Node.js 스크립트가 **사용자 권한으로 실행됩니다** (각각 5 초, 5 초, 900 초 (15분) timeout). `${CLAUDE_PLUGIN_ROOT}` 가 plugin 의 캐시 경로로 자동 resolve 되는 것도 그대로 드러나죠.
+
+이 plugin 을 깔면 OpenAI 가 작성한 `.mjs` 가 내 셸에서 진짜로 돕니다. Apache 2.0 으로 코드는 공개돼 있어 직접 검토 가능 — 다만 *"검토할 수 있다"* 와 *"항상 검토한다"* 사이의 거리가 plugin 신뢰 결정의 본질이라는 점은 변하지 않아요.
+
+## ⚡ 직접 설치해서 보기
+
+```bash
+# 1) marketplace 추가
+/plugin marketplace add openai/codex-plugin-cc
+
+# 2) plugin 설치
+/plugin install codex@openai-codex
+
+# 3) 재로드
+/reload-plugins
+
+# 4) Codex CLI 환경 점검 (없으면 자동 설치 도와줌)
+/codex:setup
+
+# 5) 첫 review 돌려보기
+/codex:review --background
+/codex:status
+/codex:result
+```
+
+설치 후 `/agents` 에 `codex:codex-rescue` 가 떠 있으면 정상. Claude 가 막힐 때 자동으로 발동돼서 Codex 에 위임할 거예요.
+
+## 💡 시리즈 마무리 — 두 marketplace, 두 패턴
+
+이 시리즈에서 본 두 marketplace 가 정반대 design point 를 보여줍니다.
+
+<table class="compare-table">
+  <thead>
+    <tr><th></th><th>Anthropic agent-skills (#3)</th><th>OpenAI codex (#4)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Plugin 수</strong></td><td>3</td><td>1</td></tr>
+    <tr><td><strong>Skill 수</strong></td><td>17 (cherry-picked)</td><td>3 (internal helpers)</td></tr>
+    <tr><td><strong>Layout 패턴</strong></td><td>Pattern C — 공유 디렉터리</td><td>Pattern B — sub-directory</td></tr>
+    <tr><td><strong>Component 종류</strong></td><td>skill 만</td><td>skills + commands + agents + scripts + hooks</td></tr>
+    <tr><td><strong>Manifest</strong></td><td>marketplace.json 만</td><td>둘 다 (marketplace + plugin)</td></tr>
+    <tr><td><strong>목적</strong></td><td>skill 라이브러리</td><td>cross-AI 통합 다리</td></tr>
+  </tbody>
+</table>
+
+자기 marketplace 를 설계할 때 이 양 끝 사이 어딘가에 위치할 거예요 — *"내가 가진 게 flat 한 skill pool 인가, 풍성한 통합 도구인가"* 가 결정 축. 어느 쪽이든 plugin 시스템이 잘 받아줍니다.
+
+<div class="callout-warm">
+한 줄 요약. plugin 은 layout 도 component 구성도 자유. <span class="key">Anthropic 처럼 가벼운 skill 라이브러리</span> 부터 <span class="key">OpenAI 처럼 거의 모든 component 를 묶은 풍성한 single plugin</span> 까지 넓은 스펙트럼이에요. 자기 use case 가 어디에 위치하는지 한 번 짚어 보고 시작하면 됩니다.
+</div>
