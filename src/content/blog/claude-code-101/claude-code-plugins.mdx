@@ -37,6 +37,9 @@ heroImage: '../../../assets/hero-claude-code-101.png'
   .gift-item { background: #fff; border: 1px solid rgb(var(--gray-light)); border-radius: 8px; padding: 0.6em 0.85em; font-size: 0.88rem; color: rgb(var(--gray-dark)); text-align: center; }
   .gift-caption { text-align: center; font-size: 0.82rem; color: rgb(var(--gray)); font-style: italic; margin-top: 0.9em; }
 
+  .plugin-rule-tree { background: rgba(96, 115, 159, 0.06); border: 1px solid rgb(var(--gray-light)); border-radius: 8px; padding: 0.85em 1em; margin: 1.4em 0; font-family: ui-monospace, "SF Mono", Consolas, Menlo, monospace; font-size: 0.85rem; line-height: 1.7; color: rgb(var(--gray-dark)); white-space: pre; overflow-x: auto; }
+  .plugin-rule-tree .pr-comment { color: var(--claude-dark); font-weight: 700; }
+
   .repo-tree { background: rgba(96, 115, 159, 0.06); border: 1px solid rgb(var(--gray-light)); border-radius: 8px; padding: 1em 1.2em; margin: 1.4em 0 0.6em; font-family: ui-monospace, "SF Mono", Consolas, Menlo, monospace; font-size: 0.85rem; line-height: 1.7; color: rgb(var(--gray-dark)); white-space: pre; overflow-x: auto; }
   .repo-tree .tree-comment { color: var(--claude-dark); font-weight: 700; }
   .repo-caption { font-size: 0.85rem; color: rgb(var(--gray-dark)); margin-bottom: 1.4em; padding: 0 0.3em; line-height: 1.6; }
@@ -76,7 +79,7 @@ Plugins are not a new feature. They are the distribution package for everything 
 <footer style="margin-top: 0.6em; font-size: 0.85rem; color: rgb(var(--gray));">— Claude Code 내부 문서 (요지)</footer>
 </blockquote>
 
-박스에 들어갈 수 있는 것은 다음과 같은 7가지. 다 따로 만들 줄 알았던 것들이에요.
+박스에 들어갈 수 있는 것은 다음과 같은 7가지. 다 우리가 따로 만들 수 있는 것들이에요.
 
 <div class="plugin-box">
   <div class="plugin-box-row">
@@ -111,9 +114,20 @@ Plugins are not a new feature. They are the distribution package for everything 
 
 이 중 골라서 한 폴더에 모으고, `.claude-plugin/` 안에 manifest 한 장만 얹으면 plugin 완성. 단일 plugin 이면 `plugin.json` (이름·버전·간단한 설명), 여러 plugin 을 한 번에 publish 하는 카탈로그라면 `marketplace.json`. *"내가 만든 hook 묶음을 팀에 공유하고 싶다"* 같은 상황이 생기면 이 포장지가 답입니다.
 
+## 📂 Claude Code 는 어떻게 plugin 을 인식할까?
+
+한 번 더 강조하면 — **plugin 은 그저 폴더 하나** 예요. Skill 의 본질이 `SKILL.md` 가 든 폴더인 것처럼, plugin 도 결국 폴더입니다. <span class="key">바이너리도 컴파일된 산출물도 아니고, 그저 특정 구조를 따르는 디렉터리</span>.
+
+그 "특정 구조" 라는 게 단 한 줄로 정리돼요 — 어떤 폴더든 `.claude-plugin/` 서브폴더가 있고, 그 안에 `marketplace.json` 또는 `plugin.json` (혹은 둘 다) 만 있으면 Claude Code 가 그 폴더를 plugin (또는 marketplace) 으로 인식합니다. 그게 전부의 구조적 조건.
+
+<pre class="plugin-rule-tree"><span>[any folder]/</span>
+<span>└── .claude-plugin/</span>
+<span>    ├── marketplace.json   <span class="pr-comment">← 있으면 marketplace 폴더</span></span>
+<span>    └── plugin.json        <span class="pr-comment">← 있으면 plugin 폴더</span></span></pre>
+
 <div class="real-example">
 
-[Anthropic 의 공식 skills repo](https://github.com/anthropics/skills/tree/main) 가 좋은 예시예요. 이 repo 자체는 17 개 skill 의 모음이고, 그 위에 `marketplace.json` 한 장을 얹어 **skill-only plugin 세 개** 를 정의해 두었습니다.
+위 규칙에 따르면 — `.claude-plugin/` 안에 `marketplace.json` 만 있으면 그건 **marketplace 폴더**. [Anthropic 의 공식 skills repo](https://github.com/anthropics/skills/tree/main) 가 정확히 이 케이스예요. Repo 자체는 17 개 skill 의 모음이고, 그 위에 `marketplace.json` 한 장을 얹어 **skill-only plugin 세 개** 를 정의해 두었습니다.
 
 <pre class="repo-tree"><span>anthropic-agent-skills/</span>
 <span>├── .claude-plugin/</span>
@@ -125,8 +139,6 @@ Plugins are not a new feature. They are the distribution package for everything 
 <span>│   └── ... (총 17 개)</span>
 <span>├── README.md</span>
 <span>└── ...</span></pre>
-
-<p class="repo-caption">눈여겨볼 점: 이 repo 에는 <strong>plugin.json 이 한 개도 없습니다</strong>. plugin 자체는 디스크상 별도 폴더로 존재하지 않고, marketplace.json 의 entry 로만 있는 셈이에요.</p>
 
 그 [`marketplace.json`](https://github.com/anthropics/skills/blob/main/.claude-plugin/marketplace.json) 의 핵심을 줄여 보면 이런 모양입니다.
 
@@ -150,7 +162,7 @@ Plugins are not a new feature. They are the distribution package for everything 
 }
 ```
 
-세 plugin 모두 같은 `./` 위에 앉아 있고, **`skills[]` 배열에 어떤 경로를 cherry-pick 하느냐로만 구분**됩니다. 같은 17 개 skill 풀에서 4 개·12 개·1 개씩 골라가는 방식 — *"PDF·Word·Excel 만 필요하면 document-skills 만 깔고, design 작업이면 example-skills"* 처럼 사용자가 필요한 묶음만 받을 수 있게 한 설계예요. <em>(repo 는 계속 업데이트되니 실제 skill 수·plugin 구성은 시점에 따라 달라질 수 있어요.)</em>
+세 plugin 모두 같은 `./` 위에 앉아 있고, **`skills[]` 배열에 어떤 경로를 cherry-pick 하느냐로만 구분**됩니다. 같은 17 개 skill 풀에서 4 개·12 개·1 개씩 골라가는 방식이에요. 사용자는 필요한 묶음만 받으면 됩니다 — PDF·Word·Excel 작업이 주면 <span class="term">document-skills</span> plugin, design 작업이 주면 <span class="term">example-skills</span> plugin.
 
 </div>
 
@@ -188,7 +200,7 @@ Plugins are not a new feature. They are the distribution package for everything 
 
 이 중 안전 측면에서 가장 중요한 건 **Trust boundary** — 별도로 한 번 짚고 갑니다.
 
-## ⚠️ Plugin 설치는 신뢰 결정입니다 — 한 번 멈추세요
+## ⚠️ Plugin 을 깔기 전에 한 번 멈추세요
 
 <div class="callout-danger">
 <span class="callout-danger-title">⚠️ Plugin 은 sandbox 되지 않아요 — 당신과 같은 권한으로 돕니다</span>
