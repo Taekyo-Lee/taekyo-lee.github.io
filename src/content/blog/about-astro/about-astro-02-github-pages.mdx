@@ -11,11 +11,6 @@ heroImage: '../../../assets/hero-about-astro.png'
 import RepoUrlMapping from '../../../components/RepoUrlMapping.astro';
 import PagesSiteModes from '../../../components/PagesSiteModes.astro';
 
-<style>{`
-  .term { color: var(--accent); font-weight: 700; }
-  .key { color: var(--claude-dark); font-weight: 700; }
-`}</style>
-
 GitHub Pages 를 처음 보면 가장 자주 헷갈리는 부분이 있습니다. "이게 무료라는데, 그럼 안에서 어떤 마법이 도는 거지?" 결론부터 말하면, 마법은 없습니다. <span class="key">들어 있는 HTML/CSS/JS 파일을 그대로 돌려주는 서버 한 대</span> 가 정확한 그림입니다.
 
 이 글은 그 단순함을 한 번 짚고, 거기서 따라 나오는 작은 규칙들 — repo 이름은 왜 &lt;username&gt;.github.io 인가, 무엇이 서빙되고 무엇이 안 되는가 — 을 정리합니다.
