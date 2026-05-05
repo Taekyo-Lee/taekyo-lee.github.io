@@ -10,7 +10,7 @@ const { current } = Astro.props;
 const base = import.meta.env.BASE_URL;
 
 const heroModules = import.meta.glob<{ default: ImageMetadata }>(
-	'../assets/hero-*.png',
+	'../assets/heroes/hero-*.png',
 	{ eager: true },
 );
 const heroByCategory: Record<string, ImageMetadata> = {};

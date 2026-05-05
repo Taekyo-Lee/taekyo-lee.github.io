@@ -3,7 +3,7 @@ title: '.npmrc 해부 — pip · uv 와 같은 구조'
 description: '폐쇄망에서 npm·pip·uv 가 ECONNREFUSED·401·SELF_SIGNED_CERT 를 뱉는 이유는 거의 같습니다. registry / auth / proxy / SSL 이라는 네 축을 각자의 설정 파일이 어떻게 표현하는지 한자리에 놓고 정리합니다.'
 pubDate: 'May 3 2026'
 category: about-nodejs
-heroImage: '../../../assets/hero-about-nodejs.png'
+heroImage: '../../../assets/heroes/hero-about-nodejs.png'
 ---
 
 저는 보안을 엄청 중요시하는 회사에 다니고 있습니다. 외부 네트워크 접근이 통제되고, 모든 패키지는 사내 registry 를 거쳐야 받을 수 있는 환경이에요. 처음 그곳에서 <span class="term">npm install</span> 을 돌리던 날을 기억합니다. 평소엔 1초면 끝날 명령이 한참을 멈춰 있다가 <span class="key">ECONNREFUSED</span> 한 줄을 뱉고 죽었어요. registry 주소를 사내 것으로 바꿨더니 이번엔 <span class="key">401 Unauthorized</span>. 사내 registry 가 요구하는 인증 토큰을 받아 설정 파일에 적어 넣었더니, 이번엔 <span class="key">SELF_SIGNED_CERT_IN_CHAIN</span>. 한참을 헤매고 나서야, 이게 사실은 **하나의 같은 문제** 라는 걸 알았습니다.
