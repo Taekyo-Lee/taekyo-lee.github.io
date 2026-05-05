@@ -43,9 +43,9 @@ heroImage: '../../../../assets/heroes/hero-claude-code-101.png'
 import { Image } from 'astro:assets';
 import promptInput from './prompt-input.png';
 
-shell 에서 claude 한 줄을 치면, 익숙한 Claude Code TUI 가 나타납니다. 그런데 <span class="term">Claude Code</span> 가 켜지는 그 **200~500ms** 사이에 정확히 무슨 일이 일어나는 걸까요. 화면은 조용하지만 안에선 꽤 많은 것이 동시다발로 굴러갑니다. 한 번 뚜껑을 열어 보고 싶었어요.
+shell 에서 claude 한 줄을 치면, 익숙한 Claude Code TUI 가 나타납니다. 그런데 <span class="term">Claude Code</span> 가 켜지는 그 **200~500ms** 사이에 정확히 무슨 일이 일어나는 걸까요. 화면은 조용하지만 안에선 **꽤 많은 것이 동시다발로 굴러갑니다**. 한 번 뚜껑을 열어 보고 싶었어요.
 
-방법은 의외로 단순합니다. claude 실행할 때 `--debug` 플래그 하나만 붙이면 돼요.
+방법은 **의외로 단순**합니다. claude 실행할 때 **`--debug` 플래그 하나만** 붙이면 돼요.
 
 ## 🔍 어떻게 들여다보나
 
@@ -57,7 +57,7 @@ claude --debug
 claude --debug-file ./startup.log
 ```
 
-어느 쪽이든 **100~200줄짜리 로그**가 떨어져요. 매 줄이 코드의 어떤 지점을 통과했다는 흔적이고, 시간 정보까지 함께 박혀 있어서 부팅이 어떤 순서·어떤 페이스로 진행됐는지 그대로 보입니다.
+어느 쪽이든 **100~200줄짜리 로그**가 떨어져요. 매 줄이 코드의 어떤 지점을 통과했다는 흔적이고, **시간 정보까지 함께** 박혀 있어서 부팅이 어떤 순서·어떤 페이스로 진행됐는지 그대로 보입니다.
 
 <details class="log-details">
 <summary>📜 원본 로그 전문 (제 환경에서의 실제 캡처)</summary>
@@ -159,7 +159,7 @@ claude --debug-file ./startup.log
 📝 <strong>참고.</strong> 인용한 메시지 문구는 <strong>Claude Code 의 캡처 시점·버전에 따라 달라질 수 있습니다</strong>. 본문에서 다루는 패턴 (어떤 줄이 어떤 의미인지, 4 계층 구조, Bootstrap 단일 호출 등) 은 동일하지만, 정확한 글자나 숫자는 위 예시와 본인 환경에서 약간 다를 수 있어요.
 </div>
 
-이제 이 로그를 손에 들고, 시간순으로 무슨 일이 벌어지는지 따라가 봅니다.
+이제 이 로그를 손에 들고, **시간순으로 무슨 일이 벌어지는지** 따라가 봅니다.
 
 ## ⏱ Claude Code 가 켜질 때 일어나는 일
 
@@ -231,7 +231,7 @@ claude --debug-file ./startup.log
 
 ## 🤔 오해를 부르지만 정상인 로그
 
-처음 디버그 로그를 보면 깜짝 놀라는 줄들이 있어요. 그런데 자세히 들여다보면 **모두 의도된 동작**입니다. 자주 나오는 네 가지를 모아봤어요.
+처음 디버그 로그를 보면 **깜짝 놀라는 줄들**이 있어요. 그런데 자세히 들여다보면 **모두 의도된 동작**입니다. 자주 나오는 네 가지를 모아봤어요.
 
 <div class="lie-card">
 <span class="lie-line">[DEBUG] Broken symlink or missing file encountered for settings.json...</span>
@@ -257,7 +257,7 @@ claude --debug-file ./startup.log
 
 ## 🌐 오류 없이 끝나야 다음으로 넘어가는 네트워크 호출
 
-흥미로운 사실 하나. 부팅 과정 전체에서 **오류 없이 끝나야 다음이 시작되는 네트워크 호출은 단 하나** 입니다.
+**흥미로운 사실 하나**. 부팅 과정 전체에서 **오류 없이 끝나야 다음이 시작되는 네트워크 호출은 단 하나** 입니다.
 
 <div class="callout-accent">
 <strong><span class="term">Bootstrap</span></strong>: 켜질 때 Anthropic 서버 (<code>api.anthropic.com</code>) 에 한 번 짧게 묻는 인사 같은 호출이에요. 받아오는 답은:
