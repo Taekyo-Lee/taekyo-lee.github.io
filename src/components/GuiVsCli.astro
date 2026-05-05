@@ -1,6 +1,12 @@
 ---
 // GUI (Web + IDE Extension) vs CLI (Terminal) 비교
-// "저의 여정: GUI에서 CLI로" 섹션용
+// reveal="teaser" 는 우측 CLI 쪽 정답/Role 라인을 가린 티저 모드 (1차 등장용)
+// reveal="full" (기본) 은 모든 라인 노출 (정답 공개용)
+interface Props {
+	reveal?: 'teaser' | 'full';
+}
+const { reveal = 'full' } = Astro.props;
+const isTeaser = reveal === 'teaser';
 ---
 
 <div class="gc">
@@ -19,10 +25,12 @@
 			<div class="gc__sub-desc">VS Code + Copilot / Claude Code ext.</div>
 			<div class="gc__sub-note">편집기 안에서 대화</div>
 		</div>
-		<div class="gc__role">
-			<span class="gc__role-k">Role</span>
-			<span class="gc__role-v">Coding Agent</span>
-		</div>
+		{!isTeaser && (
+			<div class="gc__role">
+				<span class="gc__role-k">Role</span>
+				<span class="gc__role-v">Coding Agent</span>
+			</div>
+		)}
 	</div>
 
 	<div class="gc__arrow" aria-hidden="true">→</div>
@@ -35,14 +43,20 @@
 		<div class="gc__sub gc__sub--hero">
 			<div class="gc__sub-title">Terminal</div>
 			<div class="gc__code">$ claude</div>
-			<div class="gc__sub-note">
-				키보드와 마우스로 하는<br />모든 작업을 대행
+			{isTeaser ? (
+				<div class="gc__sub-note gc__sub-note--mystery">?</div>
+			) : (
+				<div class="gc__sub-note gc__sub-note--emph">
+					키보드와 마우스로 하는<br />모든 작업을 대행
+				</div>
+			)}
+		</div>
+		{!isTeaser && (
+			<div class="gc__role">
+				<span class="gc__role-k">Role</span>
+				<span class="gc__role-v gc__role-v--emph">Agent Harness</span>
 			</div>
-		</div>
-		<div class="gc__role">
-			<span class="gc__role-k">Role</span>
-			<span class="gc__role-v gc__role-v--emph">Agent Harness</span>
-		</div>
+		)}
 	</div>
 </div>
 
@@ -132,6 +146,18 @@
 		font-size: 0.7rem;
 		color: rgb(var(--gray));
 		margin-top: 0.15rem;
+	}
+	.gc__sub-note--mystery {
+		font-size: 1.6rem;
+		font-weight: 700;
+		color: var(--claude);
+		opacity: 0.55;
+		margin-top: 0.4rem;
+		letter-spacing: 0.1em;
+	}
+	.gc__sub-note--emph {
+		color: var(--claude-dark);
+		font-weight: 600;
 	}
 	.gc__code {
 		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
