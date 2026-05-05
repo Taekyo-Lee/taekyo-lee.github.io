@@ -40,28 +40,27 @@ heroImage: '../../../../assets/heroes/hero-claude-code-101.png'
   .log-details pre code { font-size: inherit; line-height: inherit; }
 `}</style>
 
-이전 글에서 Claude Code 가 왜 터미널에 사는지를 이야기했어요. 그렇다면 이 친구가 켜지는 순간엔 정확히 무슨 일이 벌어질까요. 화면엔 그저 프롬프트 한 줄이 깜빡이지만, 그 200~500ms 사이에 꽤 많은 것이 동시다발로 굴러갑니다. 한 번 뚜껑을 열어 보고 싶었어요.
+import { Image } from 'astro:assets';
+import promptInput from './prompt-input.png';
 
-방법은 의외로 단순합니다. <span class="mod">claude --debug</span> 한 줄.
+shell 에서 claude 한 줄을 치면, 익숙한 Claude Code TUI 가 나타납니다. 그런데 <span class="term">Claude Code</span> 가 켜지는 그 **200~500ms** 사이에 정확히 무슨 일이 일어나는 걸까요. 화면은 조용하지만 안에선 꽤 많은 것이 동시다발로 굴러갑니다. 한 번 뚜껑을 열어 보고 싶었어요.
+
+방법은 의외로 단순합니다. claude 실행할 때 `--debug` 플래그 하나만 붙이면 돼요.
 
 ## 🔍 어떻게 들여다보나
 
-가장 단순한 방법은 그냥 <span class="mod">--debug</span> 플래그를 붙여서 띄우는 거예요.
-
 ```bash
+# 기본: ~/.claude/debug/<sessionId>.txt 에 자동 저장
 claude --debug
-```
 
-이러면 CLI 가 찍는 모든 디버그 로그가 자동으로 <span class="mod">&#126;/.claude/debug/&lt;sessionId&gt;.txt</span> 에 저장됩니다 (예: <span class="mod">&#126;/.claude/debug/f99a5fea-5fa1-46fb-bd57-77a5642da460.txt</span>). 위치·이름을 직접 지정하고 싶으면:
-
-```bash
+# 위치·이름을 직접 지정하고 싶다면
 claude --debug-file ./startup.log
 ```
 
-어느 쪽이든 100~200줄짜리 로그가 떨어져요. 매 줄이 코드의 어떤 지점을 통과했다는 흔적이고, 시간 정보까지 함께 박혀 있어서 부팅이 어떤 순서·어떤 페이스로 진행됐는지 그대로 보입니다.
+어느 쪽이든 **100~200줄짜리 로그**가 떨어져요. 매 줄이 코드의 어떤 지점을 통과했다는 흔적이고, 시간 정보까지 함께 박혀 있어서 부팅이 어떤 순서·어떤 페이스로 진행됐는지 그대로 보입니다.
 
 <details class="log-details">
-<summary>📜 원본 로그 전문 (한 환경의 실제 캡처)</summary>
+<summary>📜 원본 로그 전문 (제 환경에서의 실제 캡처)</summary>
 
 ```log
 2026-05-04T03:43:24.448Z [DEBUG] MDM settings load completed in 25ms
@@ -157,44 +156,44 @@ claude --debug-file ./startup.log
 </details>
 
 <div class="note-box">
-이 글이 인용하는 메시지 문구는 <span class="key">Claude Code 의 캡처 시점·버전에 따라 달라질 수 있습니다</span>. 본문에서 다루는 패턴 (어떤 줄이 어떤 의미인지, 4 계층 구조, Bootstrap 단일 호출 등) 은 동일하지만, 정확한 글자나 숫자는 위의 예시 로그와 본인 환경에서 약간 다르게 보일 수 있어요.
+📝 <strong>참고.</strong> 인용한 메시지 문구는 <strong>Claude Code 의 캡처 시점·버전에 따라 달라질 수 있습니다</strong>. 본문에서 다루는 패턴 (어떤 줄이 어떤 의미인지, 4 계층 구조, Bootstrap 단일 호출 등) 은 동일하지만, 정확한 글자나 숫자는 위 예시와 본인 환경에서 약간 다를 수 있어요.
 </div>
 
 이제 이 로그를 손에 들고, 시간순으로 무슨 일이 벌어지는지 따라가 봅니다.
 
-## ⏱ 0.3초 안에 일어나는 일
+## ⏱ Claude Code 가 켜질 때 일어나는 일
 
-전형적인 cold start (첫 실행이 아니고 네트워크가 멀쩡한 환경) 의 흐름을 시간순으로 펼치면 이렇게 생겼어요.
+평소처럼 새로 한 번 띄우는 흐름 (인스톨 직후의 onboarding 같은 특수 상황은 빼고) 을 시간순으로 펼치면 이렇게 생겼어요.
 
 <div class="boot-timeline">
   <div class="boot-time">T+0.00s</div>
   <div class="boot-step">
-    <div class="boot-title">MDM · settings 탐색 · HTTPS 계층 구성</div>
-    <div class="boot-desc">엔터프라이즈 정책 (MDM), 4 계층 설정 파일, mTLS · CA 인증서 · keep-alive Agent 같은 Node 의 전역 HTTP 계층 세팅. <code>configureGlobalMTLS</code>, <code>configureGlobalAgents</code> 같은 줄들이 이 구간.</div>
+    <div class="boot-title">설정 파일 탐색 · 네트워크 계층 준비</div>
+    <div class="boot-desc">엔터프라이즈 정책 (MDM), 4 계층 설정 파일, 그리고 mTLS · CA 인증서 같은 HTTPS 관련 설정을 한꺼번에 끌어옵니다. 로그에선 <code>configureGlobalMTLS</code>, <code>configureGlobalAgents</code> 같은 줄로 보여요.</div>
   </div>
 
   <div class="boot-time">T+0.03s</div>
   <div class="boot-step">
-    <div class="boot-title">MCP 설정 · setup() 단계</div>
+    <div class="boot-title">MCP 설정 · 초기 setup</div>
     <div class="boot-desc">MCP 서버 4 스코프 병합, Skills · Plugins 탐색, 동봉된 ripgrep 바이너리 헬스 체크.</div>
   </div>
 
   <div class="boot-time">T+0.07s</div>
   <div class="boot-step">
-    <div class="boot-title">Git remote · 터미널 감지</div>
-    <div class="boot-desc"><code>git remote get-url origin</code> 으로 저장소 식별, <code>CSI &gt; q</code> 시퀀스로 터미널 종류 (xterm.js / kitty / iTerm2 등) 질의.</div>
+    <div class="boot-title">Git 저장소 · 터미널 감지</div>
+    <div class="boot-desc"><code>git remote get-url origin</code> 으로 저장소를 식별하고, 어떤 종류의 터미널 (xterm.js · kitty · iTerm2 등) 에서 돌고 있는지 질의합니다.</div>
   </div>
 
   <div class="boot-time">T+0.07s</div>
   <div class="boot-step">
-    <div class="boot-title">showSetupScreens — onboarding 게이트</div>
+    <div class="boot-title">onboarding 게이트 (showSetupScreens)</div>
     <div class="boot-desc">로그인 / trust 다이얼로그 / 테마 선택. 처음 한 번만 사용자 입력을 받고, 이후엔 거의 즉시 통과 (10~50ms).</div>
   </div>
 
   <div class="boot-time">T+0.10s</div>
   <div class="boot-step">
-    <div class="boot-title">LSP manager · 백그라운드 prefetch · Bootstrap</div>
-    <div class="boot-desc">언어 서버 매니저 초기화, MCP 스키마·모델 카탈로그 백그라운드 페치, <code>api.anthropic.com</code> 한 번 호출 (feature flag · 사용 가능한 모델).</div>
+    <div class="boot-title">LSP 매니저 · 백그라운드 prefetch · Bootstrap</div>
+    <div class="boot-desc">언어 서버 매니저 초기화, MCP 스키마·모델 카탈로그 백그라운드 페치, Anthropic 서버에 한 번 짧게 인사 (feature flag · 사용 가능한 모델 조회).</div>
   </div>
 
   <div class="boot-time">T+0.20s</div>
@@ -210,11 +209,11 @@ claude --debug-file ./startup.log
   </div>
 </div>
 
-총 CPU 시간으로는 ~300ms. 첫 실행이거나 onboarding 입력이 필요하거나 네트워크가 느린 경우 길어지지만, 일상적인 흐름은 이 그래프 안에 다 들어갑니다.
+총 CPU 시간 **~300ms**. 인스톨 직후거나 네트워크가 느리면 더 길어지지만, 평소엔 이 그래프 안에 다 들어가요.
 
-## 🧱 반복되는 한 패턴: 4계층 설정
+## 🧱 반복되는 한 패턴: <span class="term">4 계층 설정</span>
 
-부팅 로그를 처음부터 끝까지 따라가면 같은 모양의 구조가 네 번 반복돼요. **system → user → project shared → project local** 의 4 계층. 매 계층이 독립적으로 발견되고 병합됩니다.
+부팅 로그를 처음부터 끝까지 따라가면 같은 모양의 구조가 네 번 반복돼요. **system → user → project shared → project local** 의 4 계층. 각 계층을 **따로따로 읽은 뒤 한 덩어리로 합쳐서** 사용합니다.
 
 <table class="compare-table layer-table">
   <thead>
@@ -228,11 +227,11 @@ claude --debug-file ./startup.log
   </tbody>
 </table>
 
-이 4 계층이 <span class="key">settings.json, MCP 서버, Skills, Plugins</span> 네 영역에서 그대로 똑같이 반복됩니다. 한 번 익혀두면 어떤 항목을 어디에 두어야 하는지 헷갈릴 일이 없어요. "팀 공유면 저장소 안의 .claude/, 내 개인 환경이면 홈의 &#126;/.claude/" 한 줄 규칙으로 거의 모든 결정이 풀립니다.
+이 4 계층이 **settings.json, MCP 서버, Skills, Plugins** 네 영역에서 똑같이 반복됩니다. 한 번 익혀두면 어떤 항목을 어디에 두어야 하는지 헷갈릴 일이 없어요. **"팀 공유면 저장소 안의 .claude/, 내 개인 환경이면 홈의 &#126;/.claude/"** 한 줄 규칙으로 거의 모든 결정이 풀립니다.
 
-## 🤔 거짓말처럼 보이지만 정상인 로그
+## 🤔 오해를 부르지만 정상인 로그
 
-처음 디버그 로그를 보면 깜짝 놀라는 줄들이 있어요. 그런데 자세히 들여다보면 모두 의도된 동작입니다. 자주 나오는 네 가지를 모아봤어요.
+처음 디버그 로그를 보면 깜짝 놀라는 줄들이 있어요. 그런데 자세히 들여다보면 **모두 의도된 동작**입니다. 자주 나오는 네 가지를 모아봤어요.
 
 <div class="lie-card">
 <span class="lie-line">[DEBUG] Broken symlink or missing file encountered for settings.json...</span>
@@ -241,7 +240,7 @@ claude --debug-file ./startup.log
 
 <div class="lie-card">
 <span class="lie-line">[mcp-registry] Loaded 47 official MCP URLs</span>
-<div class="lie-truth"><strong>활성 MCP 서버가 47개라는 뜻이 아닙니다.</strong> 바이너리에 내장된 <span class="key">설치 가능한 서버 카탈로그</span> (예: github, linear, playwright 등의 등록 정보). 실제 활성 서버 수와는 무관해요. 0개여도 47개여도 이 줄은 똑같이 찍힙니다.</div>
+<div class="lie-truth"><strong>활성 MCP 서버가 47개라는 뜻이 아닙니다.</strong> 바이너리에 내장된 <strong>설치 가능한 서버 카탈로그</strong> (예: github, linear, playwright 등의 등록 정보). 실제 활성 서버 수와는 무관해요. 0개여도 47개여도 이 줄은 똑같이 찍힙니다.</div>
 </div>
 
 <div class="lie-card">
@@ -251,22 +250,28 @@ claude --debug-file ./startup.log
 
 <div class="lie-card">
 <span class="lie-line">[DEBUG] Fast mode unavailable: ...   ← 같은 줄이 20번 넘게 반복</span>
-<div class="lie-truth"><strong>버그가 아니라 호출 지점이 많은 것.</strong> <span class="mod">isFastModeAvailable()</span> 함수가 모델 선택기, 상태 표시줄, <span class="mod">/model</span> 명령, 매 리렌더링 등 여러 UI 지점에서 호출됩니다. 매번 같은 결과를 다시 찍을 뿐 외형적 노이즈예요.</div>
+<div class="lie-truth"><strong>버그가 아니라 호출 지점이 많은 것.</strong> <code>isFastModeAvailable()</code> 함수가 모델 선택기, 상태 표시줄, <code>/model</code> 명령, 매 리렌더링 등 여러 UI 지점에서 호출됩니다. 매번 같은 결과를 다시 찍을 뿐 외형적 노이즈예요.</div>
 </div>
 
-이 네 가지를 알아두면 디버그 로그를 처음 봤을 때의 "어, 뭐 잘못된 거야?" 가 사라집니다.
+이 네 가지를 알아두면 디버그 로그를 처음 봤을 때의 **"어, 뭐 잘못된 거야?" 라는 오해가 사라집니다**.
 
-## 🌐 단 하나의 동기 네트워크 호출
+## 🌐 오류 없이 끝나야 다음으로 넘어가는 네트워크 호출
 
-흥미로운 사실 하나. 부팅 과정 전체에서 **반드시 끝나야 다음으로 넘어갈 수 있는 네트워크 호출은 단 하나** 입니다.
+흥미로운 사실 하나. 부팅 과정 전체에서 **오류 없이 끝나야 다음이 시작되는 네트워크 호출은 단 하나** 입니다.
 
 <div class="callout-accent">
-<span class="key">Bootstrap</span>: Claude Code 가 켜질 때 Anthropic 서버 (<span class="mod">api.anthropic.com</span>) 에 한 번 짧게 묻는 인사 같은 호출이에요. <span class="key">"이 사용자는 어떤 Claude 모델을 쓸 수 있는지", "지금 새로 켜진 기능 중 이 사용자에게 보여줄 게 있는지", "혹시 일부 사용자에게 시험 중인 새 화면이 있다면 이 사람도 그 그룹인지"</span> 같은 답을 받아옵니다. 모델 선택기·메뉴·UI 가 그려지기 전에 이 답이 손에 있어야 하니까 한 번은 꼭 끝내고 넘어가야 해요. 로그엔 <span class="mod">[Bootstrap] Fetching</span> 으로 시작해서 응답이 오면 <span class="mod">[Bootstrap] Fetch ok</span> 로 마무리됩니다.
+<strong><span class="term">Bootstrap</span></strong>: 켜질 때 Anthropic 서버 (<code>api.anthropic.com</code>) 에 한 번 짧게 묻는 인사 같은 호출이에요. 받아오는 답은:
+
+- 이 사용자가 쓸 수 있는 Claude 모델
+- 새로 켜진 기능 중 보여줄 게 있는지
+- 일부 사용자에게만 시험 중인 화면 그룹에 속하는지
+
+모델 선택기·메뉴·UI 가 그려지기 전에 이 답이 손에 있어야 해서 한 번은 꼭 끝내고 넘어가야 해요. 로그엔 <code>[Bootstrap] Fetching</code> 으로 시작해서 응답이 오면 <code>[Bootstrap] Fetch ok</code> 로 마무리됩니다.
 </div>
 
-다른 모든 네트워크 작업 (MCP 스키마, 모델 카탈로그, 사용자 설정 prefetch 등) 은 백그라운드로 돌고, 화면 렌더링·파일 인덱스 같은 로컬 작업과 병렬로 진행됩니다. 그래서 인터넷이 멀쩡할 때는 부팅 시간 = 로컬 작업 시간이지만, 인터넷이 느릴 때는 Bootstrap 한 호출이 시작 시간 전체를 잡아먹어요. "Claude Code 가 처음 뜨는 게 유난히 느린 날" 의 원인이 거의 항상 여기 있습니다.
+다른 네트워크 작업들 (MCP 스키마, 모델 카탈로그, 사용자 설정 prefetch 등) 은 백그라운드로 돌고, 화면 렌더링·파일 인덱스 같은 로컬 작업과 병렬로 진행됩니다. 그래서 인터넷이 멀쩡할 때는 부팅 시간이 로컬 작업 시간과 비슷하지만, 인터넷이 느릴 때는 **Bootstrap 한 호출이 시작 시간 전체를 잡아먹어요**. "Claude Code 가 처음 뜨는 게 유난히 느린 날" 의 원인이 거의 항상 여기 있습니다.
 
-## 🎬 REPL mounted — 프롬프트가 보이는 그 순간
+## 🎬 REPL mounted — 프롬프트 입력창이 보이는 그 순간
 
 로그를 따라가다 보면 정확히 이 한 줄이 등장합니다.
 
@@ -274,7 +279,11 @@ claude --debug-file ./startup.log
 [DEBUG] [REPL:mount] REPL mounted, disabled=false
 ```
 
-이 시점이 사용자 입장에서 "Claude Code 가 켜졌다" 라고 느끼는 순간이에요. 화면에 깜빡이는 커서가 처음 뜨고, 입력을 받기 시작합니다. 그 뒤에도 백그라운드 작업 (LSP 재초기화, MCP 카탈로그 로드, 설정 watcher 시작) 이 몇십~몇백 ms 더 굴러가지만, 이미 대화는 시작 가능한 상태입니다.
+이 시점이 사용자 입장에서 **"Claude Code 가 켜졌다"** 라고 느끼는 순간이에요.
+
+<Image src={promptInput} alt="TUI 화면 하단의 프롬프트 입력창 — 노란 박스로 강조된 영역" />
+
+화면 아래쪽 노란 박스로 강조된 **프롬프트 입력창** 이 뜨고, 입력을 받기 시작합니다. 그 뒤에도 백그라운드 작업 (LSP 재초기화, MCP 카탈로그 로드, 설정 watcher 시작) 이 몇십~몇백 ms 더 굴러가지만, 이미 대화는 시작 가능한 상태입니다.
 
 ## ✅ "정상" 의 모습 — 체크리스트
 
@@ -282,17 +291,17 @@ claude --debug-file ./startup.log
 
 <div class="callout">
 
-- 디버그 로그에 <span class="key">[ERROR] 또는 [WARN] 0 건</span>
-- <span class="mod">Ripgrep first use test: PASSED</span>
-- <span class="mod">[Bootstrap] Fetch ok</span> (네트워크 정상)
-- <span class="mod">git ls-files: N tracked files in Xms</span> (N 은 실제 파일 수)
-- <span class="mod">REPL mounted, disabled=false</span>
-- "거짓말처럼 보이는 줄들" (`Broken symlink`, `47 official MCP URLs`, `rg error No such file`, `Fast mode unavailable` 반복) 만 보인다면 **모두 정상**
+- 디버그 로그에 **[ERROR] 또는 [WARN] 0 건**
+- Ripgrep first use test: PASSED
+- [Bootstrap] Fetch ok (네트워크 정상)
+- git ls-files: N tracked files in Xms (N 은 실제 파일 수)
+- REPL mounted, disabled=false
+- "오해를 부르는 줄들" (Broken symlink, 47 official MCP URLs, rg error No such file, Fast mode unavailable 반복) 만 보인다면 **모두 정상**
 
 </div>
 
 ## 💡 한 줄 요약
 
 <div class="callout-warm">
-<span class="mod">claude --debug</span> 한 줄로 0.3 초 부팅의 내부를 펼쳐 보면, <span class="key">4 계층 설정 패턴</span> 이 영역마다 반복되고, <span class="key">동기 네트워크 호출은 Bootstrap 단 한 번</span> 이며, 무서워 보이는 로그 줄들의 대부분은 <span class="key">의도된 정상 동작</span> 임을 알 수 있습니다. 그 이후로는 디버그 로그가 무섭지 않아져요.
+<span class="mod">claude --debug</span> 한 줄로 200~500ms 부팅의 안쪽이 펼쳐집니다. <strong>같은 4 계층 패턴</strong> 이 영역마다 반복되고, <strong>오류 없이 끝나야 다음이 시작되는 네트워크 호출은 Bootstrap 단 한 번</strong>, <strong>오해를 부르는 로그 줄들의 대부분은 정상 동작</strong> 입니다.
 </div>
