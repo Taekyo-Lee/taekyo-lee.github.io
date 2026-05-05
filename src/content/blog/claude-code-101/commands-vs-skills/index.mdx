@@ -1,6 +1,6 @@
 ---
-title: "'user-defined commands' 는 잊으세요 — Command 는 빌트인, 내 명령은 Skill"
-description: 'Claude Code 의 slash commands 두 종류 (Command / Skill) 의 진짜 차이는 LLM 호출 여부가 아니라 "누가 답을 쓰는가" — 그리고 사용자가 새로 만들고 싶은 slash commands의 자리는 이제 Skill 입니다.'
+title: "Claude Code 에서 'user-defined commands' 는 잊으세요. Skills 가 대체합니다"
+description: 'Claude Code 의 slash commands 두 종류 (Command / Skill) 의 진짜 차이는 LLM 호출 여부가 아니라 "누가 답을 쓰는가" — 그리고 사용자가 새로 만들고 싶은 slash commands 의 자리는 이제 Skills 입니다.'
 pubDate: 'May 4 2026'
 category: claude-code-101
 series: 'claude-code-must-knows'
@@ -9,8 +9,8 @@ heroImage: '../../../../assets/heroes/hero-claude-code-101.png'
 ---
 
 <style>{`
-  .cs-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin: 1.6em 0; }
-  .cs-card { background: #fff; border: 1px solid rgb(var(--gray-light)); border-radius: 12px; padding: 1.3em 1.4em; box-shadow: 0 1px 3px rgba(20, 20, 30, 0.04), 0 4px 12px rgba(20, 20, 30, 0.04); display: flex; flex-direction: column; }
+  .cs-cards { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto auto auto auto auto auto; gap: 1.2rem; margin: 1.6em 0; align-items: stretch; }
+  .cs-card { background: #fff; border: 1px solid rgb(var(--gray-light)); border-radius: 12px; padding: 1.3em 1.4em; box-shadow: 0 1px 3px rgba(20, 20, 30, 0.04), 0 4px 12px rgba(20, 20, 30, 0.04); display: grid; grid-template-rows: subgrid; grid-row: span 6; gap: 0; }
   .cs-card.cs-cmd { border-top: 4px solid var(--accent); }
   .cs-card.cs-skill { border-top: 4px solid var(--claude); }
   .cs-tag { font-family: ui-monospace, "SF Mono", Consolas, Menlo, monospace; font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 700; margin-bottom: 0.3em; }
@@ -27,112 +27,223 @@ heroImage: '../../../../assets/heroes/hero-claude-code-101.png'
   .cs-card.cs-skill .cs-protagonist { background: rgba(204, 120, 92, 0.08); }
   .cs-protagonist strong { color: rgb(var(--black)); }
   @media (max-width: 720px) { .cs-cards { grid-template-columns: 1fr; } }
+
+  .img-caption { font-size: 0.85rem; color: rgb(var(--gray)); text-align: center; margin: 0.4em 0 1.6em; line-height: 1.5; }
+
+  .img-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.2em 0 0; align-items: start; }
+  .img-pair img { width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: contain; background: #1a1a24; border-radius: 6px; margin: 0; }
+  @media (max-width: 720px) { .img-pair { grid-template-columns: 1fr; } }
+
+  .compare-table .tab-col { color: var(--claude-dark); font-weight: 700; background: rgba(204, 120, 92, 0.06); }
+  .compare-table thead .tab-col { background: rgba(204, 120, 92, 0.14); }
 `}</style>
 
-예전엔 `.claude/commands/` 폴더에 markdown 파일 한 장만 두면 `/myCmd` 라는 slash commands이 만들어졌어요. 지금도 그대로 작동합니다. 다만 Claude Code 가 **더 이상 공식적으로 권장하지는 않아요**. 그 자리는 이제 **Skill** 의 영역입니다.
+import { Image } from 'astro:assets';
+import helpTabs from './help-tabs.png';
+import commandsTab from './commands-tab.png';
+import customCommandsTab from './custom-commands-tab.png';
+import fourSlashExamples from './four-slash-examples.png';
+import commandsSource from './commands-source.png';
+import skillsBundledSource from './skills-bundled-source.png';
 
-이건 제 임의의 분류가 아니라 Anthropic 의 공식 입장입니다. 공식 Skills 문서의 첫 줄에 직접 적혀 있어요.
+예전엔 .claude/commands/ 폴더에 myCmd.md 같은 markdown 파일 한 장만 두면 `/myCmd` 라는 slash command 가 만들어졌어요 (파일 이름이 곧 명령 이름). **지금도 그대로 작동합니다.** 다만 <span class="term">Claude Code</span> 가 **더 이상 공식적으로 권장하지는 않아요**. 그 자리는 이제 **Skills** 의 영역입니다.
+
+이건 제 임의의 분류가 아니라 Anthropic 의 공식 입장입니다. 공식 Skills 문서가 두 가지를 명확히 못박고 있어요.
+
+먼저, **분류 자체** — 빌트인 commands 와 bundled skills 가 첫 줄부터 별도 항목으로 안내됩니다.
 
 <blockquote>
 For built-in commands like <code>/help</code> and <code>/compact</code>, and bundled skills like <code>/debug</code> and <code>/simplify</code>, see the commands reference.
 <footer style="margin-top: 0.6em; font-size: 0.85rem; color: rgb(var(--gray));">— <a href="https://code.claude.com/docs/en/skills" target="_blank" rel="noopener">Claude Code Docs · Skills</a></footer>
 </blockquote>
 
-즉 **'Anthropic 이 만든 slash commands' 와 '내가 만드는 slash commands' 는 별개 카테고리** 로, 첫 줄부터 그렇게 분류되어 있는 셈이에요.
+그리고 더 중요한 한 줄, **user-defined commands 는 Skills 로 통합됐다**.
 
-이 글은 그 분류를 한 멘탈 모델로 정리합니다 — **Anthropic 이 만든 slash commands 는 <span class="term">Command</span>, 내가 만드는 slash commands 는 <span class="key">Skill</span>**. 그리고 이 둘의 진짜 차이는 *"LLM 을 호출하느냐 아니냐"* 가 아니라 *"누가 답을 쓰는가"* 라는, 한 번 보면 깔끔하게 갈리는 축에 있습니다.
+<blockquote>
+Custom commands have been merged into skills. A file at .claude/commands/deploy.md and a skill at .claude/skills/deploy/SKILL.md both create <code>/deploy</code> and work the same way. Your existing .claude/commands/ files keep working. Skills add optional features: a directory for supporting files, frontmatter to control whether you or Claude invokes them, and the ability for Claude to load them automatically when relevant.
+<footer style="margin-top: 0.6em; font-size: 0.85rem; color: rgb(var(--gray));">— <a href="https://code.claude.com/docs/en/skills" target="_blank" rel="noopener">Claude Code Docs · Skills</a></footer>
+</blockquote>
 
-## 🤝 새 멘탈 모델
+여기까지 짧은 두 인용에 벌써 **네 가지 용어**가 등장했어요.
+
+- **Built-in commands**
+- **user-defined commands**
+- **Bundled skills**
+- **Skills**
+
+이 네 가지를 차근차근 풀어보면서, 왜 **user-defined commands 가 Skills 에 흡수**됐는지를 따라가 봅니다.
+
+## 📖 용어 정리
+
+Claude Code 에서 `/help` 를 입력하면 다음과 같이 **commands** 와 **custom-commands** 두 탭이 나타납니다.
+
+<Image src={helpTabs} alt="Claude Code 의 /help 출력 — commands 와 custom-commands 두 탭이 노란 박스로 강조되어 있음" />
+
+<p class="img-caption">Claude Code 자체가 이미 <strong>commands</strong> 와 <strong>custom-commands</strong> 를 별도 탭으로 분리해 보여줍니다. 이 분류가 내부 구조에서도 그대로 이어집니다.</p>
+
+각 탭을 열어보면 들어 있는 명령들이 다릅니다.
+
+<div class="img-pair">
+  <Image src={commandsTab} alt="commands 탭 — /add-dir, /advisor, /agents, /autofix-pr, /branch 등 Anthropic 빌트인 명령 목록" />
+  <Image src={customCommandsTab} alt="custom-commands 탭 — /batch, /claude-api, /debug, /document-skills:* 등 사용자·플러그인 명령 목록" />
+</div>
+
+<p class="img-caption">왼쪽 <strong>commands</strong> · 오른쪽 <strong>custom-commands</strong></p>
+
+한 표로 정리하면 이렇게 갈려요.
+
+<table class="compare-table">
+  <thead>
+    <tr><th>용어</th><th>/help 탭</th><th>Built-in</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Built-in commands</strong></td><td>commands</td><td>YES</td></tr>
+    <tr><td><strong>user-defined commands</strong></td><td>custom-commands</td><td>NO</td></tr>
+    <tr><td><strong>Bundled skills</strong></td><td>custom-commands</td><td>YES</td></tr>
+    <tr><td><strong>Skills</strong></td><td>custom-commands</td><td>NO</td></tr>
+  </tbody>
+</table>
+
+즉 <span class="key">commands 탭은 Built-in commands 만</span>, <span class="key">custom-commands 탭은 나머지 셋이 모두 모이는 자리</span>예요.
+
+<div class="callout-warm">
+🤔 <strong>좀 이상하죠?</strong> Built-in commands 는 그렇다 쳐도, <strong>Bundled skills</strong> 도 Built-in 이네요. 그런데 둘은 서로 다른 탭 (commands vs custom-commands) 에 들어가 있고요. <strong>"Anthropic 이 만든 것" 이라는 기준</strong>만으로는 네 카테고리의 분류가 설명이 안 된다는 뜻이에요. <strong>다른 기준이 하나 더</strong> 있다는 건데, 그게 뭔지는 다음 섹션에서 풀어봅니다.
+</div>
+
+그리고 이 네 가지는 **Claude Code 에서 모두 slash commands 형태로 호출 가능**합니다.
+
+<Image src={fourSlashExamples} alt="네 카테고리의 실제 호출 예시 — /add-dir (Built-in Command), /debug (Bundled Skill), /mycmd (User-defined Command), /document-skills:canvas-design (Skill)" />
+
+<p class="img-caption">각 카테고리의 실제 호출 모습. Built-in <code>/add-dir</code> · Bundled Skill <code>/debug</code> · User-defined <code>/mycmd</code> · Skill <code>/document-skills:canvas-design</code>.</p>
+
+<div class="callout-accent">
+🗣️ <strong>잠깐</strong>, Skills (Agent Skills 라고도 불립니다) 는 보통 <strong>'말'</strong> 로 호출돼요. "이 내용 ppt 로 만들어줘" 라고 하면 pptx 관련 skill 이 저절로 발동되는 식이죠. 하지만 위 예시처럼 <strong>slash command 로 명시적으로</strong> 100% 확실하게 발동시킬 수도 있답니다.
+</div>
+
+## 🆚 Built-in Commands vs Skills
+
+<div class="note-box">
+✋ <strong>잠깐</strong>, <strong>user-defined commands 는 잠시 제쳐두고</strong> Command = Built-in commands 라고 생각합시다. 그러면 이 섹션의 비교는 <strong>(Built-in) Commands vs (Bundled or Agent) Skills</strong> 두 카드로 단순해져요. Skills 쪽은 Bundled Skills 든 사용자가 만든 Skills (Agent Skills 라고도 불리는) 이든 상관없습니다. 한 묶음으로 봐요.
+</div>
+
+그러면 두 카드의 진짜 차이는 무엇이냐. 한 줄로 줄이긴 살짝 까다롭습니다. **"LLM 을 호출하느냐 아니냐"** 는 기준이 안 돼요 — Built-in Commands 안에도 LLM 을 안 쓰는 것 (`/help`) 과 잔뜩 쓰는 것 (`/compact`) 이 섞여 있거든요. 진짜 기준은 좀 더 미묘한데, 두 카드를 먼저 보고 다음 섹션에서 정확히 정리해 봅니다.
 
 <div class="cs-cards">
   <div class="cs-card cs-cmd">
-    <div class="cs-tag">Built-in only</div>
-    <div class="cs-name">Command</div>
+    <div class="cs-tag">정의: Anthropic / 답: Harness</div>
+    <div class="cs-name">Built-in Commands</div>
 
     <div class="cs-row">
-      <div class="cs-row-k">정체</div>
-      <div class="cs-row-v">Anthropic 이 harness 안에 박아둔 빌트인 명령. TypeScript 함수가 처음부터 끝까지 직접 실행</div>
+      <div class="cs-row-k">🎯 정체</div>
+      <div class="cs-row-v">Harness 가 직접 실행하는 TypeScript 함수.</div>
     </div>
     <div class="cs-row">
-      <div class="cs-row-k">위치</div>
-      <div class="cs-row-v"><code>commands/&lt;name&gt;/index.ts</code></div>
+      <div class="cs-row-k">📁 위치</div>
+      <div class="cs-row-v">Claude Code 소스 코드의 commands/&lt;name&gt;</div>
     </div>
     <div class="cs-row">
-      <div class="cs-row-k">예시</div>
-      <div class="cs-row-v"><code>/help</code> · <code>/doctor</code> · <code>/model</code> · <code>/compact</code> · <code>/cost</code> · <code>/init</code> · <code>/mcp</code> ...</div>
-    </div>
-    <div class="cs-row">
-      <div class="cs-row-k">사용자가<br/>만들 수 있나</div>
-      <div class="cs-row-v">아니요. 빌트인은 Anthropic 만 추가합니다.</div>
+      <div class="cs-row-k">✋ 사용자가<br/>추가할 수 있나</div>
+      <div class="cs-row-v">아니요. 소스 코드에 포함되어 릴리즈됩니다. Claude Code 는 <strong>closed-source</strong> 프로젝트라 소스 코드를 볼 수도 없어요.</div>
     </div>
 
     <div class="cs-protagonist">
-      🎬 <strong>주체: Harness (TypeScript)</strong><br/>
+      🎬 <strong>실행 후 user 에게 답을 주는 주체 — Harness (TypeScript)</strong><br/>
       LLM 은 호출되더라도 부품일 뿐.
     </div>
   </div>
 
   <div class="cs-card cs-skill">
-    <div class="cs-tag">Bundled + user</div>
-    <div class="cs-name">Skill</div>
+    <div class="cs-tag">정의: Bundled or Agent / 답: LLM</div>
+    <div class="cs-name">Skills</div>
 
     <div class="cs-row">
-      <div class="cs-row-k">정체</div>
-      <div class="cs-row-v">LLM 에게 보내는 프롬프트 묶음. harness 는 prompt 조립까지만 하고 빠짐</div>
+      <div class="cs-row-k">🎯 정체</div>
+      <div class="cs-row-v">LLM 에게 보낼 프롬프트 묶음. Harness 는 조립만 하고 빠집니다.</div>
     </div>
     <div class="cs-row">
-      <div class="cs-row-k">위치</div>
-      <div class="cs-row-v"><code>skills/bundled/&lt;name&gt;.ts</code> (Anthropic 동봉)<br/><code>~/.claude/skills/&lt;name&gt;/SKILL.md</code> (사용자)</div>
+      <div class="cs-row-k">📁 위치</div>
+      <div class="cs-row-v">
+        <ul style="margin: 0; padding-left: 1.1em; list-style: disc;">
+          <li><strong>Bundled Skills</strong>: Claude Code 소스 코드의 skills/bundled/&lt;name&gt;</li>
+          <li><strong>Agent Skills</strong>: home 디렉토리의 ~/.claude/skills/&lt;name&gt;/ 또는 project 디렉토리의 .claude/skills/&lt;name&gt;/</li>
+        </ul>
+      </div>
     </div>
     <div class="cs-row">
-      <div class="cs-row-k">예시</div>
-      <div class="cs-row-v"><code>/debug</code> · <code>/batch</code> · <code>/simplify</code> · <code>/stuck</code> · 사용자가 <code>SKILL.md</code> 로 추가한 모든 것</div>
-    </div>
-    <div class="cs-row">
-      <div class="cs-row-k">사용자가<br/>만들 수 있나</div>
-      <div class="cs-row-v"><strong>네 — 여기서 만듭니다.</strong> SKILL.md 한 장이면 새 slash commands 완성</div>
+      <div class="cs-row-k">✋ 사용자가<br/>추가할 수 있나</div>
+      <div class="cs-row-v">
+        <ul style="margin: 0; padding-left: 1.1em; list-style: disc;">
+          <li><strong>Bundled Skills</strong>: 아니요. Built-in commands 처럼 소스 코드에 포함되어 릴리즈됩니다.</li>
+          <li><strong>Agent Skills</strong>: 네. 원래 사용자가 직접 만드는 거예요. 위 경로에 SKILL.md 한 장만 두면 slash command 로 곧바로 호출됩니다.</li>
+        </ul>
+      </div>
     </div>
 
     <div class="cs-protagonist">
-      🎬 <strong>주체: Claude (LLM)</strong><br/>
-      Harness 는 무대만 차려주고 빠짐.
+      🎬 <strong>실행 후 user 에게 답을 주는 주체 — Claude (LLM)</strong><br/>
+      Harness 는 무대만 차려주고 빠집니다.
     </div>
   </div>
 </div>
 
-요약하면 **"Anthropic 이 박아둔 것 = Command, 그 외 모든 슬래시 = Skill"**. Bundled skill 도 결국 Anthropic 이 동봉한 거지만, 본질이 *"LLM 에게 줄 프롬프트"* 라서 Skill 분류에 속합니다.
+위 표에서 Built-in commands 와 Bundled skills 는 **소스 코드에 박혀 있어 사용자는 볼 수도, 추가할 수도 없다**고 했죠? 그런데 2026년 3월 말, Claude Code 의 소스 코드가 통째로 유출되는 사건이 있었답니다 (자세한 이야기는 <a href={`${import.meta.env.BASE_URL}blog/claude-code-leak-source-map/`}>Claude Code 소스 코드 유출</a> 포스트). 그래서 우리는 당시 (v2.1.88) 기준의 Claude Code 소스 코드를 직접 들여다볼 수 있게 됐어요. 두 카드의 **'위치' 행** 이 가리키는 디렉토리를 그 안에서 보면 이렇게 생겼습니다.
 
-## 🎬 진짜 차이: 누가 답을 쓰는가
+<div class="img-pair">
+  <Image src={commandsSource} alt="Claude Code 소스 코드의 commands/ 디렉토리 — add-dir, agents, ant-trace, autofix-pr 같은 폴더와 그 안의 index.ts 파일들" />
+  <Image src={skillsBundledSource} alt="Claude Code 소스 코드의 skills/bundled/ 디렉토리 — batch.ts, claudeApi.ts, debug.ts, keybindings.ts 같은 TypeScript 파일들" />
+</div>
 
-여기까지 읽고 자연스럽게 떠오르는 의문 — *"그러면 LLM 을 호출하느냐 아니냐가 차이 아닌가?"* 그게 가장 흔한 오해예요.
+<p class="img-caption">왼쪽 <strong>Built-in Commands</strong> · 오른쪽 <strong>Bundled Skills</strong>. 둘 다 Claude Code 소스 코드 안에 박혀 있는 built-in 항목들이에요.</p>
+
+정리하면 한 줄. **답을 쓰는 주체가 harness 면 Built-in Commands, LLM 이면 Skills**. Bundled Skills 도 Anthropic 이 만든 built-in 이지만, 답을 쓰는 건 LLM 이라 Skills 쪽이에요.
+
+## 🎬 예제로 차이 알아보기
+
+앞 섹션에서 **"LLM 호출 여부는 기준이 못 된다"** 고 짧게 짚었어요. 이게 왜 그런지, Built-in Commands 두 개 (`/help` 와 `/compact`) 가 직접 보여줍니다.
 
 <div class="callout-accent">
-<span class="key">`/help` 는 LLM 을 한 번도 호출하지 않습니다. `/compact` 는 LLM 을 잔뜩 호출합니다. 그런데 둘 다 Command 예요.</span>
+<strong>Built-in Commands 예시</strong>
+
+- **`/help`** → harness 가 도움말 다이얼로그를 직접 그립니다. **LLM 호출 0회.**
+- **`/compact`** → harness 가 Claude 에게 "지금까지 대화 요약해" 라고 부르고, **받은 요약을 가지고 직접 컨텍스트를 압축**해요. LLM 은 요약 일을 한 번 한 부품일 뿐, **그 요약본은 사용자에게 보여주지도 않습니다**. 사용자에게 "이만큼 토큰을 아꼈습니다" 같은 보고를 띄우는 것도 harness.
+
+LLM 호출 횟수는 **0 vs 잔뜩** — 정반대예요. 그런데도 둘 다 Built-in Commands 로 묶이는 건, <span class="key">답의 형식과 내용을 결정하는 쪽이 양쪽 다 harness</span> 이기 때문입니다.
 </div>
 
-각각이 무슨 일을 하는지 보면 답이 나옵니다.
-
-- **`/help`** → harness 가 도움말 다이얼로그를 그립니다. LLM 호출 0회.
-- **`/compact`** → harness 가 Claude 에게 "지금까지 대화 요약해" 라고 부르고, **받은 요약을 가지고 직접 컨텍스트를 압축**합니다. LLM 은 요약 일을 한 번 한 부품일 뿐. 사용자에게 *"이만큼 토큰을 아꼈습니다"* 같은 보고를 띄우는 건 harness.
-
-반면 Skill 은 다릅니다.
-
-- **`/debug`** → harness 가 디버그 로그·세션 정보·사용자 인자를 모아 *"여기 문제가 있어 보임. 진단해"* 같은 프롬프트를 조립해서 Claude 에게 넘기고, **그 다음부터는 일반적인 대화 턴**. Claude 가 도구를 쓰며 진단·수정합니다. 사용자가 보는 답은 LLM 의 답.
+반면 Skills 는 정반대 패턴.
 
 <div class="callout-warm">
-즉 차이의 축은 <span class="key">"답을 쓰는 주체"</span>. Command = harness 가 답의 형식과 내용을 책임짐. Skill = LLM 이 자유롭게 응답하고 그게 그대로 사용자에게 감.
+<strong>Bundled Skills 예시</strong>
+
+- **`/debug`** → harness 가 디버그 로그·세션 정보·사용자 인자를 모아 "여기 문제가 있어 보임. 진단해" 같은 프롬프트를 조립해서 Claude 에게 넘기고, **그 다음부터는 일반적인 대화 턴**. Claude 가 도구를 쓰며 진단·수정해요. 사용자가 보는 답은 LLM 이 만든 답 그대로.
+
+User 가 직접 만드는 **Agent Skills** 도 동작 방식은 똑같아요.
+
 </div>
 
-## 📜 `.claude/commands/` 는 어떻게 됐나
+<div class="callout">
+정리하면 진짜 축은 <span class="key">"답을 쓰는 주체"</span>. **Built-in Commands** 는 harness 가 답의 형식·내용을 책임지고, **Skills** 는 LLM 이 자유롭게 응답해 그게 그대로 사용자에게 갑니다.
+</div>
 
-예전 방식 (`.claude/commands/foo.md` 에 markdown 파일 한 장 두면 `/foo` 가 생기는 것) 은 여전히 작동합니다. 다만 **legacy** 위치예요. 새로 만들 거면 `SKILL.md` 형식을 쓰는 게 권장 사항입니다.
+## 📜 User-defined commands (.claude/commands/) 는 더 이상 사용하지 마라?
 
-이 변화의 의미는 일관성 확보예요. 사용자가 자기 slash commands을 만들 때, 그건 본질적으로 *"Claude 에게 이런 프롬프트를 줘서 일을 시키고 싶다"* 이지 *"harness 가 이런 TypeScript 코드를 실행하도록 만들고 싶다"* 가 아니거든요. 사용자에겐 후자가 사실상 불가능하기도 하고요. 그렇다면 굳이 "사용자 정의 Command" 라는 분리된 개념을 둘 이유가 없습니다 — 그건 그냥 Skill 의 슬롯이에요.
+위에서 Anthropic 이 공식적으로 **user-defined commands 대신 Skills 를 쓰라**고 권장한다고 짚었죠? 그렇다고 예전 방식이 당장 안 되는 건 아니에요. .claude/commands/ 에 foo.md 라는 markdown 파일 한 장만 두면 `/foo` 가 여전히 만들어지고 잘 작동합니다. 다만 **legacy** 위치라, 새로 만들 거라면 SKILL.md 형식을 쓰는 게 권장 사항이에요.
 
-기존 `.claude/commands/foo.md` 도 사실은 *"SKILL.md 만 있고 부속 파일이 없는 skill"* 과 거의 같은 동작을 합니다. 그래서 통합되는 게 자연스러운 흐름이었어요.
+왜 이 방향으로 정리됐냐. 두 줄이면 설명돼요.
+
+- **user-defined commands 는 사실 Built-in Commands 의 메커니즘이 아니라 Skills 의 메커니즘으로 동작해요.** .claude/commands/foo.md 의 markdown 본문은 결국 LLM 에게 보내는 prompt 역할이거든요. harness 가 답을 쓰는 게 아니라, LLM 이 그 prompt 를 받아서 답을 씁니다.
+- **그렇다면 SKILL.md 파일 한 장으로 완전히 대체 가능해요.** SKILL.md 쪽이 더 풍부 (디렉토리 구조, frontmatter, 자동 발동 등) 하니까, 굳이 별도 카테고리로 둘 이유가 없죠.
+
+그래서 통합되는 게 자연스러운 흐름이었습니다.
 
 ## 💡 한 줄 요약
 
 <div class="callout-warm">
-**Command = Anthropic 이 박아둔 빌트인 (harness 가 답을 씀). Skill = bundled + 내가 만든 것 (LLM 이 답을 씀).** 새 slash commands을 만들 거면 무조건 <span class="mod">SKILL.md</span>. <span class="key">"user-defined commands"</span> 라는 카테고리는 이제 잊고, "내가 만드는 슬래시는 Skill" 한 줄로 멘탈 모델을 정리하면 됩니다.
+
+**Built-in Commands** = Anthropic 이 박아둔 빌트인 (harness 가 답을 씀).
+
+**Skills** = Bundled Skills or (Agent) Skills (LLM 이 답을 씀).
+
+**User-defined commands** = <span class="key">권장되지 않음. Skills 를 대신 사용</span> (Claude Code 에서 새 slash command 를 만들 거면 무조건 SKILL.md).
+
 </div>
