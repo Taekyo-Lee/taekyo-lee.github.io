@@ -1,0 +1,253 @@
+---
+title: '(14/14) [부록] 케이스 스터디 — 한 AI CLI 프로젝트의 setup.sh 한 줄씩'
+description: '한 실제 AI CLI 프로젝트의 setup.sh 를 분해. npm install + npm install -g + npm run + npm link 가 한 흐름에 모이는 모습. 시리즈의 회수.'
+pubDate: 'May 3 2026'
+category: about-nodejs
+series: 'npm-primer'
+seriesOrder: 14
+heroImage: '../../../../assets/heroes/hero-about-nodejs.png'
+---
+
+이 글이 시리즈의 마지막. 제가 진행했던 한 AI CLI 프로젝트의 scripts/setup.sh 를 한 줄씩 읽으면서 지금까지 배운 npm 개념이 <span class="key">실전에서 어떻게 쓰이는지</span> 확인합니다. 한 스크립트 안에 본문 11편이 거의 다 등장해요.
+
+<div class="note-box">
+보안 정책상 이 프로젝트의 정체는 <span class="key">의도적으로 두루뭉술하게</span> 표기했습니다 (이름·목적·소속 등). 이해해주세요. 더 궁금하시면 아래 코멘트를 남기시거나 이메일 (gurucat72@gmail.com) 로 연락 주세요.
+</div>
+
+전제 하나만 짚고 시작합니다. 이 프로젝트는 <span class="key">npmjs.com 에 publish 하거나 다른 코드가 import 해서 쓰는 라이브러리가 아니에요</span> — 소스를 받아 직접 빌드해서 본인이 쓰는 CLI 입니다. 이 점이 단계 1 의 dependencies / devDependencies 구분을 어떻게 해석하느냐에 영향을 줘요. 뒤에서 다시 짚습니다.
+
+이 스크립트 하나가 하는 일.
+
+<div class="callout">
+
+1. 프로젝트 의존성 로컬 설치
+2. 빌드 도구 Bun 을 전역 설치
+3. Git 태그 동기화 (버전 정보용)
+4. 소스를 번들로 빌드
+5. 설정 파일 템플릿 복사
+6. 빌드한 CLI 를 전역에서 쓸 수 있게 연결
+7. 셸 프로필에 환경 변수 추가
+
+</div>
+
+npm 개념으로 치면 <span class="key">로컬 설치 + 전역 설치 + npm run 스크립트 + npm link</span> 가 한 흐름에 모두 등장해요. 하나씩 살펴봅니다.
+
+## 단계 1: 의존성 로컬 설치
+
+```bash
+npm install --ignore-scripts --no-audit --no-fund
+```
+
+### 무슨 일이 벌어지나
+
+npm install 은 <span class="key">실행 위치의</span> package.json 을 찾아 읽어요. 그런데 이 스크립트 자체는 scripts/setup.sh 에 있어서 그 폴더에는 package.json 이 <span class="key">없습니다</span>. 그래서 스크립트 맨 위에서 먼저 레포 루트로 이동해 두는 게 포인트예요.
+
+```bash
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+cd "$REPO_ROOT"
+```
+
+이 두 줄 덕분에 npm install 이 실행될 때는 이미 레포 루트에 있고, 거기 있는 package.json 을 읽어서 <span class="key">레포 루트의 node_modules/</span> 에 의존성을 설치합니다. 이 프로젝트의 package.json 을 보면 dependencies 에 SDK · OpenTelemetry · Commander 등 수십 개가 적혀 있고, 이것들이 전부 node_modules/ 로 들어와요. devDependencies (typescript, tsx, @types/&#42; 등 타입 정의와 TS 도구) 도 함께 설치됩니다. 뒤에 오는 빌드 · 타입 체크 단계에서 필요하기 때문. 즉 --production 은 쓰지 않습니다.
+
+### 플래그 세 개
+
+<div class="callout">
+
+- <span class="key">--ignore-scripts</span>: 각 패키지가 가지고 있는 <span class="key">설치 후 실행 스크립트 (postinstall 등) 를 건너뜁니다</span>. 신뢰하지 않은 코드가 npm install 중에 자동으로 실행되는 걸 막는 보안 관례예요. 빌드는 뒤에서 우리가 직접 제어하니 이들을 건너뛰는 게 안전
+- <span class="key">--no-audit</span>: npm 이 설치 직후 "보안 취약점 검사" 리포트를 찍는 걸 끔. 스크립트에선 필요 없는 소음
+- <span class="key">--no-fund</span>: "이 패키지 후원해 주세요" 메시지를 끔. 역시 자동화 환경에선 소음
+
+</div>
+
+### 잠깐: "최종판 CLI 인데 왜 devDependencies 에 빌드 도구가 있지?"
+
+dependencies vs devDependencies 의 원칙을 그대로 적용하면 이 프로젝트에서:
+
+<div class="callout">
+
+- <span class="key">dependencies</span> (commander, SDK 들, OpenTelemetry 등): <span class="key">번들링된 뒤에도 런타임에 쓰이거나</span> 번들러가 외부로 남긴 것들 (실제로 bundle/vendor/ 폴더가 그 흔적)
+- <span class="key">devDependencies</span> (typescript, tsx, @types/&#42; 등): <span class="key">빌드가 끝나면 역할이 끝나는</span> 것들. TypeScript 컴파일러는 소스를 JS 로 변환하면 임무 종료, @types/&#42; 는 타입 체크용이라 런타임에 존재조차 필요 없음, tsx 는 dev 모드 전용
+
+</div>
+
+앞에서 짚은 전제와 연결되는 지점. 이 프로젝트는 <span class="key">publish 되지 않으니 transitive 규칙 (규칙 3) 이 직접 걸리지 않아요</span>. 즉 dependencies 와 devDependencies 가 섞여 있어도 누구에게도 폐를 끼치지 않습니다. 그럼에도 구분을 지키는 이유는 두 가지. ① <span class="key">--production 플래그로 빠르게 런타임만 추리는 옵션</span> 이 살아 있어야 하고 (CI · 컨테이너 빌드에서 실용), ② <span class="key">"이건 빌드용, 이건 런타임용" 이라는 개발자의 의도</span> 가 package.json 자체로 드러나야 유지보수가 쉽습니다. 출시용이 아니라도 관례는 지키는 게 맞아요.
+
+## 단계 2: 빌드 도구 Bun 을 전역 설치
+
+```bash
+if ! command -v bun &>/dev/null; then
+  npm install -g bun
+fi
+```
+
+### 무슨 일이 벌어지나
+
+Bun 을 <span class="key">전역 설치</span> 합니다. -g 플래그 때문에 현재 프로젝트의 node_modules/ 가 아니라 시스템 전역 위치 (nvm 을 쓰면 &#126;/.nvm/versions/node/&lt;ver&gt;/lib/node_modules/) 에 들어가요. 설치 후에는 터미널 어디서나 bun 을 쳐서 실행할 수 있습니다.
+
+### Bun 이 뭐예요?
+
+Node.js 의 <span class="key">신생 대안</span> (2022년 공개). 한 바이너리 안에 <span class="key">런타임 + 패키지 매니저 + 번들러 + 테스트 러너 + 트랜스파일러</span> 를 몰아넣은 올인원 JavaScript 도구예요. Node.js 가 V8 엔진을 쓰는 반면 Bun 은 JavaScriptCore (Safari 엔진) 를 쓰고, Zig 라는 시스템 언어로 구현돼서 빠릅니다.
+
+### 주의: 여기서 Bun 은 "빌드 도구로" 만 쓰임
+
+이 프로젝트는 <span class="key">Bun 을 빌드에만 쓰고, 실행은 여전히 Node.js</span> 예요. package.json 을 보면:
+
+```jsonc
+"scripts": {
+  "build": "bun run scripts/build/build.ts",  // Bun 이 빌드
+  "start": "node bundle/my-cli.mjs"           // Node.js 가 실행
+}
+```
+
+즉 "Bun 으로 갈아탔다" 가 아니라 "빌드 단계만 Bun 이 빠르게 처리하고, 최종 번들은 평범한 Node.js 로 돌린다" 는 선택이에요.
+
+### 왜 전역에 설치하나
+
+Bun 은 라이브러리가 아니라 <span class="key">CLI 도구</span> 예요. 코드에서 import 해서 쓰는 게 아니라 터미널에서 명령으로 실행합니다. 원칙 그대로: <span class="key">"CLI 는 -g, 라이브러리는 로컬"</span>. 그리고 Bun 은 시스템 공용 성격이라 프로젝트별로 다른 버전을 섞을 일이 거의 없어요.
+
+### if ! command -v bun 체크
+
+이미 설치되어 있으면 건너뜁니다. 전역 설치는 머신 공용 자원이니 <span class="key">한 번만 설치하면 모든 프로젝트에서 재사용</span> 한다는 특성을 활용한 패턴.
+
+## 단계 3: Git 태그 pull (npm 과 무관)
+
+```bash
+git fetch origin --tags
+```
+
+이 프로젝트는 <span class="key">버전 정보를 Git 태그에서 뽑아서 빌드</span> 합니다 (보편적이진 않지만 재현 가능성이 좋은 방식이에요). npm 개념은 아니니 건너뛰어도 됩니다.
+
+## 단계 4: 빌드 실행 (npm run)
+
+```bash
+npm run build
+```
+
+### 무슨 일이 벌어지나
+
+package.json 의 scripts 필드 안에 정의된 build 항목을 실행합니다. 이 프로젝트의 실제 정의는:
+
+```json
+"scripts": {
+  "build": "bun run scripts/build/build.ts"
+}
+```
+
+즉 npm run build 는 실질적으로 bun run scripts/build/build.ts 를 호출하는 것. 단계 2 에서 전역 설치한 Bun 이 여기서 <span class="key">실제로 쓰입니다</span>. 결과물은 bundle/my-cli.mjs. 약 19 MB 의 단일 번들 파일이 만들어져요 (소스 트리 전체 + 의존성을 하나로 뭉친 것).
+
+### 왜 npm run 을 거치나
+
+스크립트명을 package.json 에 정의해 두면, 긴 명령을 외울 필요 없이 npm run &lt;이름&gt; 으로 부를 수 있어요. 프로젝트마다 빌드 방법이 달라도 <span class="key">npm run build</span> 는 공통 컨벤션.
+
+## 단계 5: 설정 템플릿 복사 (npm 과 무관)
+
+```bash
+cp config/models.json.example config/models.json
+cp .env.example .env
+```
+
+.example 파일을 실제 파일로 복사해서 사용자가 API 키를 채워 넣게 합니다. 흔한 관례. 민감한 값은 .gitignore 에 두고 템플릿만 커밋.
+
+## 단계 6: npm link (핵심)
+
+```bash
+npm link --no-audit --no-fund
+```
+
+### 무슨 일이 벌어지나: 한 줄 요약
+
+이 프로젝트 자체를 <span class="key">전역 CLI 로 등록</span> 합니다. 설치 후 <span class="key">터미널 어디서든 my-cli 라고 치면</span> bundle/my-cli.mjs 가 실행돼요.
+
+### npm link 가 정확히 하는 일
+
+package.json 에 다음이 있다는 걸 이용합니다.
+
+```json
+"name": "@org/my-cli",
+"bin": {
+  "my-cli": "bundle/my-cli.mjs"
+}
+```
+
+bin 필드는 "이 패키지는 my-cli 라는 CLI 를 제공하고, 그 진입점은 bundle/my-cli.mjs 예요" 라는 선언이에요. npm link 는:
+
+<div class="callout">
+
+1. 전역 node_modules/ 에 이 프로젝트를 <span class="key">심볼릭 링크</span> 로 걸고,
+2. bin 에 선언된 my-cli 를 <span class="key">전역 bin 디렉토리에 심볼릭 링크</span> 로 걸어둡니다
+
+</div>
+
+결과: my-cli 를 어디서 쳐도 이 프로젝트 폴더의 bundle/my-cli.mjs 가 실행됨. 심볼릭 링크니까 <span class="key">소스를 수정하고 다시 빌드만 하면</span> (npm run build) 전역 my-cli 도 자동으로 새 번들을 보게 됩니다.
+
+### npm install -g . 와의 차이
+
+둘 다 현재 프로젝트를 전역 CLI 로 등록한다는 점은 같아요. 차이:
+
+<div class="callout-warm">
+
+- npm install -g . → 현재 디렉토리를 <span class="key">복사</span> 해서 전역 위치에 놓음. 이후 원본 폴더를 수정해도 전역본은 그대로
+- npm link → <span class="key">심볼릭 링크</span>: 원본을 수정 · 재빌드하면 즉시 반영
+
+</div>
+
+개발하면서 계속 고쳐 쓰는 프로젝트에는 <span class="key">npm link 가 훨씬 편합니다</span>. 매번 재설치할 필요 없이 npm run build 만 치면 끝.
+
+## 단계 7: 셸 환경 변수 추가 (npm 과 무관)
+
+```bash
+export MY_CLI_DIR="$REPO_ROOT"
+```
+
+&#126;/.bashrc 또는 &#126;/.zshrc 에 환경 변수를 추가합니다. 스크립트 주석에 <span class="key">API 키를 전역으로 export 하지 않는 이유</span> 가 잘 적혀 있어요. 모든 셸 프로세스에 키가 노출되면 보안 리스크가 커지니, my-cli 프로세스만 .env 를 직접 로드하도록. npm 개념과 무관하지만 좋은 관례라 짚어 둘 만합니다.
+
+## 전체 흐름
+
+<style>{`
+  .flow-table { width: 100%; border-collapse: collapse; margin: 1.5em 0; font-size: 0.95em; line-height: 1.55; }
+  .flow-table th, .flow-table td { padding: 0.6em 0.85em; border-bottom: 1px solid rgb(var(--gray-light)); text-align: left; vertical-align: top; }
+  .flow-table th { background: rgba(var(--gray-light), 0.5); font-weight: 700; color: rgb(var(--black)); }
+  .flow-step { font-weight: 700; color: rgb(var(--black)); white-space: nowrap; }
+  .flow-cmd { font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace; font-size: 0.92em; color: rgb(var(--gray-dark)); white-space: nowrap; }
+  .flow-arrow { color: rgb(var(--gray)); padding: 0 0.4em; }
+  .flow-result { display: block; margin-top: 1em; padding: 0.85em 1.15em; background: rgba(204, 120, 92, 0.08); border-left: 4px solid var(--claude); border-radius: 0 8px 8px 0; font-weight: 700; color: var(--claude-dark); text-align: center; }
+`}</style>
+
+<table class="flow-table">
+  <thead>
+    <tr><th>단계</th><th>명령</th><th>결과</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="flow-step">단계 1</td><td class="flow-cmd">npm install</td><td>node_modules/ (로컬 설치)</td></tr>
+    <tr><td class="flow-step">단계 2</td><td class="flow-cmd">npm install -g bun</td><td>시스템 전역 bin 에 Bun CLI</td></tr>
+    <tr><td class="flow-step">단계 4</td><td class="flow-cmd">npm run build</td><td>bundle/my-cli.mjs 생성</td></tr>
+    <tr><td class="flow-step">단계 6</td><td class="flow-cmd">npm link</td><td>전역 bin 에 my-cli 심볼릭 링크</td></tr>
+  </tbody>
+</table>
+
+<span class="flow-result">↓ 터미널 어디서나 my-cli 실행 가능</span>
+
+## 배운 개념 체크리스트
+
+이 스크립트 하나에서 시리즈의 내용이 어떻게 쓰였는지.
+
+<div class="callout-accent">
+
+- package.json. 의존성 목록 + scripts + bin 선언의 근거지
+- npm install 로컬: dependencies + devDependencies 를 로컬에 설치
+- npm install -g: Bun 처럼 시스템 공용 CLI 에 사용
+- npm run &lt;script&gt;: 긴 빌드 명령을 스크립트명으로 추상화
+- npm link: 개발 중인 자체 프로젝트를 전역 CLI 로 붙이는 방법
+- --ignore-scripts: npm 의 자동 실행 hook 으로부터 방어
+
+</div>
+
+## 한 줄 요약
+
+<div class="callout-warm">
+setup.sh 의 핵심 3줄. <span class="key">npm install (로컬), npm install -g bun (전역 CLI), npm link (이 프로젝트를 전역 CLI 로)</span> 만 이해하면 AI CLI 를 소스로 빌드하는 자동화 패턴 전반이 읽힙니다.
+</div>
+
+---
+
+여기서 시리즈가 끝납니다. 본문 11편 + 부록 3편, 총 14편으로 npm 의 핵심을 한 번 훑은 셈이에요. 어느 글이든 책상에 띄워두고 필요할 때 다시 펼쳐보세요.

@@ -1,0 +1,266 @@
+---
+title: 'Plugins 는 새로운 기능이 아닙니다 — 이미 본 것들의 배포 패키지'
+description: 'Claude Code 의 Plugin 은 새 capability 가 아니라 skills · hooks · MCP servers · agents 같은 기존 요소들의 배포 박스. 진짜로 새로운 것은 marketplace · manifest · trust boundary · namespace · 설치 방식 다섯 가지뿐이에요.'
+pubDate: 'May 4 2026'
+category: claude-code-101
+series: 'claude-code-must-knows'
+seriesOrder: 2
+heroImage: '../../../../assets/heroes/hero-claude-code-101.png'
+---
+
+<style>{`
+  .plugin-box { background: #fff; border: 1px solid rgb(var(--gray-light)); border-radius: 12px; padding: 1.1em 1.3em; margin: 1.4em 0; }
+  .plugin-box-row { display: grid; grid-template-columns: minmax(180px, 0.6fr) 1fr; gap: 1rem; padding: 0.55em 0; border-bottom: 1px dashed rgb(var(--gray-light)); align-items: baseline; font-size: 0.92rem; line-height: 1.55; }
+  .plugin-box-row:last-of-type { border-bottom: none; }
+  .plugin-box-row .pb-path { font-family: ui-monospace, "SF Mono", Consolas, Menlo, monospace; font-size: 0.85em; color: var(--claude-dark); font-weight: 700; }
+  .plugin-box-row .pb-desc { color: rgb(var(--gray-dark)); }
+  @media (max-width: 720px) {
+    .plugin-box-row { grid-template-columns: 1fr; gap: 0.2rem; padding: 0.55em 0; }
+  }
+
+  .ui-tabs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin: 1.5em 0; }
+  .ui-tab { background: #fff; border: 1px solid rgb(var(--gray-light)); border-top: 4px solid var(--claude); border-radius: 10px; padding: 1em 1.15em; }
+  .ui-tab .ui-tab-num { font-family: ui-monospace, "SF Mono", Consolas, Menlo, monospace; font-size: 0.7rem; color: var(--claude-dark); letter-spacing: 0.18em; font-weight: 700; margin-bottom: 0.35em; }
+  .ui-tab .ui-tab-name { font-size: 1rem; font-weight: 700; color: rgb(var(--black)); margin-bottom: 0.4em; line-height: 1.3; }
+  .ui-tab .ui-tab-name .ui-tab-role { color: var(--claude-dark); }
+  .ui-tab .ui-tab-desc { font-size: 0.88rem; color: rgb(var(--gray-dark)); line-height: 1.55; }
+  @media (max-width: 720px) { .ui-tabs { grid-template-columns: 1fr; } }
+
+  .callout-danger { border-left: 4px solid #c7372f; background: rgba(199, 55, 47, 0.06); padding: 0.95em 1.2em; margin: 1.5em 0; border-radius: 0 8px 8px 0; }
+  .callout-danger .callout-danger-title { display: block; font-weight: 700; color: #c7372f; margin-bottom: 0.5em; letter-spacing: 0.02em; }
+  .callout-danger ul { margin: 0.4em 0 0.6em 1.2em; padding: 0; }
+  .callout-danger ul li { margin-bottom: 0.25em; font-size: 0.95rem; }
+
+  .gift-box { position: relative; background: linear-gradient(135deg, rgba(204, 120, 92, 0.1), rgba(204, 120, 92, 0.04)); border: 2px dashed var(--claude); border-radius: 14px; padding: 2em 1.4em 1.3em; margin: 1.8em 0; }
+  .gift-tag { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: var(--claude); color: #fff; font-family: ui-monospace, "SF Mono", Consolas, Menlo, monospace; font-size: 0.72rem; letter-spacing: 0.18em; padding: 0.4em 1em; border-radius: 999px; font-weight: 700; white-space: nowrap; }
+  .gift-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.6rem; }
+  .gift-item { background: #fff; border: 1px solid rgb(var(--gray-light)); border-radius: 8px; padding: 0.6em 0.85em; font-size: 0.88rem; color: rgb(var(--gray-dark)); text-align: center; }
+  .gift-caption { text-align: center; font-size: 0.82rem; color: rgb(var(--gray)); font-style: italic; margin-top: 0.9em; }
+
+  .plugin-rule-tree { background: rgba(96, 115, 159, 0.06); border: 1px solid rgb(var(--gray-light)); border-radius: 8px; padding: 0.85em 1em; margin: 1.4em 0; font-family: ui-monospace, "SF Mono", Consolas, Menlo, monospace; font-size: 0.85rem; line-height: 1.7; color: rgb(var(--gray-dark)); white-space: pre; overflow-x: auto; }
+  .plugin-rule-tree .pr-comment { color: var(--claude-dark); font-weight: 700; }
+
+  .repo-tree { background: rgba(96, 115, 159, 0.06); border: 1px solid rgb(var(--gray-light)); border-radius: 8px; padding: 1em 1.2em; margin: 1.4em 0 0.6em; font-family: ui-monospace, "SF Mono", Consolas, Menlo, monospace; font-size: 0.85rem; line-height: 1.7; color: rgb(var(--gray-dark)); white-space: pre; overflow-x: auto; }
+  .repo-tree .tree-comment { color: var(--claude-dark); font-weight: 700; }
+  .repo-caption { font-size: 0.85rem; color: rgb(var(--gray-dark)); margin-bottom: 1.4em; padding: 0 0.3em; line-height: 1.6; }
+
+  .real-example { position: relative; border: 2px solid var(--claude); border-radius: 14px; padding: 2em 1.6em 1.5em; margin: 2.4em 0; background: linear-gradient(180deg, rgba(204, 120, 92, 0.05), rgba(204, 120, 92, 0.01)); }
+  .real-example::before { content: "🔬 REAL-WORLD EXAMPLE"; position: absolute; top: -12px; left: 1.5em; background: var(--claude); color: #fff; font-family: ui-monospace, "SF Mono", Consolas, Menlo, monospace; font-size: 0.68rem; letter-spacing: 0.18em; font-weight: 700; padding: 0.4em 1em; border-radius: 999px; }
+  .real-example > *:first-child { margin-top: 0; }
+  .real-example > *:last-child { margin-bottom: 0; }
+`}</style>
+
+Claude Code 의 Plugin 은 **새 기능이 아니라**, 이미 있던 것들 (skill · hook · MCP server · agent 등) 을 한 묶음으로 묶어 배포할 수 있게 한 **포장 방식** 입니다.
+
+비유하자면 <span class="key">과자 선물세트</span> 와 비슷해요. 박스 자체는 새로운 종류의 과자가 아니에요 — 안에 들어가는 쿠키 · 초콜릿 · 캔디 같은 건 다 따로 살 수 있는, 이미 존재하는 제품들. 박스가 하는 일은 그저 그것들을 **한 묶음으로 만들어 선물하기 좋게** 해주는 것뿐이죠.
+
+<div class="gift-box">
+  <div class="gift-tag">🎁 PLUGIN</div>
+  <div class="gift-items">
+    <div class="gift-item">🍪 skill</div>
+    <div class="gift-item">🪝 hook</div>
+    <div class="gift-item">🔌 MCP server</div>
+    <div class="gift-item">🤖 agent</div>
+    <div class="gift-item">📝 LSP server</div>
+    <div class="gift-item">⚙️ binary</div>
+    <div class="gift-item">🎨 output style</div>
+  </div>
+  <div class="gift-caption">박스 (plugin) ← 안에 들어가는 알맹이들 (이미 다 따로 만들 줄 아는 것)</div>
+</div>
+
+이 글은 plugin 만의 진짜로 새로운 다섯 가지 (marketplace · manifest · trust · namespace · 설치 방식) 를 짧게 정리합니다. plugin 폴더 구조나 `plugin.json` / `marketplace.json` 작성법 같은 reference 는 [공식 docs](https://code.claude.com/docs/en/plugins) 가 훨씬 자세해요.
+
+## 🎁 Plugin 은 배포 박스다
+
+Anthropic 본인들의 plugin 문서 첫 줄이 정확히 이 paragraph 입니다.
+
+<blockquote>
+Plugins are not a new feature. They are the distribution package for everything we've already covered — skills, hooks, MCP servers, agents, LSP servers, output styles, executables. If you already know how to write a skill or wire a hook, you're 80% of the way to writing a plugin.
+<footer style="margin-top: 0.6em; font-size: 0.85rem; color: rgb(var(--gray));">— Claude Code 내부 문서 (요지)</footer>
+</blockquote>
+
+박스에 들어갈 수 있는 것은 다음과 같은 7가지. 다 우리가 따로 만들 수 있는 것들이에요.
+
+<div class="plugin-box">
+  <div class="plugin-box-row">
+    <span class="pb-path">skills/&lt;name&gt;/SKILL.md</span>
+    <span class="pb-desc">호출 가능한 skill</span>
+  </div>
+  <div class="plugin-box-row">
+    <span class="pb-path">agents/&lt;name&gt;.md</span>
+    <span class="pb-desc">전문화된 subagent</span>
+  </div>
+  <div class="plugin-box-row">
+    <span class="pb-path">hooks/ + manifest</span>
+    <span class="pb-desc">lifecycle hooks (auto-format, audit 등)</span>
+  </div>
+  <div class="plugin-box-row">
+    <span class="pb-path">.mcp.json</span>
+    <span class="pb-desc">사전 구성된 MCP 서버 연결</span>
+  </div>
+  <div class="plugin-box-row">
+    <span class="pb-path">.lsp.json</span>
+    <span class="pb-desc">language server 설정</span>
+  </div>
+  <div class="plugin-box-row">
+    <span class="pb-path">bin/</span>
+    <span class="pb-desc">Bash 의 $PATH 에 추가될 실행 파일</span>
+  </div>
+  <div class="plugin-box-row">
+    <span class="pb-path">output-styles/</span>
+    <span class="pb-desc">응답 포맷 커스터마이징</span>
+  </div>
+</div>
+
+이 중 골라서 한 폴더에 모으고, `.claude-plugin/` 안에 manifest 한 장만 얹으면 plugin 완성. 단일 plugin 이면 `plugin.json` (이름·버전·간단한 설명), 여러 plugin 을 한 번에 publish 하는 카탈로그라면 `marketplace.json`. *"내가 만든 hook 묶음을 팀에 공유하고 싶다"* 같은 상황이 생기면 이 포장지가 답입니다.
+
+## 📂 Claude Code 는 어떻게 plugin 을 인식할까?
+
+한 번 더 강조하면 — **plugin 은 그저 폴더 하나** 예요. Skill 의 본질이 `SKILL.md` 가 든 폴더인 것처럼, plugin 도 결국 폴더입니다. <span class="key">바이너리도 컴파일된 산출물도 아니고, 그저 특정 구조를 따르는 디렉터리</span>.
+
+그 "특정 구조" 라는 게 단 한 줄로 정리돼요 — 어떤 폴더든 `.claude-plugin/` 서브폴더가 있고, 그 안에 `marketplace.json` 또는 `plugin.json` (혹은 둘 다) 만 있으면 Claude Code 가 그 폴더를 plugin (또는 marketplace) 으로 인식합니다. 그게 전부의 구조적 조건.
+
+<pre class="plugin-rule-tree"><span>[any folder]/</span>
+<span>└── .claude-plugin/</span>
+<span>    ├── marketplace.json   <span class="pr-comment">← 있으면 marketplace 폴더</span></span>
+<span>    └── plugin.json        <span class="pr-comment">← 있으면 plugin 폴더</span></span></pre>
+
+<div class="real-example">
+
+위 규칙에 따르면 — `.claude-plugin/` 안에 `marketplace.json` 만 있으면 그건 **marketplace 폴더**. [Anthropic 의 공식 skills repo](https://github.com/anthropics/skills/tree/main) 가 정확히 이 케이스예요. Repo 자체는 17 개 skill 의 모음이고, 그 위에 `marketplace.json` 한 장을 얹어 **skill-only plugin 세 개** 를 정의해 두었습니다.
+
+<pre class="repo-tree"><span>anthropic-agent-skills/</span>
+<span>├── .claude-plugin/</span>
+<span>│   └── marketplace.json    <span class="tree-comment">← 한 장으로 3개 plugin 을 정의</span></span>
+<span>├── skills/                 <span class="tree-comment">← 17 개의 skill 디렉터리</span></span>
+<span>│   ├── xlsx/</span>
+<span>│   ├── docx/</span>
+<span>│   ├── claude-api/</span>
+<span>│   └── ... (총 17 개)</span>
+<span>├── README.md</span>
+<span>└── ...</span></pre>
+
+그 [`marketplace.json`](https://github.com/anthropics/skills/blob/main/.claude-plugin/marketplace.json) 의 핵심을 줄여 보면 이런 모양입니다.
+
+```json
+{
+  "name": "anthropic-agent-skills",
+  "plugins": [
+    {
+      "name": "document-skills",
+      "skills": ["./skills/xlsx", "./skills/docx", "./skills/pptx", "./skills/pdf"]
+    },
+    {
+      "name": "example-skills",
+      "skills": ["./skills/algorithmic-art", "./skills/brand-guidelines", "..."]
+    },
+    {
+      "name": "claude-api",
+      "skills": ["./skills/claude-api"]
+    }
+  ]
+}
+```
+
+세 plugin 모두 같은 `./` 위에 앉아 있고, **`skills[]` 배열에 어떤 경로를 cherry-pick 하느냐로만 구분**됩니다. 같은 17 개 skill 풀에서 4 개·12 개·1 개씩 골라가는 방식이에요. 사용자는 필요한 묶음만 받으면 됩니다 — PDF·Word·Excel 작업이 주면 <span class="term">document-skills</span> plugin, design 작업이 주면 <span class="term">example-skills</span> plugin.
+
+</div>
+
+## 🆕 진짜로 새로운 다섯 가지
+
+<span class="key">Claude Code 의 구성 요소들을 모아놓은 박스</span> 라는 점을 빼면, plugin 만의 진짜 새 개념은 다음 다섯 가지뿐이에요.
+
+<table class="compare-table">
+  <thead>
+    <tr><th>개념</th><th>한 줄</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Marketplace</strong></td>
+      <td>plugin 을 둘러보고 받아올 수 있는 <strong>registry</strong> (Homebrew tap · apt repository 와 같은 자리). 그 registry 의 manifest 가 marketplace.json</td>
+    </tr>
+    <tr>
+      <td><strong>Manifest</strong></td>
+      <td>.claude-plugin/plugin.json — plugin 의 정체성 (이름·버전·기여 컴포넌트)</td>
+    </tr>
+    <tr>
+      <td><strong>Trust boundary</strong></td>
+      <td>Plugin 은 sandbox 되지 <span class="key">않음</span>. 사용자 권한 그대로 실행</td>
+    </tr>
+    <tr>
+      <td><strong>Namespace prefix</strong></td>
+      <td>/plugin-name:command 형식으로 슬래시 충돌 방지</td>
+    </tr>
+    <tr>
+      <td><strong>두 가지 설치 방식</strong></td>
+      <td><span class="mod">/plugin install</span> (영구) vs --plugin-dir (세션 한정 dev)</td>
+    </tr>
+  </tbody>
+</table>
+
+이 중 안전 측면에서 가장 중요한 건 **Trust boundary** — 별도로 한 번 짚고 갑니다.
+
+## ⚠️ Plugin 을 깔기 전에 한 번 멈추세요
+
+<div class="callout-danger">
+<span class="callout-danger-title">⚠️ Plugin 은 sandbox 되지 않아요 — 당신과 같은 권한으로 돕니다</span>
+Plugin 은 단순한 설정 파일 묶음이 아니에요. <strong>그 안에는 실제로 실행되는 코드</strong> 가 들어 있습니다 — <strong>skill 디렉터리 안의 스크립트 (Python · shell 등), hook 의 셸 명령, MCP 서버 프로세스, bin/ 의 실행 파일</strong>. 그리고 이 코드들은 sandbox 안에서 안전하게 도는 게 아니라, <span class="key">당신이 터미널에 직접 명령을 친 것과 똑같은 권한</span> 으로 실행됩니다. 결국 누군가 만든 plugin 을 한 번 깔면 그 사람의 코드가 당신 컴퓨터에서:
+
+<ul>
+  <li>셸에서 어떤 명령이든 실행할 수 있고,</li>
+  <li>당신이 열 수 있는 어떤 파일이든 (SSH 키, 환경 변수, 회사 코드 등) 읽을 수 있고,</li>
+  <li>인터넷으로 그것들을 어디로든 보낼 수 있고,</li>
+  <li>당신의 Claude Code 설정을 바꿀 수 있습니다.</li>
+</ul>
+
+이게 새로운 종류의 위험인 건 아니에요. <span class="mod">brew install</span>, <span class="mod">npm install -g</span>, <span class="mod">apt-get install</span> 을 할 때 이미 우리가 안고 있는 그 신뢰 — <em>"이 패키지를 만든 사람을 어디까지 믿느냐"</em> — 와 같은 종류입니다.
+</div>
+
+차이라면 plugin 은 진입 장벽이 낮아서 그 신뢰 결정을 **잊기 쉽다** 는 점이에요. 그래서 한 줄 원칙: <span class="key">marketplace 를 추가할 땐 apt repository 를 추가할 때처럼 한 번 멈추고 "이 출처를 믿을 만한가" 를 물을 것.</span> 트위터에서 "이거 좋대" 한 마디로 random marketplace 를 그냥 추가하지 마세요.
+
+(참고로 Claude Code 자체에 native sandbox 가 있긴 한데 **Bash 도구에만 적용**되고 plugin 의 위험 부위 — skill 스크립트 · hook · MCP — 는 그 밖에서 돕니다. 더 강한 격리가 필요하면 Anthropic 이 공식 권장하는 [devcontainer](https://code.claude.com/docs/en/devcontainer) 안에서 돌리는 게 가장 깔끔해요.)
+
+## 🪟 `/plugin` UI = 네 가지 책임의 분리
+
+`/plugin` 을 치면 네 탭이 뜨는데, 각 탭이 **완전히 별개의 책임** 을 담당합니다. 이 분리만 잡으면 plugin 관리가 깔끔해져요.
+
+<div class="ui-tabs">
+  <div class="ui-tab">
+    <div class="ui-tab-num">01 · TAB</div>
+    <div class="ui-tab-name">Marketplaces — <span class="ui-tab-role">신뢰</span> 의 자리</div>
+    <div class="ui-tab-desc">카탈로그 구독. apt sources.list · Homebrew tap 과 같은 자리. 추가만으로는 <strong>아무것도 설치되지 않음</strong> — 그저 카탈로그를 탐색 가능하게 만들 뿐.</div>
+  </div>
+  <div class="ui-tab">
+    <div class="ui-tab-num">02 · TAB</div>
+    <div class="ui-tab-name">Discover — <span class="ui-tab-role">선택</span> 의 자리</div>
+    <div class="ui-tab-desc">구독한 marketplace 들이 제공하는 모든 plugin 탐색. <span class="mod">apt search</span> · <span class="mod">brew search</span> 와 같은 자리.</div>
+  </div>
+  <div class="ui-tab">
+    <div class="ui-tab-num">03 · TAB</div>
+    <div class="ui-tab-name">Installed — <span class="ui-tab-role">동작</span> 의 자리</div>
+    <div class="ui-tab-desc">현재 Claude Code 세션에서 실제로 돌고 있는 plugin. enable / disable / uninstall / 옵션 설정 모두 여기서.</div>
+  </div>
+  <div class="ui-tab">
+    <div class="ui-tab-num">04 · TAB</div>
+    <div class="ui-tab-name">Errors — <span class="ui-tab-role">진단</span> 의 자리</div>
+    <div class="ui-tab-desc">로드 실패한 plugin (잘못된 plugin.json, 깨진 hook 설정, 도달 불가능한 MCP 서버 등) 이 에러 메시지와 함께 표시.</div>
+  </div>
+</div>
+
+이 네 자리가 분리돼 있다는 게 plugin 관리에서 가장 중요한 통찰이에요. 한 모델로 압축하면 다음 세 줄.
+
+<div class="callout-accent">
+
+- **Marketplace 추가 ≠ plugin 설치** — 카탈로그를 구독해도 자동 설치되는 건 아무것도 없음
+- **Plugin 설치 ≠ 활성화** — `enabledPlugins` 가 별도 제어. installed-but-disabled 가 가능
+- **설치 ≠ 로드 성공** — `/skills` 에 예상한 게 안 뜨면 **Errors tab 부터** 확인
+
+</div>
+
+VS Code 확장 같은 일부 시스템에서는 "설치"와 "활성화"와 "출처"가 한 토글에 압축돼 있는데, plugin 시스템은 이 셋을 일부러 떼어 두었어요. 디버깅과 권한 관리가 훨씬 깔끔해집니다.
+
+## 💡 한 줄 요약
+
+<div class="callout-warm">
+Plugin 을 새로 외우려고 하지 마세요. 이미 아는 skill · hook · MCP · agent 를 한 폴더에 모아 manifest 한 장 얹으면 그게 plugin 입니다. 진짜로 새로운 건 다섯 가지 (<span class="key">marketplace · manifest · trust · namespace · 설치 방식</span>) 정도. 그중 가장 중요한 한 줄은 — <span class="key">marketplace 는 apt repo 처럼 다뤄라</span>.
+</div>

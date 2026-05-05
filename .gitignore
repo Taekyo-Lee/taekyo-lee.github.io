@@ -26,3 +26,6 @@ actions-runner/
 
 # Local artifacts
 artifacts/
+
+# Claude Code local state
+.claude/
