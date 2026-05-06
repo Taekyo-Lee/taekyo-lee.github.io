@@ -1,10 +1,11 @@
 ---
-import { type CollectionEntry, getCollection, render } from 'astro:content';
+import { type CollectionEntry, render } from 'astro:content';
 import BlogPost from '../../layouts/BlogPost.astro';
 import { postSlug } from '../../utils/postSlug';
+import { getVisibleBlogPosts } from '../../utils/visiblePosts';
 
 export async function getStaticPaths() {
-	const posts = await getCollection('blog');
+	const posts = await getVisibleBlogPosts();
 	return posts.map((post) => ({
 		params: { slug: postSlug(post.id) },
 		props: post,
@@ -19,7 +20,7 @@ let prevPost: CollectionEntry<'blog'> | null = null;
 let nextPost: CollectionEntry<'blog'> | null = null;
 
 if (post.data.series && post.data.seriesOrder !== undefined) {
-	const allPosts = await getCollection('blog');
+	const allPosts = await getVisibleBlogPosts();
 	const siblings = allPosts
 		.filter(
 			(p) =>

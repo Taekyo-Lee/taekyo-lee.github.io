@@ -1,7 +1,7 @@
 ---
 import { Image } from 'astro:assets';
-import { getCollection } from 'astro:content';
 import { CATEGORY_LABELS } from '../consts';
+import { getVisibleBlogPosts } from '../utils/visiblePosts';
 
 interface Props {
 	current?: string;
@@ -19,7 +19,7 @@ for (const [path, mod] of Object.entries(heroModules)) {
 	if (match) heroByCategory[match[1]] = mod.default;
 }
 
-const posts = await getCollection('blog');
+const posts = await getVisibleBlogPosts();
 const counts = posts.reduce<Record<string, number>>((acc, p) => {
 	acc[p.data.category] = (acc[p.data.category] ?? 0) + 1;
 	return acc;

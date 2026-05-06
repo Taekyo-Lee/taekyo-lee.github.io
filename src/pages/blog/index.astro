@@ -1,6 +1,5 @@
 ---
 import { Image } from 'astro:assets';
-import { getCollection } from 'astro:content';
 import BaseHead from '../../components/BaseHead.astro';
 import CategorySidebar from '../../components/CategorySidebar.astro';
 import Footer from '../../components/Footer.astro';
@@ -8,9 +7,10 @@ import FormattedDate from '../../components/FormattedDate.astro';
 import Header from '../../components/Header.astro';
 import { CATEGORY_LABELS, SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
 import { postSlug } from '../../utils/postSlug';
+import { getVisibleBlogPosts } from '../../utils/visiblePosts';
 
 const base = import.meta.env.BASE_URL;
-const posts = (await getCollection('blog')).sort((a, b) => {
+const posts = (await getVisibleBlogPosts()).sort((a, b) => {
 	const dateDiff = b.data.pubDate.valueOf() - a.data.pubDate.valueOf();
 	if (dateDiff !== 0) return dateDiff;
 	const aSeries = a.data.series;

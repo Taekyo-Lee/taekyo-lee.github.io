@@ -24,6 +24,7 @@ const blog = defineCollection({
 			]),
 			series: z.string().optional(),
 			seriesOrder: z.number().optional(),
+			draft: z.boolean().optional(),
 		}),
 });
 
