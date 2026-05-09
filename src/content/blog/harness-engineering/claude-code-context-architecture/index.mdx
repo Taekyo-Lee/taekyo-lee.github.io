@@ -1,0 +1,1755 @@
+---
+title: 'Claude Code 의 Context Architecture'
+description: 'Claude Code 의 한 turn 이 LLM API 에게 보내는 JSON payload 의 모양 — 3 top-level keys (system · tools · messages) 와 그 안의 6 영역.'
+pubDate: 'May 09 2026'
+category: harness-engineering
+heroImage: '../../../../assets/heroes/hero-harness-engineering.png'
+series: 'context-engineering-of-claude-code'
+seriesOrder: 2
+---
+
+import { Image } from 'astro:assets';
+import contextPipeline from '../../../../assets/placeholders/blog-placeholder-2.jpg';
+import weatherChat from '../../../../assets/placeholders/blog-placeholder-3.jpg';
+
+<style>{`
+  .img-caption { font-size: 0.85rem; color: rgb(var(--gray)); text-align: center; margin: 0.4em 0 1.6em; line-height: 1.5; }
+
+  .img-narrow {
+    max-width: 720px;
+    margin: 1.6em auto;
+    display: block;
+  }
+  .img-narrow img { width: 100%; height: auto; display: block; }
+
+  /* ========== Iceberg figure (faithful port of llm-io-layers-iceberg.html) ========== */
+  .iceberg-figure {
+    --target: #d97706;
+    --target-strong: rgba(217, 119, 6, 0.30);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+    --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.06);
+    --shadow-deep: 0 4px 10px -2px rgba(0, 0, 0, 0.4);
+    --mono: ui-monospace, "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+    /* Breakout: extend beyond the narrow post column up to ~1180px */
+    width: min(calc(100vw - 32px), 1180px);
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 2.4em 0;
+    padding: 30px 22px 24px;
+    border-radius: 14px;
+    background: linear-gradient(to bottom,
+      #e0f2fe 0%,
+      #bae6fd 22%,
+      #7dd3fc 38%,
+      #0ea5e9 44%,
+      #075985 50%,
+      #0c4a6e 75%,
+      #082f49 100%
+    );
+    box-shadow: 0 14px 32px -10px rgba(8, 47, 73, 0.45);
+    color: #111827;
+    line-height: 1.5;
+    font-size: 14px;
+  }
+  .iceberg-figure h3.if-title {
+    font-size: 22px;
+    font-weight: 700;
+    text-align: center;
+    margin: 0 0 6px;
+    letter-spacing: -0.02em;
+    color: #111827;
+  }
+  .iceberg-figure .if-sub {
+    text-align: center;
+    color: #374151;
+    font-size: 13px;
+    margin: 0 0 22px;
+    font-weight: 500;
+  }
+
+  /* Top row — illustration (left) + Claude Code TUI mockup (right) */
+  .iceberg-figure .if-top-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    align-items: center;
+    margin: 0 0 22px;
+  }
+  .iceberg-figure .if-illustration {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .iceberg-figure .if-illustration img {
+    width: 100%;
+    height: auto;
+    max-height: 320px;
+    object-fit: contain;
+    border-radius: 12px;
+  }
+
+  /* Chat mockup — Claude Code TUI style (dark terminal) */
+  .iceberg-figure .chat-mockup {
+    background: #1a1a1a;
+    border-radius: 12px;
+    box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.5), 0 6px 12px -3px rgba(0, 0, 0, 0.4);
+    border: 1px solid #2d2d2d;
+    overflow: hidden;
+  }
+  .iceberg-figure .chat-mockup-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    background: #2d2d2d;
+    border-bottom: 1px solid #3a3a3a;
+  }
+  .iceberg-figure .window-dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+  }
+  .iceberg-figure .window-dot:nth-child(1) { background: #ff5f57; }
+  .iceberg-figure .window-dot:nth-child(2) { background: #febc2e; }
+  .iceberg-figure .window-dot:nth-child(3) { background: #28c840; }
+  .iceberg-figure .window-title {
+    margin-left: 12px;
+    font-size: 12px;
+    color: #a3a3a3;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    font-family: var(--mono);
+  }
+  .iceberg-figure .chat-mockup-body {
+    padding: 18px 20px;
+    font-family: var(--mono);
+    background: #1a1a1a;
+  }
+  .iceberg-figure .cc-welcome {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 13px;
+    margin-bottom: 14px;
+    border: 1px solid #3a3a3a;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .iceberg-figure .cc-mascot {
+    width: 44px;
+    height: auto;
+    image-rendering: pixelated;
+    flex-shrink: 0;
+  }
+  .iceberg-figure .cc-welcome-text { flex: 1; line-height: 1.5; }
+  .iceberg-figure .cc-welcome-title { color: #e5e5e5; font-size: 13px; margin-bottom: 3px; }
+  .iceberg-figure .cc-welcome-title .cc-brand { color: #f59e0b; font-weight: 700; }
+  .iceberg-figure .cc-welcome-hint { color: #737373; font-size: 11px; }
+  .iceberg-figure .cc-line {
+    font-size: 13px;
+    line-height: 1.55;
+    color: #e5e5e5;
+    margin-bottom: 12px;
+    word-break: break-word;
+  }
+  .iceberg-figure .cc-line:last-of-type { margin-bottom: 0; }
+  .iceberg-figure .cc-prompt {
+    color: #f59e0b;
+    font-weight: 700;
+    margin-right: 8px;
+  }
+  .iceberg-figure .cc-input-area {
+    margin-top: 18px;
+    padding: 10px 0;
+    border-top: 1px solid #404040;
+    border-bottom: 1px solid #404040;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: #e5e5e5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .iceberg-figure .cc-cursor {
+    display: inline-block;
+    width: 1ch;
+    height: 1.1em;
+    background: #e5e5e5;
+    vertical-align: text-bottom;
+    animation: cc-blink 1.1s infinite;
+  }
+  @keyframes cc-blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+
+  /* Layers wrapper with depth axis */
+  .iceberg-figure .layers-with-axis {
+    display: flex;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .iceberg-figure .depth-axis {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 70px;
+    flex-shrink: 0;
+    padding: 2px 0;
+  }
+  .iceberg-figure .axis-label {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 5px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+    background: rgba(0, 0, 0, 0.55);
+    color: white;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+  }
+  .iceberg-figure .axis-line {
+    flex: 1;
+    width: 2px;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.8));
+    margin: 10px 0 0;
+    position: relative;
+  }
+  .iceberg-figure .axis-line::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 10px solid rgba(255, 255, 255, 0.8);
+  }
+  .iceberg-figure .layers-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .iceberg-figure .above-water {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 14px;
+    align-items: stretch;
+    margin-bottom: 6px;
+  }
+  .iceberg-figure .below-water {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+    margin-top: 12px;
+  }
+
+  .iceberg-figure .layer-card {
+    display: flex;
+    flex-direction: column;
+    padding: 14px 14px;
+    border-radius: 12px;
+    min-height: 200px;
+  }
+  .iceberg-figure .above-water .layer-card {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: var(--shadow-lg);
+    backdrop-filter: blur(6px);
+  }
+  .iceberg-figure .below-water .layer-card {
+    background: rgba(8, 47, 73, 0.55);
+    border: 1px solid rgba(125, 211, 252, 0.25);
+    box-shadow: var(--shadow-deep);
+    backdrop-filter: blur(6px);
+    color: rgba(241, 245, 249, 0.95);
+  }
+  .iceberg-figure .below-water .layer-card .layer-name { color: white; }
+  .iceberg-figure .below-water .layer-card .layer-desc { color: rgba(186, 230, 253, 0.85); }
+  .iceberg-figure .below-water .layer-card .io-content { color: rgba(241, 245, 249, 0.92); }
+  .iceberg-figure .below-water .layer-card .card-footer { border-top-color: rgba(186, 230, 253, 0.25); }
+  .iceberg-figure .below-water .layer-card .audience-tag { color: rgba(186, 230, 253, 0.95); }
+
+  .iceberg-figure .card-header {
+    display: flex;
+    gap: 11px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+  .iceberg-figure .layer-num {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+    font-weight: 800;
+    color: white;
+  }
+  .iceberg-figure .layer-card.layer-1 .layer-num { background: #f59e0b; }
+  .iceberg-figure .layer-card.layer-4 .layer-num { background: #38bdf8; box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.3); }
+  .iceberg-figure .layer-card.layer-5 .layer-num { background: #818cf8; box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.3); }
+  .iceberg-figure .layer-card.layer-6 .layer-num { background: #c084fc; box-shadow: 0 0 0 2px rgba(192, 132, 252, 0.3); }
+
+  .iceberg-figure .layer-title { flex: 1; min-width: 0; padding-top: 1px; }
+  .iceberg-figure .layer-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 2px;
+    line-height: 1.25;
+  }
+  .iceberg-figure .layer-desc {
+    font-size: 11px;
+    color: #6b7280;
+    font-style: italic;
+    line-height: 1.4;
+  }
+
+  .iceberg-figure .card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    margin-bottom: 11px;
+  }
+  .iceberg-figure .io-block {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .iceberg-figure .io-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .iceberg-figure .io-label.input { color: #16a34a; }
+  .iceberg-figure .io-label.output { color: #d97706; }
+  .iceberg-figure .io-label.combined { color: #6366f1; }
+  .iceberg-figure .below-water .io-label.input { color: #4ade80; }
+  .iceberg-figure .below-water .io-label.output { color: #fbbf24; }
+  .iceberg-figure .below-water .io-label.combined { color: #a5b4fc; }
+  .iceberg-figure .io-content {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #374151;
+    word-break: break-word;
+    white-space: normal;
+    line-height: 1.5;
+  }
+  .iceberg-figure .io-content .io-key { color: #111827; font-weight: 700; }
+  .iceberg-figure .below-water .layer-card .io-content .io-key { color: white; }
+
+  .iceberg-figure .card-footer {
+    padding-top: 9px;
+    border-top: 1px solid #e5e7eb;
+  }
+  .iceberg-figure .audience-label {
+    font-size: 8.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #6b7280;
+    text-align: center;
+    margin-bottom: 4px;
+    opacity: 0.85;
+  }
+  .iceberg-figure .below-water .audience-label { color: rgba(186, 230, 253, 0.7); }
+  .iceberg-figure .audience-tag {
+    font-size: 11px;
+    color: #374151;
+    text-align: center;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .iceberg-figure .target-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    position: relative;
+  }
+  .iceberg-figure .target-label {
+    position: absolute;
+    top: -13px;
+    left: 16px;
+    background: var(--target);
+    color: white;
+    padding: 4px 13px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    box-shadow: var(--shadow-md);
+    z-index: 2;
+    white-space: nowrap;
+  }
+  .iceberg-figure .target-group .layer-card { border-color: var(--target-strong); }
+  .iceberg-figure .target-group .layer-card .layer-num { background: var(--target); }
+  .iceberg-figure .target-tracing-note {
+    grid-column: 1 / -1;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--target);
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(217, 119, 6, 0.4);
+    border-radius: 8px;
+    padding: 7px 12px;
+    margin-top: 4px;
+    letter-spacing: 0.02em;
+  }
+
+  .iceberg-figure .layer-1-column { display: flex; flex-direction: column; }
+  .iceberg-figure .layer-1-column .layer-card { flex: 1; }
+  .iceberg-figure .tui-note {
+    margin-top: 8px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #525252;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px dashed rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-style: italic;
+    letter-spacing: 0.02em;
+  }
+
+  .iceberg-figure .water-line {
+    position: relative;
+    height: 36px;
+    margin: 12px 0 2px;
+  }
+  .iceberg-figure .water-line svg { width: 100%; height: 100%; display: block; }
+  .iceberg-figure .water-line-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 0.92);
+    color: #075985;
+    padding: 4px 13px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    box-shadow: var(--shadow-md);
+    z-index: 2;
+    white-space: nowrap;
+  }
+
+  .iceberg-figure .closing-note {
+    margin-top: 22px;
+    padding: 13px 18px;
+    background: rgba(255, 255, 255, 0.96);
+    border-left: 4px solid var(--target);
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.65;
+    color: #374151;
+    box-shadow: var(--shadow-lg);
+  }
+  .iceberg-figure .closing-note strong { color: var(--target); font-weight: 700; }
+
+  /* Mobile fallback — collapse only on truly narrow screens */
+  @media (max-width: 600px) {
+    .iceberg-figure { padding: 22px 14px 18px; }
+    .iceberg-figure .if-top-row { grid-template-columns: 1fr; gap: 14px; }
+    .iceberg-figure .if-illustration img { max-height: 260px; }
+    .iceberg-figure .layers-with-axis { gap: 10px; }
+    .iceberg-figure .depth-axis { width: 50px; }
+    .iceberg-figure .axis-label { font-size: 9px; padding: 4px 8px; }
+    .iceberg-figure .above-water { grid-template-columns: 1fr; }
+    .iceberg-figure .below-water { grid-template-columns: 1fr; }
+    .iceberg-figure .target-group { grid-template-columns: 1fr; }
+    .iceberg-figure .layer-card { min-height: 0; }
+  }
+
+  .series-banner {
+    background: rgba(31, 71, 135, 0.06);
+    color: rgb(31, 71, 135);
+    font-size: 0.92em;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border-left: 3px solid var(--accent);
+    margin: 0 0 1.6em;
+    line-height: 1.55;
+  }
+  .series-banner strong { font-weight: 700; }
+  .series-banner em { font-style: italic; }
+
+  /* ========== ReAct figure (faithful port of react-agent-shape.html) ========== */
+  .react-figure {
+    --r-system: #2563eb;
+    --r-system-bg: rgba(37, 99, 235, 0.04);
+    --r-tools: #059669;
+    --r-tools-bg: rgba(5, 150, 105, 0.04);
+    --r-messages: #d97706;
+    --r-messages-bg: rgba(217, 119, 6, 0.04);
+    --r-visible: #2563eb;
+    --r-visible-bg: rgba(37, 99, 235, 0.08);
+    --r-shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+    --r-mono: ui-monospace, "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+    width: min(calc(100vw - 32px), 1100px);
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 2.4em 0;
+    padding: 30px 24px 26px;
+    background: #fafafa;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: var(--r-shadow-lg);
+    color: #111827;
+    line-height: 1.5;
+    font-size: 14px;
+  }
+  /* Narrow variant: stay within the post column for content that doesn't need landscape */
+  .react-figure.rf-narrow {
+    width: auto;
+    max-width: 720px;
+    position: static;
+    left: auto;
+    transform: none;
+    margin: 2em auto;
+  }
+  /* Medium variant: stays in column but widens enough to fit API items on one line */
+  .react-figure.rf-medium {
+    width: min(calc(100vw - 32px), 880px);
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 2em 0;
+  }
+  .react-figure.rf-medium .rf-react-label {
+    margin-left: auto;
+    text-align: right;
+  }
+  .react-figure h3.rf-title {
+    font-size: 26px;
+    font-weight: 700;
+    text-align: center;
+    margin: 0 0 6px;
+    letter-spacing: -0.02em;
+    color: #111827;
+  }
+  .react-figure .rf-sub {
+    text-align: center;
+    color: #6b7280;
+    font-size: 13px;
+    margin: 0 0 20px;
+    font-weight: 500;
+  }
+
+  /* ReAct loop pill flow */
+  .react-figure .react-flow {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .react-figure .loop-step {
+    padding: 6px 18px;
+    background: var(--r-messages-bg);
+    color: var(--r-messages);
+    border: 1px solid rgba(217, 119, 6, 0.25);
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .react-figure .loop-arrow {
+    color: #6b7280;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .react-figure .loop-arrow.repeat {
+    color: var(--r-messages);
+    font-size: 17px;
+  }
+
+  /* Visibility legend */
+  .react-figure .visibility-legend {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+    padding: 11px 18px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 12.5px;
+    color: #374151;
+  }
+  .react-figure .legend-intro {
+    font-weight: 600;
+    color: #111827;
+    margin-right: 4px;
+  }
+  .react-figure .legend-pair {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .react-figure .legend-divider {
+    color: #6b7280;
+    opacity: 0.5;
+    font-weight: 700;
+    margin: 0 6px;
+  }
+
+  /* Visibility tags */
+  .react-figure .viz-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 9px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 50px;
+    text-align: center;
+  }
+  .react-figure .viz-tag.visible {
+    background: var(--r-visible);
+    color: white;
+    box-shadow: 0 1px 2px rgba(37, 99, 235, 0.3);
+  }
+  .react-figure .viz-tag.auto {
+    background: rgba(156, 163, 175, 0.25);
+    color: #374151;
+  }
+  .react-figure .viz-tag.hidden {
+    background: transparent;
+    color: #6b7280;
+    border: 1px dashed rgba(156, 163, 175, 0.55);
+  }
+
+  /* API card */
+  .react-figure .rf-api-card {
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--r-shadow-lg);
+  }
+  .react-figure .rf-api-body {
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* Key blocks */
+  .react-figure .rf-key {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+    border-left-width: 4px;
+    background: white;
+  }
+  .react-figure .rf-key.tools    { border-left-color: var(--r-tools);    background: var(--r-tools-bg); }
+  .react-figure .rf-key.messages { border-left-color: var(--r-messages); background: var(--r-messages-bg); }
+  .react-figure .rf-key-row {
+    padding: 11px 20px;
+    font-family: var(--r-mono);
+    font-size: 14px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.6);
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .react-figure .rf-key-footer {
+    padding: 9px 20px;
+    font-family: var(--r-mono);
+    font-size: 14px;
+    color: #6b7280;
+    border-top: 1px solid #e5e7eb;
+    background: rgba(255, 255, 255, 0.6);
+  }
+  .react-figure .rf-key-name { font-size: 15px; font-weight: 700; }
+  .react-figure .rf-key.tools    .rf-key-name { color: var(--r-tools); }
+  .react-figure .rf-key.messages .rf-key-name { color: var(--r-messages); }
+  .react-figure .rf-bracket { color: #6b7280; }
+
+  .react-figure .rf-item-list {
+    list-style: none;
+    margin: 0;
+    padding: 8px 0;
+    background: rgba(255, 255, 255, 0.45);
+  }
+  .react-figure .rf-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 20px;
+    gap: 12px;
+    font-family: var(--r-mono);
+    font-size: 12.5px;
+    color: #374151;
+  }
+  .react-figure .rf-item.is-hidden { opacity: 0.55; }
+  .react-figure .rf-item.is-visible { background: rgba(37, 99, 235, 0.04); }
+
+  .react-figure .rf-item-text {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .react-figure .rf-item-text .key   { color: #111827; font-weight: 600; }
+  .react-figure .rf-item-text .str   { color: #6b7280; }
+  .react-figure .rf-item-text .punct { color: #6b7280; }
+
+  .react-figure .rf-item-text .role-system    { color: var(--r-system); font-weight: 700; }
+  .react-figure .rf-item-text .role-user      { color: #111827;          font-weight: 700; }
+  .react-figure .rf-item-text .role-assistant { color: #111827;          font-weight: 700; }
+  .react-figure .rf-item-text .role-tool      { color: var(--r-tools);   font-weight: 700; }
+
+  /* ReAct annotation labels */
+  .react-figure .rf-react-label {
+    font-size: 11px;
+    color: #6b7280;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-style: italic;
+  }
+  .react-figure .rf-react-label::before {
+    content: "← ";
+    font-style: normal;
+    margin-right: 2px;
+  }
+  .react-figure .rf-react-label.highlight {
+    color: var(--r-messages);
+    font-weight: 700;
+    font-style: normal;
+    padding: 3px 9px;
+    background: var(--r-messages-bg);
+    border: 1px solid rgba(217, 119, 6, 0.2);
+    border-radius: 4px;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+  }
+  .react-figure .rf-react-label.highlight::before { content: ""; margin: 0; }
+
+  /* Notes */
+  .react-figure .rf-notes {
+    margin-top: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .react-figure .rf-note {
+    padding: 13px 17px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #374151;
+    background: #f5f6f8;
+    border-left: 3px solid #d1d5db;
+  }
+  .react-figure .rf-note.react-note   { border-left-color: var(--r-messages); background: var(--r-messages-bg); }
+  .react-figure .rf-note.connect-note { border-left-color: var(--r-system);   background: var(--r-system-bg); }
+  .react-figure .rf-note .rf-note-label {
+    display: inline-block;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    color: #111827;
+    margin-right: 8px;
+    padding: 2px 7px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+  }
+  .react-figure .rf-note.react-note   .rf-note-label { color: var(--r-messages); background: rgba(217, 119, 6, 0.10); }
+  .react-figure .rf-note.connect-note .rf-note-label { color: var(--r-system);   background: rgba(37, 99, 235, 0.10); }
+  .react-figure .rf-note code {
+    font-family: var(--r-mono);
+    font-size: 12px;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #111827;
+  }
+
+  @media (max-width: 600px) {
+    .react-figure { padding: 22px 14px 18px; }
+    .react-figure .rf-api-body { padding: 14px; }
+    .react-figure .rf-item { padding: 7px 14px; gap: 8px; flex-wrap: wrap; }
+    .react-figure .rf-item-text { white-space: normal; flex-basis: 100%; overflow: visible; }
+    .react-figure .rf-react-label { flex-basis: 100%; }
+    .react-figure .rf-react-label::before { content: ""; }
+    .react-figure .visibility-legend { font-size: 11.5px; }
+  }
+
+  /* Three top-level keys mini-diagram */
+  .three-siblings {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin: 1.6em 0;
+  }
+  .three-siblings .sk {
+    padding: 14px 16px;
+    border-radius: 10px;
+    border-left: 4px solid;
+    background: rgba(255, 255, 255, 0.6);
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.92em;
+  }
+  .three-siblings .sk-system   { border-color: var(--accent);      background: rgba(31, 71, 135, 0.04); }
+  .three-siblings .sk-tools    { border-color: #059669;            background: rgba(5, 150, 105, 0.04); }
+  .three-siblings .sk-messages { border-color: var(--claude-dark); background: rgba(204, 120, 92, 0.04); }
+  .three-siblings .sk-name { font-weight: 700; font-size: 1.05em; margin-bottom: 4px; }
+  .three-siblings .sk-system   .sk-name { color: var(--accent); }
+  .three-siblings .sk-tools    .sk-name { color: #059669; }
+  .three-siblings .sk-messages .sk-name { color: var(--claude-dark); }
+  .three-siblings .sk-desc { font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif; font-size: 0.92em; color: rgb(60, 70, 90); line-height: 1.5; }
+  @media (max-width: 640px) {
+    .three-siblings { grid-template-columns: 1fr; }
+  }
+
+  /* ========== API call shape figure (faithful port of api-call-shape.html) ========== */
+  .api-figure {
+    --af-system: #2563eb;
+    --af-system-bg: rgba(37, 99, 235, 0.04);
+    --af-tools: #059669;
+    --af-tools-bg: rgba(5, 150, 105, 0.04);
+    --af-messages: #d97706;
+    --af-messages-bg: rgba(217, 119, 6, 0.04);
+    --af-fork: #7c3aed;
+    --af-fork-bg: rgba(124, 58, 237, 0.05);
+    --af-shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+    --af-mono: ui-monospace, "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+    width: min(calc(100vw - 32px), 880px);
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 2.6em 0;
+    padding: 32px 26px 28px;
+    background: #fafafa;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: var(--af-shadow-lg);
+    color: #111827;
+    line-height: 1.5;
+    font-size: 14px;
+  }
+  .api-figure .af-title {
+    font-size: 32px;
+    font-weight: 700;
+    text-align: center;
+    margin: 0 0 8px;
+    letter-spacing: -0.02em;
+  }
+  .api-figure .af-sub {
+    text-align: center;
+    color: #6b7280;
+    font-size: 15px;
+    margin: 0 0 26px;
+    font-weight: 500;
+  }
+  .api-figure .af-card {
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--af-shadow-lg);
+  }
+  .api-figure .af-body {
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .api-figure .af-key {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+    border-left-width: 5px;
+    background: white;
+  }
+  .api-figure .af-key.af-system   { border-left-color: var(--af-system);   background: var(--af-system-bg); }
+  .api-figure .af-key.af-tools    { border-left-color: var(--af-tools);    background: var(--af-tools-bg); }
+  .api-figure .af-key.af-messages { border-left-color: var(--af-messages); background: var(--af-messages-bg); }
+  .api-figure .af-key-row {
+    padding: 13px 22px;
+    font-family: var(--af-mono);
+    font-size: 16px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.6);
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .api-figure .af-key-footer {
+    padding: 11px 22px;
+    font-family: var(--af-mono);
+    font-size: 16px;
+    color: #6b7280;
+    border-top: 1px solid #e5e7eb;
+    background: rgba(255, 255, 255, 0.6);
+  }
+  .api-figure .af-key-name { font-size: 17px; font-weight: 700; }
+  .api-figure .af-key.af-system   .af-key-name { color: var(--af-system); }
+  .api-figure .af-key.af-tools    .af-key-name { color: var(--af-tools); }
+  .api-figure .af-key.af-messages .af-key-name { color: var(--af-messages); }
+  .api-figure .af-bracket { color: #6b7280; }
+
+  .api-figure .af-item-list {
+    list-style: none;
+    margin: 0;
+    padding: 9px 0;
+    background: rgba(255, 255, 255, 0.45);
+  }
+  .api-figure .af-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 22px;
+    gap: 12px;
+    font-family: var(--af-mono);
+    font-size: 14px;
+    color: #374151;
+  }
+  .api-figure .af-item-text {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .api-figure .af-item-text .key   { color: #111827; font-weight: 600; }
+  .api-figure .af-item-text .str   { color: #6b7280; }
+  .api-figure .af-item-text .punct { color: #6b7280; }
+  .api-figure .af-item-text .tool-category { color: var(--af-tools); font-weight: 700; }
+  .api-figure .af-annotation {
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    font-size: 12px;
+    font-style: italic;
+    color: #6b7280;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .api-figure .af-item.af-stacked { flex-wrap: wrap; row-gap: 4px; }
+  .api-figure .af-item.af-stacked .af-annotation { flex-basis: 100%; margin-left: 0; }
+
+  /* Callout badge (numbered marker) */
+  .api-figure .af-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+  .api-figure .af-key.af-system   .af-badge { background: var(--af-system); }
+  .api-figure .af-key.af-tools    .af-badge { background: var(--af-tools); }
+  .api-figure .af-key.af-messages .af-badge { background: var(--af-messages); }
+
+  /* History group — multiple rows sharing one callout */
+  .api-figure .af-history-group {
+    display: flex;
+    align-items: center;
+    padding: 6px 22px;
+    gap: 12px;
+  }
+  .api-figure .af-history-rows {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 0 8px 14px;
+    border-left: 2px dashed rgba(217, 119, 6, 0.45);
+    min-width: 0;
+  }
+  .api-figure .af-history-rows .af-item-text {
+    font-family: var(--af-mono);
+    font-size: 14px;
+    color: #374151;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .api-figure .af-history-ellipsis {
+    text-align: center;
+    color: #6b7280;
+    padding: 2px 0 0;
+    font-family: var(--af-mono);
+    font-size: 14px;
+    letter-spacing: 0.3em;
+  }
+
+  /* Callout reference legend */
+  .api-figure .af-callout-ref {
+    margin-top: 28px;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    padding: 22px 26px;
+    box-shadow: var(--af-shadow-lg);
+  }
+  .api-figure .af-callout-ref-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #6b7280;
+    margin: 0 0 16px;
+  }
+  .api-figure .af-callout-ref-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .api-figure .af-callout-ref-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .api-figure .af-callout-ref-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    margin-top: 1px;
+  }
+  .api-figure .af-callout-ref-num.system   { background: var(--af-system); }
+  .api-figure .af-callout-ref-num.tools    { background: var(--af-tools); }
+  .api-figure .af-callout-ref-num.messages { background: var(--af-messages); }
+  .api-figure .af-callout-ref-text {
+    flex: 1;
+    line-height: 1.6;
+    font-size: 14px;
+  }
+  .api-figure .af-callout-ref-label {
+    font-weight: 700;
+    color: #111827;
+    font-family: var(--af-mono);
+    font-size: 13.5px;
+  }
+  .api-figure .af-callout-ref-desc {
+    color: #374151;
+    margin-left: 6px;
+  }
+  .api-figure .af-callout-ref-desc code {
+    font-family: var(--af-mono);
+    font-size: 12.5px;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #111827;
+  }
+
+  /* Notes */
+  .api-figure .af-notes {
+    margin-top: 26px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .api-figure .af-note {
+    padding: 13px 17px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #374151;
+    background: #f5f6f8;
+    border-left: 3px solid #d1d5db;
+  }
+  .api-figure .af-note.af-layout-note { border-left-color: var(--af-system); background: var(--af-system-bg); }
+  .api-figure .af-note.af-fork-note   { border-left-color: var(--af-fork);   background: var(--af-fork-bg); }
+  .api-figure .af-note .af-note-label {
+    display: inline-block;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: #111827;
+    margin-right: 8px;
+    padding: 2px 8px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+  }
+  .api-figure .af-note.af-layout-note .af-note-label { color: var(--af-system); background: rgba(37, 99, 235, 0.10); }
+  .api-figure .af-note.af-fork-note   .af-note-label { color: var(--af-fork);   background: rgba(124, 58, 237, 0.10); }
+  .api-figure .af-note code {
+    font-family: var(--af-mono);
+    font-size: 12.5px;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #111827;
+  }
+
+  @media (max-width: 600px) {
+    .api-figure { padding: 22px 14px 18px; font-size: 13px; }
+    .api-figure .af-title { font-size: 24px; }
+    .api-figure .af-body { padding: 14px; }
+    .api-figure .af-item { padding: 7px 14px; gap: 10px; flex-wrap: wrap; }
+    .api-figure .af-item-text { white-space: normal; flex-basis: 100%; overflow: visible; }
+    .api-figure .af-history-group { padding: 6px 14px; }
+    .api-figure .af-callout-ref { padding: 18px 16px; }
+  }
+
+  /* Callout table for the 6 areas */
+  .callouts-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.4em 0;
+    font-size: 0.94em;
+  }
+  .callouts-table th,
+  .callouts-table td {
+    text-align: left;
+    padding: 9px 12px;
+    border-bottom: 1px solid rgba(96, 115, 159, 0.18);
+    vertical-align: top;
+  }
+  .callouts-table th {
+    font-weight: 700;
+    color: rgb(var(--gray-dark));
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid rgba(96, 115, 159, 0.3);
+  }
+  .callouts-table .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    color: white;
+    font-weight: 800;
+    font-size: 0.85em;
+  }
+  .callouts-table .num-system   { background: var(--accent); }
+  .callouts-table .num-tools    { background: #059669; }
+  .callouts-table .num-messages { background: var(--claude-dark); }
+  .callouts-table .belongs {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.88em;
+    font-weight: 700;
+  }
+  .callouts-table .b-system   { color: var(--accent); }
+  .callouts-table .b-tools    { color: #059669; }
+  .callouts-table .b-messages { color: var(--claude-dark); }
+
+  /* Surprise callout */
+  .surprise {
+    background: rgba(204, 120, 92, 0.06);
+    border-left: 4px solid var(--claude-dark);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 1.6em 0;
+    line-height: 1.65;
+  }
+  .surprise .label {
+    display: inline-block;
+    background: var(--claude-dark);
+    color: white;
+    font-size: 0.7em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 9px;
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+
+  .k {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    color: #1f4787;
+    font-size: 0.94em;
+  }
+
+  .note-flag {
+    display: inline-block;
+    background: rgba(96, 115, 159, 0.22);
+    color: rgb(60, 70, 90);
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 9px;
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+`}</style>
+
+<div class="series-banner">
+📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 두 번째 글입니다. 1편 ([Harness Engineering 과 Context Engineering](../harness-vs-context-engineering/)) 이 시리즈의 framing 이었다면, 이번 글부터 본격적인 deep dive 가 시작돼요. 첫 주제는 *Claude Code 가 LLM 에게 한 번 호출할 때 보내는 payload 의 모양* 입니다 (시스템 프롬프트 · 도구 · conversation history · 이번 턴 입력 까지 한꺼번에).
+</div>
+
+## Payload 한 개를 펼쳐 봅니다
+
+1편의 cliffhanger:
+
+> Claude Code 에 *"이 코드 분석해줘"* 같은 짧은 한 줄을 던졌다고 해 봅시다. 다섯 단어. 그런데 Langfuse trace 를 열어 보면 LLM 에게 도착한 prompt 는 12,000 토큰이 넘어요. 그 사이를 채운 토큰들은 어디서 왔을까요?
+
+<div class="img-narrow">
+  <Image src={contextPipeline} alt="유저가 *이 코드 분석해줘* 라고 한 줄 던지면, 봇이 프로젝트 파일·문서·테스트·이전 대화 같은 여러 context 를 모아서 LLM 에게 전달, 결과를 분석해 돌려주는 일러스트" />
+</div>
+
+<p class="img-caption">한 줄짜리 입력 뒤에서 harness 가 모으는 것들 — 프로젝트 파일 · 문서 · 테스트 · 이전 대화. 이 모음 작업이 곧 *context engineering* 이고, 이 글이 그 안을 펼쳐 봅니다.</p>
+
+답은 **harness** 였죠 — 1편에서 풀었습니다. 이번 글에서는 그 harness 가 한 번 LLM 을 호출할 때 무엇이 함께 실려 가는지 펼쳐 봅니다. 글이 끝날 때 그 안의 구성이 머릿속에 그려지면 목표 달성이에요.
+
+## 어느 깊이에서 들여다볼까?
+
+같은 LLM 호출도 *어느 깊이에서* 들여다보느냐에 따라 모습이 달라져요. 위로는 Claude Code TUI 에서 마주하는 한 줄짜리 Q&A, 아래로는 모델 내부의 token 과 vector. 그 사이를 6 layer 로 쌓아 올린 빙산입니다.
+
+<div class="iceberg-figure">
+
+  <h3 class="if-title">당신은 어느 깊이에서 Claude Code 를 보시나요?</h3>
+  <p class="if-sub">사용자가 보는 빙산의 일각 — 그 아래는 무엇이 있나?</p>
+
+  <div class="if-top-row">
+    <div class="if-illustration">
+      <Image src={weatherChat} alt="유저가 봇에게 What's the weather in Paris? 라고 묻고 봇이 It's sunny in Paris, 22°C. 라고 답하는 일러스트" />
+    </div>
+
+    <div class="chat-mockup">
+    <div class="chat-mockup-header">
+      <div class="window-dot"></div>
+      <div class="window-dot"></div>
+      <div class="window-dot"></div>
+      <div class="window-title">claude-code</div>
+    </div>
+    <div class="chat-mockup-body">
+      <div class="cc-welcome">
+        <img class="cc-mascot" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMIAAAB5CAYAAABr7P6HAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAJhSURBVHhe7d29apNRHMfxEy9AXSS+UDqLYrroYidvwkm8AN29Bne9AHFyc3VxqpOL8QUnkSJCs1lRcKvDr3k0B5onTShN8nw+Sx/O4UzlmzP9Ob1Ll68cFOi4M/UCdJEQQAgQQgAhQAgBhAAhBBAChBBACBBCACFACAGEACEEEAJEb1Un1O7f2MjfwWa9NdXb3VHzfXOzP7G3lg4O/729Xr0z1bPh7r/v998m9taRGwGEACEEEAKEEEAIEEIAIUAIAYQAIQQQAoQQQAgQQgAhQHRuMOflh6/N9/f93xN7Yw+2r9dLS+3pzsd6qXFr40IpcwwhGcyBDurcjfD/r+eTN58m9sY+P7pbLy21q49f1EuNh7evlTLHLedGgA4SAggBQgggBAghgBAghABCgBACCAFCCCAECCGAECCEAKc9mDPvcE0p878NxmyGez+a78HF8xN7bcZDPas00ONGACFACAGEACEEEAKEEEAIEEIAIUAIAYQAIQQQAoQQQAgQpzqYM+ifK6WUstU/W2+12jo8e9yhEWbz6suo+d779Wdir8270c9SSinD0X69tbTcCHDaN8IiFhrzpJU31KCDhABCgBACCAFCCCAECCGAECCEAEKAEAIIAUIIIAQIIcAqD+a0eX1vu14qZcaBk7azR507KW1DSHee79RLjUXOdokbAYQAIQQQAoQQQAgQQgAhQAgBhAAhBBAChBBACBBCACFArO1gznggpTZ+36tMeeOr7exR505K21tz0waFFjnbJW4EWOcbAY7DjQBCgBACCAFCCCAECCGAECCEAEKAEAKUUv4C5jZ36zBBSqoAAAAASUVORK5CYII=" alt="Claude Code mascot" />
+        <div class="cc-welcome-text">
+          <div class="cc-welcome-title">Welcome to <span class="cc-brand">Claude Code</span>!</div>
+          <div class="cc-welcome-hint">/help for help, /status for your current setup</div>
+        </div>
+      </div>
+      <div class="cc-line"><span class="cc-prompt">&gt;</span>What's the weather in Paris?</div>
+      <div class="cc-line">It's sunny in Paris, 22°C.</div>
+      <div class="cc-input-area">
+        <span class="cc-prompt">&gt;</span><span class="cc-cursor"></span>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <div class="layers-with-axis">
+
+    <div class="depth-axis">
+      <span class="axis-label">사용자 측</span>
+      <div class="axis-line"></div>
+      <span class="axis-label">LLM 측</span>
+    </div>
+
+    <div class="layers-content">
+
+      <div class="above-water">
+
+        <div class="layer-1-column">
+          <div class="layer-card layer-1">
+            <div class="card-header">
+              <div class="layer-num">1</div>
+              <div class="layer-title">
+                <div class="layer-name">Front-end level</div>
+                <div class="layer-desc">end user 가 chatbot / TUI 에서 보는 것</div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="io-block">
+                <div class="io-label input">Input</div>
+                <div class="io-content">"What's the weather in Paris?"</div>
+              </div>
+              <div class="io-block">
+                <div class="io-label output">Output</div>
+                <div class="io-content">"It's sunny in Paris, 22°C."</div>
+              </div>
+            </div>
+            <div class="card-footer">
+              <div class="audience-label">이해 권장</div>
+              <div class="audience-tag">Claude Code 입문하시는 분</div>
+            </div>
+          </div>
+          <div class="tui-note">↑ Claude Code TUI 에서 직접 확인 가능</div>
+        </div>
+
+        <div class="target-group">
+
+          <div class="layer-card layer-2 target">
+            <div class="card-header">
+              <div class="layer-num">2</div>
+              <div class="layer-title">
+                <div class="layer-name">Structured I/O level</div>
+                <div class="layer-desc">role / content 단위로 구조화</div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="io-block">
+                <div class="io-label input">Input</div>
+                <div class="io-content">&#123;<span class="io-key">role</span>: "user", <span class="io-key">content</span>: "What's the weather in Paris?"&#125;</div>
+              </div>
+              <div class="io-block">
+                <div class="io-label output">Output</div>
+                <div class="io-content">&#123;<span class="io-key">role</span>: "assistant", <span class="io-key">content</span>: "It's sunny in Paris, 22°C."&#125;</div>
+              </div>
+            </div>
+            <div class="card-footer">
+              <div class="audience-label">이해 권장</div>
+              <div class="audience-tag">Claude Code를 익숙하게 사용하시는 분</div>
+            </div>
+          </div>
+
+          <div class="layer-card layer-3 target">
+            <div class="card-header">
+              <div class="layer-num">3</div>
+              <div class="layer-title">
+                <div class="layer-name">API level</div>
+                <div class="layer-desc">human-readable 한 수준의 가장 low-level</div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="io-block">
+                <div class="io-label combined">Messages</div>
+                <div class="io-content">[<br/>&#123;<span class="io-key">role</span>: "system", <span class="io-key">content</span>: "You are a helpful assistant"&#125;,<br/>&#123;<span class="io-key">role</span>: "user", <span class="io-key">content</span>: "What's the weather in Paris?"&#125;,<br/>&#123;<span class="io-key">role</span>: "assistant", <span class="io-key">content</span>: "It's sunny in Paris, 22°C."&#125;<br/>]</div>
+              </div>
+            </div>
+            <div class="card-footer">
+              <div class="audience-label">이해 권장</div>
+              <div class="audience-tag">Claude Code를 보다 깊이 이해하고 싶으신 분</div>
+            </div>
+          </div>
+
+          <span class="target-label">★ 오늘 다루는 영역 ★</span>
+          <div class="target-tracing-note">↑ Langfuse 등 tracing 도구로 직접 관찰 가능</div>
+        </div>
+
+      </div>
+
+      <div class="water-line">
+        <svg viewBox="0 0 1280 36" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="ic-wave" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="rgba(255,255,255,0.4)"/>
+              <stop offset="100%" stop-color="rgba(14,165,233,0.7)"/>
+            </linearGradient>
+          </defs>
+          <path d="M0,18 Q 100,4 200,18 T 400,18 T 600,18 T 800,18 T 1000,18 T 1200,18 T 1400,18 L 1400,36 L 0,36 Z" fill="url(#ic-wave)"/>
+          <path d="M0,18 Q 100,4 200,18 T 400,18 T 600,18 T 800,18 T 1000,18 T 1200,18 T 1400,18" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/>
+        </svg>
+        <span class="water-line-label">~ 수면 (water line) ~</span>
+      </div>
+
+      <div class="below-water">
+
+        <div class="layer-card layer-4">
+          <div class="card-header">
+            <div class="layer-num">4</div>
+            <div class="layer-title">
+              <div class="layer-name">Chat template level</div>
+              <div class="layer-desc">messages 가 단일 string 으로 직렬화</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="io-block">
+              <div class="io-label combined">String</div>
+              <div class="io-content"><span class="io-key">&lt;|im_start|&gt;</span>system You are a helpful assistant<span class="io-key">&lt;|im_end|&gt;</span> <span class="io-key">&lt;|im_start|&gt;</span>user What's the weather in Paris?<span class="io-key">&lt;|im_end|&gt;</span> <span class="io-key">&lt;|im_start|&gt;</span>assistant It's sunny in Paris, 22°C.<span class="io-key">&lt;|im_end|&gt;</span></div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="audience-label">이해 권장</div>
+            <div class="audience-tag">Post-training (fine-tuning) 연구자 /<br/>자체 서빙 운영자</div>
+          </div>
+        </div>
+
+        <div class="layer-card layer-5">
+          <div class="card-header">
+            <div class="layer-num">5</div>
+            <div class="layer-title">
+              <div class="layer-name">Token level</div>
+              <div class="layer-desc">정수 ID 의 시퀀스</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="io-block">
+              <div class="io-label combined">Tokens</div>
+              <div class="io-content">[1, 234, 24534, 32, 88, 44, 2891, 17, 442, 3091, ...]</div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="audience-label">이해 권장</div>
+            <div class="audience-tag">Foundation model 연구자</div>
+          </div>
+        </div>
+
+        <div class="layer-card layer-6">
+          <div class="card-header">
+            <div class="layer-num">6</div>
+            <div class="layer-title">
+              <div class="layer-name">Embedding level</div>
+              <div class="layer-desc">연속 벡터 표현 — 가장 깊은 layer</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="io-block">
+              <div class="io-label combined">Vectors</div>
+              <div class="io-content">[[0.234, 0.243, -0.443, ...],<br/>[0.342, 0.233, 0.625, ...], ...]</div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="audience-label">이해 권장</div>
+            <div class="audience-tag">Academic research /<br/>frontier technology 연구자</div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <div class="closing-note">
+    오늘 우리는 <strong>Layer 2~3</strong> 까지 갑니다 — 빙산의 일각 바로 그 부근. 그 위는 친숙해서 안 다루고, 그 아래 (수면 아래) 는 specialist 영역이라 안 다룹니다.
+  </div>
+
+</div>
+
+## 익숙한 baseline: ReAct agent (OpenAI-style)
+
+Claude Code 의 모양을 보기 전에, 더 익숙한 baseline 을 한번 깔고 갑니다. 2022 년 Yao 등이 제안한 **[ReAct agent](https://arxiv.org/abs/2210.03629)** 는 거의 모든 현대 LLM agent 의 기본 골격이에요.
+
+<div class="react-figure rf-narrow">
+
+  <h3 class="rf-title">ReAct pattern</h3>
+  <p class="rf-sub">Yao et al. (2022) — the foundation every modern LLM agent builds on</p>
+
+  <div class="react-flow">
+    <span class="loop-step">Thought</span>
+    <span class="loop-arrow">→</span>
+    <span class="loop-step">Action</span>
+    <span class="loop-arrow">→</span>
+    <span class="loop-step">Observation</span>
+    <span class="loop-arrow repeat">↻</span>
+  </div>
+
+  <div class="rf-notes">
+    <div class="rf-note react-note">
+      <span class="rf-note-label">ReAct loop</span>
+      LLM 이 <strong>생각 (Thought)</strong> 하고 → 도구를 <strong>호출 (Action)</strong> 하고 → 결과를 <strong>관찰 (Observation)</strong> 한 뒤 다시 생각하는 루프. 거의 모든 현대 LLM agent 의 기본 골격.
+    </div>
+  </div>
+
+</div>
+
+ReAct 자체는 reasoning 패턴이라 어떤 API 위에서도 돌 수 있지만, *OpenAI Chat Completions API* 형식이 LLM 호출 인터페이스 중 가장 널리 통용되고 사람이 읽기에도 직관적이에요. 그래서 이 포스트에서도 같은 형식으로 그립니다.
+
+<div class="react-figure rf-medium">
+
+  <h3 class="rf-title">Basic context structure for ReAct</h3>
+  <p class="rf-sub">messages + tools 의 2 top-level key 로 ReAct 의 한 turn 을 그린 모습</p>
+
+  <div class="visibility-legend">
+    <span class="legend-intro">사용자 입장에서:</span>
+    <span class="legend-pair"><span class="viz-tag visible">보임</span> 입력 &amp; 응답</span>
+    <span class="legend-divider">·</span>
+    <span class="legend-pair"><span class="viz-tag auto">자동</span> 사전 설정</span>
+    <span class="legend-divider">·</span>
+    <span class="legend-pair"><span class="viz-tag hidden">숨김</span> 중간 단계</span>
+  </div>
+
+  <div class="rf-api-card">
+    <div class="rf-api-body">
+
+      <div class="rf-key messages">
+        <div class="rf-key-row">
+          <span class="rf-key-name">messages</span><span class="rf-bracket">: [</span>
+        </div>
+        <ul class="rf-item-list">
+          <li class="rf-item">
+            <span class="viz-tag auto">자동</span>
+            <span class="rf-item-text"><span class="punct">&#123;</span> <span class="key">role</span><span class="punct">:</span> <span class="role-system">"system"</span><span class="punct">,</span> <span class="key">content</span><span class="punct">:</span> <span class="str">"You are a helpful agent…"</span> <span class="punct">&#125;</span></span>
+            <span class="rf-react-label">Role</span>
+          </li>
+          <li class="rf-item is-visible">
+            <span class="viz-tag visible">보임</span>
+            <span class="rf-item-text"><span class="punct">&#123;</span> <span class="key">role</span><span class="punct">:</span> <span class="role-user">"user"</span><span class="punct">,</span> <span class="key">content</span><span class="punct">:</span> <span class="str">"What's the weather in Paris?"</span> <span class="punct">&#125;</span></span>
+            <span class="rf-react-label">Task</span>
+          </li>
+          <li class="rf-item is-hidden">
+            <span class="viz-tag hidden">숨김</span>
+            <span class="rf-item-text"><span class="punct">&#123;</span> <span class="key">role</span><span class="punct">:</span> <span class="role-assistant">"assistant"</span><span class="punct">,</span> <span class="key">content</span><span class="punct">:</span> <span class="str">"Let me check."</span><span class="punct">,</span> <span class="key">tool_calls</span><span class="punct">:</span> <span class="str">[…]</span> <span class="punct">&#125;</span></span>
+            <span class="rf-react-label highlight">Thought + Action</span>
+          </li>
+          <li class="rf-item is-hidden">
+            <span class="viz-tag hidden">숨김</span>
+            <span class="rf-item-text"><span class="punct">&#123;</span> <span class="key">role</span><span class="punct">:</span> <span class="role-tool">"tool"</span><span class="punct">,</span> <span class="key">content</span><span class="punct">:</span> <span class="str">"Sunny, 22°C"</span> <span class="punct">&#125;</span></span>
+            <span class="rf-react-label highlight">Observation</span>
+          </li>
+          <li class="rf-item is-visible">
+            <span class="viz-tag visible">보임</span>
+            <span class="rf-item-text"><span class="punct">&#123;</span> <span class="key">role</span><span class="punct">:</span> <span class="role-assistant">"assistant"</span><span class="punct">,</span> <span class="key">content</span><span class="punct">:</span> <span class="str">"It's sunny in Paris, 22°C."</span> <span class="punct">&#125;</span></span>
+            <span class="rf-react-label">Final answer</span>
+          </li>
+        </ul>
+        <div class="rf-key-footer"><span class="rf-bracket">]</span></div>
+      </div>
+
+      <div class="rf-key tools">
+        <div class="rf-key-row">
+          <span class="rf-key-name">tools</span><span class="rf-bracket">: [</span>
+        </div>
+        <ul class="rf-item-list">
+          <li class="rf-item">
+            <span class="viz-tag auto">자동</span>
+            <span class="rf-item-text"><span class="punct">&#123;</span> <span class="key">type</span><span class="punct">:</span> <span class="str">"function"</span><span class="punct">,</span> <span class="key">function</span><span class="punct">:</span> <span class="str">&#123; name: "get_weather", parameters: &#123;…&#125; &#125;</span> <span class="punct">&#125;</span></span>
+            <span class="rf-react-label">Capability</span>
+          </li>
+        </ul>
+        <div class="rf-key-footer"><span class="rf-bracket">]</span></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<div class="note-box">
+
+<span class="note-flag">📝 NOTE</span> <strong>왜 *tools* 는 *messages* 와 별개의 top-level key 일까?</strong> 위 그림에서 *tools* 가 *messages* 와 별개로 분리돼 있는 게 보이죠.
+
+직관적으로 보면 tool 정의도 그냥 messages 안의 한 메시지로 들어가도 될 것 같고, 실제로 위 빙산의 **Layer 4 (chat template)** 에 도달하면 tools 도 prompt 텍스트 안에 그냥 합쳐져 들어갑니다. 모델 입장에서는 그 시점부터 텍스트의 일부일 뿐, *별도 특별취급은 없어요*.
+
+그래도 API 형식 차원에서 tools 를 별도 자리에 두는 이유는, 결국 **API 편의** 예요. 호출을 구성·검증·문서화하기 깔끔하고, 그 위에서 chat template 이 일관된 형식으로 prompt 를 조립할 수 있어요.
+
+그 일관된 형식이 또 마침 모델이 post-training 단계에서 학습한 *tool-calling 전용 template* 과 정확히 맞물려서, 결과적으로 *Action* 단계의 <span class="k">tool_calls</span> 출력이 안정적으로 나오는 거고요.
+
+</div>
+
+## 본 주제: Claude Code agent 의 context structure
+
+<div class="note-box">
+
+<span class="note-flag">📝 NOTE</span> Claude Code 가 실제로 호출하는 API 는 **Anthropic Messages API** 의 형식을 따르기 때문에 OpenAI-compatible 을 100% 따르는 건 아니에요. 다만 top-level key 의 구조 (system / tools / messages) 가 사실상 동일하고 prompt assembly 흐름도 같은 모양이라, 이 글에서는 baseline 과 비교가 쉽도록 *OpenAI 스타일* 시각화를 그대로 가져와서 그립니다.
+
+</div>
+
+Claude Code 는 baseline 으로 본 ReAct agent 의 **확장**이에요. 두 가지 차이가 있습니다.
+
+1. **<span class="k">system</span> 이 별도 top-level key 로 분리**됩니다. ReAct 에서는 <span class="k">messages</span> 배열 안의 한 element (<span class="k">role: "system"</span>) 였던 system 메시지가, Claude Code 에선 top-level key 로 승격해요.
+2. **각 key 안의 내용이 훨씬 풍부**해집니다.
+    - <span class="k">system</span> 안에 정적·동적 블록 합쳐 **20개 가까운 sub-block** 이 들어가요.
+    - <span class="k">tools</span> 가 *Core primitives* (Read, Edit, Bash 등) · *Meta tools* (Skill, Agent) · *MCP tools* (<span class="k">.mcp.json</span>) 의 **세 카테고리**로 분류돼요.
+    - <span class="k">messages</span> 에는 매 turn 맨 앞에 **합성 <span class="k">&lt;system-reminder&gt;</span> 채널** 이 prepend 됩니다. CLAUDE.md · MEMORY.md · 오늘 날짜 같은 컨텍스트가 여기로 흘러 들어와요.
+
+그래서 한 번 LLM 을 호출할 때 LLM 에게 들어가는 API block 형태의 context 는 다음 세 top-level key 로 구성돼요.
+
+<div class="three-siblings">
+  <div class="sk sk-system">
+    <div class="sk-name">system</div>
+    <div class="sk-desc">Claude Code 가 매 turn 깔아 두는 시스템 프롬프트. 정적 + 동적 블록.</div>
+  </div>
+  <div class="sk sk-tools">
+    <div class="sk-name">tools</div>
+    <div class="sk-desc">model 에 노출된 모든 도구의 schema. Core / Meta / MCP 세 카테고리.</div>
+  </div>
+  <div class="sk sk-messages">
+    <div class="sk-name">messages</div>
+    <div class="sk-desc">합성 reminder + conversation history + 이번 turn 의 user 입력.</div>
+  </div>
+</div>
+
+세 key 는 한 JSON 객체 안에서 **동등한 위치에 놓인 독립 채널** 입니다. Langfuse 같은 tracing 도구에서도 *System Instructions* · *Tools* · *Input* 세 패널로 따로따로 분리되어 보여요.
+
+각 key 안에 정확히 무엇이 들어가는지 한 그림으로 정리하면:
+
+<div class="api-figure">
+
+  <h3 class="af-title">Extended context structure for Claude Code agent</h3>
+  <p class="af-sub">system + tools + messages 의 3 top-level key 로 Claude Code 의 한 turn 을 그린 모습</p>
+
+  <div class="af-card">
+    <div class="af-body">
+
+      <div class="af-key af-system">
+        <div class="af-key-row">
+          <span class="af-key-name">system</span><span class="af-bracket">: [</span>
+        </div>
+        <ul class="af-item-list">
+          <li class="af-item">
+            <span class="af-item-text"><span class="punct">&#123;</span> <span class="key">text</span><span class="punct">:</span> <span class="str">"&lt;attribution header&gt;"</span> <span class="punct">&#125;</span></span>
+            <span class="af-annotation">메타데이터</span>
+          </li>
+          <li class="af-item af-stacked">
+            <span class="af-item-text"><span class="punct">&#123;</span> <span class="key">text</span><span class="punct">:</span> <span class="str">"&lt;system prompt prefix&gt;"</span> <span class="punct">&#125;</span></span>
+            <span class="af-annotation" style={{ color: 'var(--claude-dark)', fontWeight: 600 }}>"You are Claude Code, Anthropic's official CLI for Claude."</span>
+          </li>
+          <li class="af-item">
+            <span class="af-item-text"><span class="punct">&#123;</span> <span class="key">text</span><span class="punct">:</span> <span class="str">"&lt;static system blocks&gt;"</span> <span class="punct">&#125;</span></span>
+            <span class="af-badge">1</span>
+          </li>
+          <li class="af-item">
+            <span class="af-item-text"><span class="punct">&#123;</span> <span class="key">text</span><span class="punct">:</span> <span class="str">"&lt;dynamic system blocks&gt;"</span> <span class="punct">&#125;</span></span>
+            <span class="af-badge">2</span>
+          </li>
+        </ul>
+        <div class="af-key-footer"><span class="af-bracket">]</span></div>
+      </div>
+
+      <div class="af-key af-tools">
+        <div class="af-key-row">
+          <span class="af-key-name">tools</span><span class="af-bracket">: [</span>
+        </div>
+        <ul class="af-item-list">
+          <li class="af-item">
+            <span class="af-item-text"><span class="tool-category">Core primitives tools</span><span class="str"> (Read, Edit, Bash, Grep, ...)</span></span>
+            <span class="af-badge">3</span>
+          </li>
+          <li class="af-item">
+            <span class="af-item-text"><span class="tool-category">Meta tools</span><span class="str"> (Skill, Agent, user-defined skills/subagents 호출)</span></span>
+          </li>
+          <li class="af-item">
+            <span class="af-item-text"><span class="tool-category">MCP tools</span><span class="str"> (from .mcp.json)</span></span>
+          </li>
+        </ul>
+        <div class="af-key-footer"><span class="af-bracket">]</span></div>
+      </div>
+
+      <div class="af-key af-messages">
+        <div class="af-key-row">
+          <span class="af-key-name">messages</span><span class="af-bracket">: [</span>
+        </div>
+        <ul class="af-item-list">
+          <li class="af-item">
+            <span class="af-item-text"><span class="punct">&#123;</span> <span class="key">role</span><span class="punct">:</span> <span class="str">"user"</span><span class="punct">,</span> <span class="key">content</span><span class="punct">:</span> <span class="str">"&lt;system-reminder&gt;… &lt;system-reminder&gt;… &lt;system-reminder&gt;…"</span> <span class="punct">&#125;</span></span>
+            <span class="af-badge">4</span>
+          </li>
+          <li class="af-history-group">
+            <div class="af-history-rows">
+              <span class="af-item-text"><span class="punct">&#123;</span> <span class="key">role</span><span class="punct">:</span> <span class="str">"user"</span><span class="punct">,</span> <span class="key">content</span><span class="punct">:</span> <span class="str">"first real user prompt"</span> <span class="punct">&#125;</span></span>
+              <span class="af-item-text"><span class="punct">&#123;</span> <span class="key">role</span><span class="punct">:</span> <span class="str">"assistant"</span><span class="punct">,</span> <span class="key">content</span><span class="punct">:</span> <span class="str">[...]</span> <span class="punct">&#125;</span></span>
+              <span class="af-item-text"><span class="punct">&#123;</span> <span class="key">role</span><span class="punct">:</span> <span class="str">"user"</span><span class="punct">,</span> <span class="key">content</span><span class="punct">:</span> <span class="str">[tool_results, attachments, …]</span> <span class="punct">&#125;</span></span>
+              <div class="af-history-ellipsis">⋮</div>
+            </div>
+            <span class="af-badge">5</span>
+          </li>
+          <li class="af-item">
+            <span class="af-item-text"><span class="punct">&#123;</span> <span class="key">role</span><span class="punct">:</span> <span class="str">"user"</span><span class="punct">,</span> <span class="key">content</span><span class="punct">:</span> <span class="str">"latest prompt + attachments"</span> <span class="punct">&#125;</span></span>
+            <span class="af-badge">6</span>
+          </li>
+        </ul>
+        <div class="af-key-footer"><span class="af-bracket">]</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="af-callout-ref">
+    <h4 class="af-callout-ref-title">What the numbers mean</h4>
+    <ol class="af-callout-ref-list">
+      <li class="af-callout-ref-item">
+        <span class="af-callout-ref-num system">1</span>
+        <div class="af-callout-ref-text">
+          <span class="af-callout-ref-label">Static system blocks</span>
+          <span class="af-callout-ref-desc">매 턴 동일한 정적 부분 (intro · 작업 규칙 · tone 등)</span>
+        </div>
+      </li>
+      <li class="af-callout-ref-item">
+        <span class="af-callout-ref-num system">2</span>
+        <div class="af-callout-ref-text">
+          <span class="af-callout-ref-label">Dynamic system blocks</span>
+          <span class="af-callout-ref-desc">매 턴 달라지는 동적 부분 (환경 정보 · 언어 · 출력 스타일 등)</span>
+        </div>
+      </li>
+      <li class="af-callout-ref-item">
+        <span class="af-callout-ref-num tools">3</span>
+        <div class="af-callout-ref-text">
+          <span class="af-callout-ref-label">Built-in tool defs</span>
+          <span class="af-callout-ref-desc"><strong style={{ color: '#059669' }}>Core primitives</strong> (Read, Edit, Bash 등) + <strong style={{ color: '#059669' }}>Meta tools</strong> (Skill, Agent, user-defined 호출) + <strong style={{ color: '#059669' }}>MCP tools</strong> (.mcp.json). 세션 중 동적 추가 가능.</span>
+        </div>
+      </li>
+      <li class="af-callout-ref-item">
+        <span class="af-callout-ref-num messages">4</span>
+        <div class="af-callout-ref-text">
+          <span class="af-callout-ref-label">Synthetic <code>&lt;system-reminder&gt;</code> blocks</span>
+          <span class="af-callout-ref-desc"><strong style={{ color: '#d97706' }}>CLAUDE.md</strong>, <strong style={{ color: '#d97706' }}>long-term memories</strong>, <strong style={{ color: '#d97706' }}>Skill definitions</strong>, <strong style={{ color: '#d97706' }}>오늘 날짜</strong> 등을 담아 매 턴 맨 앞에 자동 삽입되는 합성 user message. 시스템 프롬프트 <em>밖</em> 의 주요 컨텍스트.</span>
+        </div>
+      </li>
+      <li class="af-callout-ref-item">
+        <span class="af-callout-ref-num messages">5</span>
+        <div class="af-callout-ref-text">
+          <span class="af-callout-ref-label">Conversation history</span>
+          <span class="af-callout-ref-desc">이전 턴들의 user 입력, assistant 응답, tool results 등</span>
+        </div>
+      </li>
+      <li class="af-callout-ref-item">
+        <span class="af-callout-ref-num messages">6</span>
+        <div class="af-callout-ref-text">
+          <span class="af-callout-ref-label">Latest user prompt</span>
+          <span class="af-callout-ref-desc">이번 턴의 user 입력 + 첨부물 (@-파일 멘션, changed files, todo reminders 등)</span>
+        </div>
+      </li>
+    </ol>
+  </div>
+
+  <div class="af-notes">
+    <div class="af-note af-fork-note">
+      <span class="af-note-label">Note</span>
+      연속된 <code>role: "user"</code> 메시지는 LLM 에 전달되기 전 하나로 병합됨. callout <strong>4</strong> (synthetic reminder), <strong>5</strong> 안의 user 메시지들, <strong>6</strong> (latest prompt) 이 인접해 있으면 와이어 상에서는 한 메시지로 합쳐져요.
+    </div>
+  </div>
+
+</div>
+
+
+## 작은 surprise 하나
+
+이 anatomy 를 처음 보는 사람들이 가장 의외로 느끼는 건 보통 **4번 영역** 입니다.
+
+<div class="surprise">
+<span class="label">⚡ SURPRISE</span> *"내가 쓴 **CLAUDE.md** 는 당연히 system prompt 안에 들어가는 거 아니야?"* 라고 생각하기 쉽죠. 그런데 실제로는 그렇지 않아요.
+
+**CLAUDE.md · MEMORY.md · 오늘 날짜** 처럼 harness 가 끌어오는 컨텍스트는 system prompt 가 아니라, <span class="k">messages</span> 배열의 **첫 번째 user message** 에 합성으로 prepend 되는 <span class="k">&lt;system-reminder&gt;</span> 블록 안에 들어갑니다. system prompt 자체엔 Anthropic 이 정의한 정적·동적 블록만 담기고, *Anthropic 바깥에서* 들어오는 컨텍스트는 별도 채널 (4번 영역) 로 흐르는 거죠.
+</div>
+
+
+## Take-home
+
+이 글에서 챙겨갈 정리:
+
+> Claude Code 의 한 turn 은 한 JSON payload 입니다. **3 top-level key** 안에 총 **6 영역** 이 채워져 있어요.
+>
+> - <span class="k">system</span>: 정적 system · 동적 system
+> - <span class="k">tools</span>: tool 정의들
+> - <span class="k">messages</span>: 합성 reminder · conversation history · 이번 turn
