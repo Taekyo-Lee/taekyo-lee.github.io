@@ -4,6 +4,9 @@
 export const SITE_TITLE = "Guru Cat's AI";
 export const SITE_DESCRIPTION = 'RF Engineer 출신 AI Engineer의 기록';
 
+// Header/Footer GitHub icon visibility. Flip to true to expose.
+export const SHOW_GITHUB_LINK = false;
+
 export const CATEGORY_LABELS: Record<string, string> = {
 	'claude-code-101': 'Claude Code 101',
 	'harness-engineering': 'Harness Engineering for Claude Code',
