@@ -1,0 +1,376 @@
+---
+title: 'Harness Engineering과 Context Engineering'
+description: 'User 와 LLM 사이엔 harness 가 있고, 그 안에 context engineering 이 있어요. 두 용어가 무엇이고 어떻게 겹치는지 — 이 카테고리의 출발점.'
+pubDate: 'May 09 2026'
+category: harness-engineering
+heroImage: '../../../../assets/heroes/hero-harness-engineering.png'
+series: 'context-engineering-of-claude-code'
+seriesOrder: 1
+---
+
+<style>{`
+  .img-caption { font-size: 0.85rem; color: rgb(var(--gray)); text-align: center; margin: 0.4em 0 1.6em; line-height: 1.5; }
+
+  .note-flag {
+    display: inline-block;
+    background: rgba(96, 115, 159, 0.22);
+    color: rgb(60, 70, 90);
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 9px;
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+
+  .series-banner {
+    background: rgba(31, 71, 135, 0.06);
+    color: rgb(31, 71, 135);
+    font-size: 0.92em;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border-left: 3px solid var(--accent);
+    margin: 0 0 1.6em;
+    line-height: 1.55;
+  }
+  .series-banner strong { font-weight: 700; }
+  .series-banner em { font-style: italic; }
+
+  .he-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin: 1.6em 0 1.2em;
+  }
+  .he-endpoint {
+    padding: 9px 22px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.95em;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .he-endpoint.he-user {
+    background: white;
+    border: 1.5px solid rgba(96, 115, 159, 0.35);
+    color: rgb(40, 50, 70);
+  }
+  .he-endpoint.he-harness {
+    background: var(--accent);
+    color: white;
+    border: 1.5px solid var(--accent);
+    box-shadow: 0 2px 8px rgba(31, 71, 135, 0.35);
+  }
+  .he-endpoint.he-llm {
+    background: rgba(204, 120, 92, 0.10);
+    border: 1.5px solid rgba(204, 120, 92, 0.45);
+    color: var(--claude-dark);
+  }
+  .he-arrow {
+    font-size: 1.4em;
+    color: rgba(96, 115, 159, 0.7);
+    font-weight: 300;
+  }
+
+  .he-box {
+    position: relative;
+    background: rgba(31, 71, 135, 0.04);
+    border: 2px solid var(--accent);
+    border-radius: 16px;
+    padding: 36px 24px 24px;
+    margin: 1.8em 0;
+    box-shadow: 0 8px 22px -6px rgba(31, 71, 135, 0.18);
+  }
+  .he-box-label {
+    position: absolute;
+    top: -14px;
+    left: 28px;
+    background: var(--accent);
+    color: white;
+    padding: 5px 16px;
+    border-radius: 999px;
+    font-size: 0.75em;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .he-box-desc {
+    text-align: center;
+    color: rgb(60, 70, 90);
+    font-size: 0.94em;
+    margin: 0 0 1em;
+    font-style: italic;
+  }
+  .he-box-desc strong { color: var(--accent); font-style: normal; font-weight: 700; }
+
+  .he-concerns {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 7px;
+    margin: 0.8em 0;
+  }
+  .he-concern {
+    background: rgba(255, 255, 255, 0.85);
+    color: rgb(60, 70, 90);
+    border: 1px solid rgba(31, 71, 135, 0.18);
+    padding: 5px 13px;
+    border-radius: 999px;
+    font-size: 0.84em;
+    font-weight: 500;
+  }
+  .he-concern-more {
+    background: transparent;
+    border: 1px dashed rgba(96, 115, 159, 0.45);
+    color: rgba(96, 115, 159, 0.95);
+    font-style: italic;
+  }
+
+  .he-spotlight {
+    position: relative;
+    background: white;
+    border: 2.5px solid var(--claude-dark);
+    border-radius: 16px;
+    padding: 32px 26px 24px;
+    margin: 1em 0 1.4em;
+    box-shadow: 0 8px 24px -6px rgba(204, 120, 92, 0.30), 0 4px 8px -2px rgba(204, 120, 92, 0.15);
+  }
+  .he-spotlight-badge {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--claude-dark);
+    color: white;
+    padding: 6px 18px;
+    border-radius: 999px;
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -1px rgba(0,0,0,0.04);
+  }
+  .he-spotlight-title {
+    text-align: center;
+    font-size: 1.45em;
+    font-weight: 800;
+    color: var(--claude-dark);
+    margin: 0 0 0.35em;
+    letter-spacing: -0.01em;
+  }
+  .he-well-defined {
+    display: inline-block;
+    background: rgba(22, 163, 74, 0.12);
+    color: #16a34a;
+    border: 1px solid rgba(22, 163, 74, 0.35);
+    padding: 4px 11px;
+    border-radius: 999px;
+    font-size: 0.6em;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    margin-left: 0.5em;
+    vertical-align: middle;
+    line-height: 1.2;
+  }
+  .he-spotlight-desc {
+    text-align: center;
+    color: rgb(60, 70, 90);
+    font-size: 0.95em;
+    margin: 0 0 1em;
+  }
+  .he-spotlight-desc strong { color: var(--claude-dark); font-weight: 700; }
+
+  .he-quote {
+    margin: 1em auto 1.2em;
+    padding: 12px 18px;
+    background: rgba(204, 120, 92, 0.06);
+    border-left: 3px solid var(--claude-dark);
+    border-radius: 4px;
+    font-size: 0.92em;
+    font-style: italic;
+    color: rgb(60, 70, 90);
+    max-width: 580px;
+    line-height: 1.6;
+  }
+  .he-quote-attr {
+    display: block;
+    text-align: right;
+    margin-top: 6px;
+    font-style: normal;
+    font-size: 0.85em;
+    color: rgba(96, 115, 159, 0.95);
+    font-weight: 600;
+  }
+
+  .he-list-label {
+    text-align: center;
+    font-size: 0.86em;
+    color: rgba(96, 115, 159, 0.95);
+    font-weight: 600;
+    margin: 0 0 0.8em;
+    letter-spacing: 0.01em;
+  }
+  .he-list-label strong {
+    color: var(--claude-dark);
+    font-weight: 700;
+  }
+
+  .he-list {
+    list-style: none;
+    margin: 0 auto;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px 24px;
+    max-width: 580px;
+  }
+  .he-list li {
+    font-size: 0.9em;
+    color: rgb(60, 70, 90);
+    padding-left: 16px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .he-list li::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    color: var(--claude-dark);
+    font-weight: 800;
+    font-size: 1.2em;
+    top: -1px;
+  }
+  .he-list-more {
+    grid-column: 1 / -1;
+    font-style: italic;
+    color: rgba(96, 115, 159, 0.85) !important;
+    font-size: 0.82em !important;
+    padding-left: 0 !important;
+    margin-top: 0.5em;
+    padding-top: 0.55em !important;
+    border-top: 1px dashed rgba(96, 115, 159, 0.28);
+    text-align: center;
+  }
+  .he-list-more::before { display: none !important; }
+  .he-list-more code {
+    font-style: normal;
+  }
+  @media (max-width: 600px) {
+    .he-list { grid-template-columns: 1fr; }
+  }
+
+  .he-fuzzy {
+    margin-top: 1.4em;
+    padding: 13px 20px;
+    background: rgba(255, 255, 255, 0.7);
+    border-left: 3px solid #6b7280;
+    border-radius: 6px;
+    font-size: 0.86em;
+    color: #6b7280;
+    font-style: italic;
+    text-align: left;
+    line-height: 1.6;
+  }
+  .he-fuzzy strong { color: #374151; font-style: normal; font-weight: 700; }
+  .he-fuzzy-line { margin: 0 0 0.55em; }
+  .he-fuzzy-line:last-child { margin-bottom: 0; }
+`}</style>
+
+import { Image } from 'astro:assets';
+import harnessMachinery from '../../../../assets/placeholders/blog-placeholder-2.jpg';
+import twoFramings from '../../../../assets/placeholders/blog-placeholder-3.jpg';
+
+<div class="series-banner">
+📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 첫 글입니다. 당분간 이 카테고리의 글은 이 시리즈를 따라 갑니다.
+</div>
+
+## Task 뒤엔 정교한 harness 가 있다
+
+Claude Code 에 *"이 코드 분석해줘"* 같은 짧은 한 줄을 던졌다고 해 봅시다. 다섯 단어. 그런데 Langfuse trace 를 열어 보면 LLM 에게 도착한 prompt 는 12,000 토큰이 넘어요. 그 사이를 채운 토큰들은 어디서 왔을까요?
+
+<Image src={harnessMachinery} alt="유저는 답변만 보지만 뒤에서는 정밀한 harness machinery 가 돌아간다" />
+
+<p class="img-caption">유저가 보는 건 깜찍한 봇의 답변뿐이지만, 그 뒤에선 수많은 일꾼들이 코드를 읽고 · 도구를 돌리고 · 결과를 조립하는 정밀한 harness 가 돌아갑니다.</p>
+
+답은 **harness** 입니다. user 의 입력과 LLM 사이에 끼어 있는 layer 예요.
+
+<div class="he-flow">
+  <div class="he-endpoint he-user">User</div>
+  <div class="he-arrow">⇄</div>
+  <div class="he-endpoint he-harness">Harness</div>
+  <div class="he-arrow">⇄</div>
+  <div class="he-endpoint he-llm">LLM</div>
+</div>
+
+Claude Code · Codex · Cursor 같은 코딩 agent 가 다 이 harness 의 한 형태입니다. *Harness* 자체에 대한 좋은 글은 이미 많이 나와 있으니 이 자리에서 깊이 들어가진 않을게요 — 이 시리즈 *Context Engineering of Claude Code* 가 들여다볼 영역은 그 안의 한 부분, **context engineering** 이거든요.
+
+<div class="note-box">
+<span class="note-flag">📝 NOTE</span> <strong>Harness 의 범위에 대해선 아직 합의가 없어요.</strong> 위에 적은 것처럼 <strong>agent 플랫폼</strong> (Claude Code · Codex · Cursor) 자체를 harness 라고 부르는 게 가장 일반적이고, <a href="https://github.com/obra/superpowers" target="_blank" rel="noopener noreferrer">Superpowers</a> 같은 workflow framework 의 자체 문서 (<em>"Installation differs by harness"</em>) 도 이 관용을 따라요. 다만 외부 commentary 에서는 Superpowers 같이 agent 위에서 도는 <strong>workflow 레이어</strong>까지 harness 로 묶는 경우도 종종 보입니다. 이 글은 가장 통상적인 첫 번째 framing (agent ≈ harness) 을 따르겠습니다.
+</div>
+
+## Harness 안의 Context Engineering
+
+Harness 가 떠맡는 책임은 꽤 광범위해요. 도구 실행과 hook dispatch 같은 *agent 메커니즘*, 인증과 재시도와 error handling 같은 *runtime 신뢰성*, cost tracking · telemetry · audit log · guardrails 같은 *production 운영* 까지 두루 다룹니다. user 가 한 줄을 던지고 LLM 응답이 돌아올 때까지, 이 모든 일이 뒤에서 동시에 일어나거든요. 그 중에서 *"LLM 에게 어떤 정보를 어떻게 채워 넣을 것인가"* 만 따로 떼어 본 게 **context engineering** 이에요.
+
+<div class="he-box">
+  <span class="he-box-label">Harness Engineering</span>
+
+  <div class="he-box-desc">
+    User 와 LLM 사이의 <strong>모든 behind-the-scenes</strong> — agent 가 답변을 만들기까지 일어나는 모든 일
+  </div>
+
+  <div class="he-concerns">
+    <span class="he-concern">Authentication</span>
+    <span class="he-concern">Authorization</span>
+    <span class="he-concern">Audit log</span>
+    <span class="he-concern">Cost tracking</span>
+    <span class="he-concern">Telemetry / Observability</span>
+    <span class="he-concern">Guardrails</span>
+    <span class="he-concern he-concern-more">… 그 외</span>
+  </div>
+
+  <div class="he-spotlight">
+    <span class="he-spotlight-badge">★ 이 카테고리의 spotlight ★</span>
+
+    <div class="he-spotlight-title">Context Engineering <span class="he-well-defined">✓ Well-defined</span></div>
+    <div class="he-spotlight-desc">
+      LLM 에 들어가는 <strong>최적의 context</strong> 를 구성하는 일
+    </div>
+
+    <blockquote class="he-quote">
+      "The delicate art and science of filling the context window with just the right information for the next step."
+      <span class="he-quote-attr">— Andrej Karpathy (2025)</span>
+    </blockquote>
+
+  </div>
+
+  <div class="he-fuzzy">
+    <p class="he-fuzzy-line"><strong>⚠ Boundary 는 모호합니다</strong> — Hooks, Tool execution 같은 항목은 두 박스에 걸쳐 있어요.</p>
+    <p class="he-fuzzy-line">그리고 <strong>Harness Engineering 이라는 단어 자체도 author 마다 정의가 다릅니다</strong> — 위 그림은 <strong>Anthropic / Osmani framing</strong> (context ⊂ harness) 기준이고, 정반대 (harness ⊂ context) framing 도 있어요.</p>
+  </div>
+</div>
+
+<span class="term">Context engineering</span> 이라는 용어는 2025 년에 Andrej Karpathy 가 popularize 했고, figure 안의 인용문이 그의 정의입니다 — *"context window 를 다음 step 을 위한 딱 맞는 정보로 채우는 섬세한 art and science"*. 단순히 *"좋은 prompt 를 쓰자"* 가 아니라, **이번 turn 에 LLM 이 봐야 할 정보를 정확히 추려서 정확한 자리에 넣는 일** 이에요.
+
+다만 *harness engineering* 과 *context engineering* 사이의 **경계는 깔끔하지 않습니다.** 두 영역에 걸쳐 있는 대표 사례:
+
+- **Hook** — harness 의 lifecycle event 메커니즘 *(harness engineering)* 이지만, 그 출력이 LLM context 에 주입되는 순간 *context engineering* 영역으로 넘어와요.
+- **Tool 실행 결과** — tool 을 실제로 돌리는 건 harness 의 일 *(harness engineering)* 이지만, 그 결과가 *어디까지 · 어떤 모양으로 다음 LLM 호출에 들어가는지* 는 *context engineering* 의 결정이에요.
+
+용어의 범위 자체도 author 마다 달라요 — 같은 단어가 정반대 의미로 쓰입니다.
+
+<Image src={twoFramings} alt="Harness Engineering 과 Context Engineering — 두 framing 비교" />
+
+<p class="img-caption">두 framing 모두 통용됩니다. 위 figure 는 왼쪽 (*context ⊂ harness*) 을 따랐어요.</p>
+
+이 카테고리는 왼쪽의 **context ⊂ harness** framing 을 기본으로 갑니다. 큰 제목은 *harness engineering* 이지만 당분간 올라올 글은 그 안의 *context engineering* 이 대부분일 거예요. 어디서 출발해도 결국 같은 지형을 답사하게 되거든요.
+
+## References
+
+- **Andrej Karpathy** (2025) — *"context engineering"* 용어 popularize. 위 인용문의 출처. [X post](https://x.com/karpathy/status/1937902205765607626).
+- **Anthropic** — *[Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)* (Justin Young, 2025-11-26). Harness 를 agent infrastructure (init, env management, progress tracking 등) 로 다룬 글.
+- **Addy Osmani** — *[Agent Harness Engineering](https://addyosmani.com/blog/agent-harness-engineering/)* (2026-04-19). *"Context is scarce, and harnesses are largely delivery mechanisms for good context engineering"* — 위 그림의 nested framing 출처.
