@@ -1,6 +1,6 @@
 ---
 title: 'Claude Code 의 Context Architecture'
-description: 'Claude Code 가 LLM 에 보내는 한 번의 입력 — 세 블록 (system · tools · messages) 과 그 안의 6 영역.'
+description: 'Claude Code 가 LLM 에 보내는 한 번의 입력 — 세 Block (System · Tools · Messages) 과 그 안의 6 영역.'
 pubDate: 'May 09 2026'
 category: harness-engineering
 heroImage: '../../../../assets/heroes/hero-harness-engineering.png'
@@ -1578,44 +1578,46 @@ ReAct 자체는 reasoning 패턴이라 어떤 API 위에서도 돌 수 있지만
 
 Claude Code 는 baseline 으로 본 ReAct agent 의 <span class="key">**확장**</span>이에요. **두 가지 차이**가 있습니다.
 
-1. **<span class="k">system</span> 이 별도 top-level key 로 분리**됩니다. ReAct 에서는 <span class="k">messages</span> 배열 안의 한 element (<span class="k">role: "system"</span>) 였던 system 메시지가, Claude Code 에선 top-level key 로 승격해요.
+1. **System 이 별도 top-level key 로 분리**됩니다. ReAct 에서는 Messages 배열 안의 한 element (<span class="k">role: "system"</span>) 였던 system 메시지가, Claude Code 에선 top-level key 로 승격해요.
 2. **각 key 안의 내용이 훨씬 풍부**해집니다.
-    - <span class="k">system</span> 안에 정적·동적 블록 합쳐 **20개 가까운 sub-block** 이 들어가요.
-    - <span class="k">tools</span> 가 *Core primitives* (Read, Edit, Bash 등) · *Meta tools* (Skill, Agent) · *MCP tools* (<span class="k">.mcp.json</span>) 의 **세 카테고리**로 분류돼요.
-    - <span class="k">messages</span> 에는 매 turn 맨 앞에 **합성 <span class="k">&lt;system-reminder&gt;</span> 채널** 이 prepend 됩니다. CLAUDE.md · MEMORY.md · 오늘 날짜 같은 컨텍스트가 여기로 흘러 들어와요.
+    - System 안에 정적·동적 블록 합쳐 **20개 가까운 sub-block** 이 들어가요.
+    - Tools 가 *Core primitives* (Read, Edit, Bash 등) · *Meta tools* (Skill, Agent) · *MCP tools* (<span class="k">.mcp.json</span>) 의 **세 카테고리**로 분류돼요.
+    - Messages 에는 매 turn 맨 앞에 **합성 <span class="k">&lt;system-reminder&gt;</span> 채널** 이 prepend 됩니다. CLAUDE.md · MEMORY.md · 오늘 날짜 같은 컨텍스트가 여기로 흘러 들어와요.
 
-그래서 한 번 LLM 을 호출할 때 LLM 에게 들어가는 API block 형태의 context 는 다음 <span class="key">**세 top-level key**</span> 로 구성돼요.
+그래서 한 번 LLM 을 호출할 때 LLM 에게 들어가는 API block 형태의 context 는 다음 <span class="key">**세 Block**</span> (한 JSON 객체의 세 top-level key) 으로 구성돼요.
 
 <div class="three-siblings">
   <div class="sk sk-system">
-    <div class="sk-name">system</div>
+    <div class="sk-name">System</div>
     <div class="sk-desc">Claude Code 가 매 turn 깔아 두는 시스템 프롬프트. 정적 + 동적 블록.</div>
   </div>
   <div class="sk sk-tools">
-    <div class="sk-name">tools</div>
+    <div class="sk-name">Tools</div>
     <div class="sk-desc">model 에 노출된 모든 도구의 schema. Core / Meta / MCP 세 카테고리.</div>
   </div>
   <div class="sk sk-messages">
-    <div class="sk-name">messages</div>
+    <div class="sk-name">Messages</div>
     <div class="sk-desc">합성 reminder + conversation history + 이번 차례의 user 입력.</div>
   </div>
 </div>
 
 세 key 는 한 JSON 객체 안에서 <span class="key">**동등한 위치에 놓인 독립 채널**</span> 입니다. Langfuse 같은 tracing 도구에서도 *System Instructions* · *Tools* · *Input* 세 패널로 따로따로 분리되어 보여요.
 
+이 시리즈에선 세 채널을 각각 <span class="term">System Block</span> / <span class="term">Tools Block</span> / <span class="term">Messages Block</span> 이라 부릅니다. API key 의 단/복수 (system / tools / messages) 를 그대로 보존하면서, 시리즈가 정의한 고유 영역임을 표시하는 capitalized 형태예요. 후속 글에서 이 이름으로 cross-reference 합니다.
+
 각 key 안에 정확히 무엇이 들어가는지 한 그림으로 정리하면:
 
 <div class="api-figure">
 
   <h3 class="af-title">Extended context structure for Claude Code agent</h3>
-  <p class="af-sub">system + tools + messages 세 블록으로 Claude Code 의 한 입력을 그린 모습</p>
+  <p class="af-sub">System Block + Tools Block + Messages Block 으로 Claude Code 의 한 입력을 그린 모습</p>
 
   <div class="af-card">
     <div class="af-body">
 
       <div class="af-key af-system">
         <div class="af-key-row">
-          <span class="af-key-name">system</span><span class="af-bracket">: [</span>
+          <span class="af-key-name">System</span><span class="af-bracket">: [</span>
         </div>
         <ul class="af-item-list">
           <li class="af-item">
@@ -1640,7 +1642,7 @@ Claude Code 는 baseline 으로 본 ReAct agent 의 <span class="key">**확장**
 
       <div class="af-key af-tools">
         <div class="af-key-row">
-          <span class="af-key-name">tools</span><span class="af-bracket">: [</span>
+          <span class="af-key-name">Tools</span><span class="af-bracket">: [</span>
         </div>
         <ul class="af-item-list">
           <li class="af-item">
@@ -1659,7 +1661,7 @@ Claude Code 는 baseline 으로 본 ReAct agent 의 <span class="key">**확장**
 
       <div class="af-key af-messages">
         <div class="af-key-row">
-          <span class="af-key-name">messages</span><span class="af-bracket">: [</span>
+          <span class="af-key-name">Messages</span><span class="af-bracket">: [</span>
         </div>
         <ul class="af-item-list">
           <li class="af-item">
@@ -1744,7 +1746,7 @@ Claude Code 는 baseline 으로 본 ReAct agent 의 <span class="key">**확장**
 <div class="surprise">
 <span class="label">⚡ SURPRISE</span> *"내가 쓴 **CLAUDE.md** 는 당연히 system prompt 안에 들어가는 거 아니야?"* 라고 생각하기 쉽죠. 그런데 실제로는 그렇지 않아요.
 
-**CLAUDE.md · MEMORY.md · 오늘 날짜** 처럼 harness 가 끌어오는 컨텍스트는 system prompt 가 아니라, <span class="k">messages</span> 배열의 **첫 번째 user message** 에 합성으로 prepend 되는 <span class="k">&lt;system-reminder&gt;</span> 블록 안에 들어갑니다. system prompt 자체엔 Anthropic 이 정의한 정적·동적 블록만 담기고, *Anthropic 바깥에서* 들어오는 컨텍스트는 별도 채널 (4번 영역) 로 흐르는 거죠.
+**CLAUDE.md · MEMORY.md · 오늘 날짜** 처럼 harness 가 끌어오는 컨텍스트는 system prompt 가 아니라, Messages 배열의 **첫 번째 user message** 에 합성으로 prepend 되는 <span class="k">&lt;system-reminder&gt;</span> 블록 안에 들어갑니다. system prompt 자체엔 Anthropic 이 정의한 정적·동적 블록만 담기고, *Anthropic 바깥에서* 들어오는 컨텍스트는 별도 채널 (4번 영역) 로 흐르는 거죠.
 </div>
 
 
@@ -1752,8 +1754,8 @@ Claude Code 는 baseline 으로 본 ReAct agent 의 <span class="key">**확장**
 
 이 글에서 챙겨갈 정리:
 
-> Claude Code 가 LLM 에 보내는 한 번의 입력은 <span class="key">**세 블록**</span> (<span class="k">system</span> · <span class="k">tools</span> · <span class="k">messages</span>) 으로 나뉘고, 그 안에 총 <span class="key">**6 영역**</span> 이 채워져 있어요.
+> Claude Code 가 LLM 에 보내는 한 번의 입력은 <span class="key">**세 Block**</span> (System · Tools · Messages) 으로 나뉘고, 그 안에 총 <span class="key">**6 영역**</span> 이 채워져 있어요.
 >
-> - <span class="k">system</span>: 정적 system · 동적 system
-> - <span class="k">tools</span>: tool 정의들
-> - <span class="k">messages</span>: 합성 reminder · conversation history · 이번 입력
+> - System: 정적 system · 동적 system
+> - Tools: tool 정의들
+> - Messages: 합성 reminder · conversation history · 이번 입력
