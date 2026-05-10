@@ -267,7 +267,7 @@ cwd:  /home/jet/repo/src/feature
 이렇게 모은 후 순서를 *root → cwd* 로 뒤집어서 합칩니다. **cwd 에 가까운 파일이 뒤로 가요**. 모델이 prompt 의 끝부분에 더 강하게 집중하는 경향이 있으니까, 가까운 파일에 우선순위를 주는 셈이에요.
 
 <div class="note-box">
-<span class="note-flag">📝 NOTE</span> <strong>walk 는 git boundary 를 모릅니다.</strong> <code>/home/jet/repo</code> 에서 시작했다고 해서 <code>/home/jet</code> 에서 멈추지 않아요. 무조건 root 까지 갑니다. 이게 의외의 효과를 만드는데, 잠시 후에 봅니다.
+<span class="note-flag">📝 NOTE</span> <strong>walk 는 git boundary 를 모릅니다.</strong> <code>/home/jet/repo</code> 에서 시작했다고 해서 <code>/home/jet</code> 에서 멈추지 않아요. 무조건 root 까지 갑니다. 단 <em>nested git worktree</em> (예: <span class="mod">claude -w</span> 로 띄운 worktree) 안에선 walk 는 그대로 root 까지 가지만, load 단계에서 worktree 바깥 main-repo 의 Project-type 파일은 skip — 같은 파일이 두 번 들어가는 걸 방지하는 edge case.
 </div>
 
 ## MEMORY.md 만 두 채널을 탑니다
