@@ -1,6 +1,6 @@
 ---
 title: 'Claude Code 의 Context Architecture'
-description: 'Claude Code 의 한 turn 이 LLM API 에게 보내는 JSON payload 의 모양 — 3 top-level keys (system · tools · messages) 와 그 안의 6 영역.'
+description: 'Claude Code 가 LLM 에 보내는 한 번의 입력 — 세 블록 (system · tools · messages) 과 그 안의 6 영역.'
 pubDate: 'May 09 2026'
 category: harness-engineering
 heroImage: '../../../../assets/heroes/hero-harness-engineering.png'
@@ -41,11 +41,11 @@ import weatherChat from './weather-chat.png';
     background: linear-gradient(to bottom,
       #e0f2fe 0%,
       #bae6fd 22%,
-      #7dd3fc 38%,
-      #0ea5e9 44%,
-      #075985 50%,
-      #0c4a6e 75%,
-      #082f49 100%
+      slot 7dd3fc 38%,
+      slot 0ea5e9 44%,
+      slot 075985 50%,
+      slot 0c4a6e 75%,
+      slot 082f49 100%
     );
     box-shadow: 0 14px 32px -10px rgba(8, 47, 73, 0.45);
     color: #111827;
@@ -279,17 +279,16 @@ import weatherChat from './weather-chat.png';
     backdrop-filter: blur(6px);
   }
   .iceberg-figure .below-water .layer-card {
-    background: rgba(8, 47, 73, 0.55);
-    border: 1px solid rgba(125, 211, 252, 0.25);
+    background: rgb(8, 47, 73);
+    border: 1px solid rgba(125, 211, 252, 0.4);
     box-shadow: var(--shadow-deep);
-    backdrop-filter: blur(6px);
-    color: rgba(241, 245, 249, 0.95);
+    color: rgb(241, 245, 249);
   }
   .iceberg-figure .below-water .layer-card .layer-name { color: white; }
-  .iceberg-figure .below-water .layer-card .layer-desc { color: rgba(186, 230, 253, 0.85); }
-  .iceberg-figure .below-water .layer-card .io-content { color: rgba(241, 245, 249, 0.92); }
-  .iceberg-figure .below-water .layer-card .card-footer { border-top-color: rgba(186, 230, 253, 0.25); }
-  .iceberg-figure .below-water .layer-card .audience-tag { color: rgba(186, 230, 253, 0.95); }
+  .iceberg-figure .below-water .layer-card .layer-desc { color: rgb(186, 230, 253); }
+  .iceberg-figure .below-water .layer-card .io-content { color: rgb(241, 245, 249); }
+  .iceberg-figure .below-water .layer-card .card-footer { border-top-color: rgba(186, 230, 253, 0.4); }
+  .iceberg-figure .below-water .layer-card .audience-tag { color: rgb(186, 230, 253); }
 
   .iceberg-figure .card-header {
     display: flex;
@@ -378,7 +377,7 @@ import weatherChat from './weather-chat.png';
     margin-bottom: 4px;
     opacity: 0.85;
   }
-  .iceberg-figure .below-water .audience-label { color: rgba(186, 230, 253, 0.7); }
+  .iceberg-figure .below-water .audience-label { color: rgb(186, 230, 253); }
   .iceberg-figure .audience-tag {
     font-size: 11px;
     color: #374151;
@@ -1230,7 +1229,7 @@ import weatherChat from './weather-chat.png';
 `}</style>
 
 <div class="series-banner">
-📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 두 번째 글입니다. 1편 ([Harness Engineering 과 Context Engineering](../harness-vs-context-engineering/)) 이 시리즈의 framing 이었다면, 이번 글부터 본격적인 deep dive 가 시작돼요. 첫 주제는 *Claude Code 가 LLM 에게 한 번 호출할 때 보내는 payload 의 모양* 입니다 (시스템 프롬프트 · 도구 · conversation history · 이번 턴 입력 까지 한꺼번에).
+📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 두 번째 글입니다. 1편 ([Harness Engineering 과 Context Engineering](../harness-vs-context-engineering/)) 이 시리즈의 framing 이었다면, 이번 글부터 본격적인 deep dive 가 시작돼요. 첫 주제는 *Claude Code 가 LLM 에 한 번 보내는 입력의 모양* 입니다 (시스템 프롬프트 · 도구 · conversation history · 이번 턴 입력 까지 한꺼번에).
 </div>
 
 ## Payload 한 개를 펼쳐 봅니다
@@ -1245,11 +1244,11 @@ import weatherChat from './weather-chat.png';
 
 <p class="img-caption">한 줄짜리 입력 뒤에서 harness 가 모으는 것들 — 프로젝트 파일 · 문서 · 테스트 · 이전 대화. 이 모음 작업이 곧 *context engineering* 이고, 이 글이 그 안을 펼쳐 봅니다.</p>
 
-답은 **harness** 였죠 — 1편에서 풀었습니다. 이번 글에서는 그 harness 가 한 번 LLM 을 호출할 때 무엇이 함께 실려 가는지 펼쳐 봅니다. 글이 끝날 때 그 안의 구성이 머릿속에 그려지면 목표 달성이에요.
+답은 **harness** 였죠 — 1편에서 풀었습니다. 이번 글에서는 그 harness 가 **한 번 LLM 을 호출할 때 무엇이 함께 실려 가는지** 펼쳐 봅니다. 글이 끝날 때 그 안의 구성이 머릿속에 그려지면 목표 달성이에요.
 
 ## 어느 깊이에서 들여다볼까?
 
-같은 LLM 호출도 *어느 깊이에서* 들여다보느냐에 따라 모습이 달라져요. 위로는 Claude Code TUI 에서 마주하는 한 줄짜리 Q&A, 아래로는 모델 내부의 token 과 vector. 그 사이를 6 layer 로 쌓아 올린 빙산입니다.
+같은 LLM 호출도 *어느 깊이에서* 들여다보느냐에 따라 모습이 달라져요. 위로는 Claude Code TUI 에서 마주하는 한 줄짜리 Q&A, 아래로는 모델 내부의 token 과 vector. 그 사이를 <span class="key">**6 layer 로 쌓아 올린 빙산**</span>입니다.
 
 <div class="iceberg-figure">
 
@@ -1370,7 +1369,6 @@ import weatherChat from './weather-chat.png';
             </div>
           </div>
 
-          <span class="target-label">★ 오늘 다루는 영역 ★</span>
           <div class="target-tracing-note">↑ Langfuse 등 tracing 도구로 직접 관찰 가능</div>
         </div>
 
@@ -1465,7 +1463,7 @@ import weatherChat from './weather-chat.png';
 
 ## 익숙한 baseline: ReAct agent (OpenAI-style)
 
-Claude Code 의 모양을 보기 전에, 더 익숙한 baseline 을 한번 깔고 갑니다. 2022 년 Yao 등이 제안한 **[ReAct agent](https://arxiv.org/abs/2210.03629)** 는 거의 모든 현대 LLM agent 의 기본 골격이에요.
+Claude Code 의 모양을 보기 전에, 더 익숙한 baseline 을 한번 깔고 갑니다. 2022 년 Yao 등이 제안한 <span class="term">**[ReAct agent](https://arxiv.org/abs/2210.03629)**</span> 는 거의 모든 현대 LLM agent 의 **기본 골격**이에요.
 
 <div class="react-figure rf-narrow">
 
@@ -1495,15 +1493,15 @@ ReAct 자체는 reasoning 패턴이라 어떤 API 위에서도 돌 수 있지만
 <div class="react-figure rf-medium">
 
   <h3 class="rf-title">Basic context structure for ReAct</h3>
-  <p class="rf-sub">messages + tools 의 2 top-level key 로 ReAct 의 한 turn 을 그린 모습</p>
+  <p class="rf-sub">messages + tools 두 블록으로 ReAct 의 한 입력을 그린 모습</p>
 
   <div class="visibility-legend">
-    <span class="legend-intro">사용자 입장에서:</span>
-    <span class="legend-pair"><span class="viz-tag visible">보임</span> 입력 &amp; 응답</span>
+    <span class="legend-intro">각 항목의 출처:</span>
+    <span class="legend-pair"><span class="viz-tag visible">대화</span> 사용자 입력 &amp; 최종 응답</span>
     <span class="legend-divider">·</span>
-    <span class="legend-pair"><span class="viz-tag auto">자동</span> 사전 설정</span>
+    <span class="legend-pair"><span class="viz-tag auto">사전</span> harness 사전 설정</span>
     <span class="legend-divider">·</span>
-    <span class="legend-pair"><span class="viz-tag hidden">숨김</span> 중간 단계</span>
+    <span class="legend-pair"><span class="viz-tag hidden">중간</span> loop 중간 단계</span>
   </div>
 
   <div class="rf-api-card">
@@ -1515,27 +1513,27 @@ ReAct 자체는 reasoning 패턴이라 어떤 API 위에서도 돌 수 있지만
         </div>
         <ul class="rf-item-list">
           <li class="rf-item">
-            <span class="viz-tag auto">자동</span>
+            <span class="viz-tag auto">사전</span>
             <span class="rf-item-text"><span class="punct">&#123;</span> <span class="key">role</span><span class="punct">:</span> <span class="role-system">"system"</span><span class="punct">,</span> <span class="key">content</span><span class="punct">:</span> <span class="str">"You are a helpful agent…"</span> <span class="punct">&#125;</span></span>
             <span class="rf-react-label">Role</span>
           </li>
           <li class="rf-item is-visible">
-            <span class="viz-tag visible">보임</span>
+            <span class="viz-tag visible">대화</span>
             <span class="rf-item-text"><span class="punct">&#123;</span> <span class="key">role</span><span class="punct">:</span> <span class="role-user">"user"</span><span class="punct">,</span> <span class="key">content</span><span class="punct">:</span> <span class="str">"What's the weather in Paris?"</span> <span class="punct">&#125;</span></span>
             <span class="rf-react-label">Task</span>
           </li>
           <li class="rf-item is-hidden">
-            <span class="viz-tag hidden">숨김</span>
+            <span class="viz-tag hidden">중간</span>
             <span class="rf-item-text"><span class="punct">&#123;</span> <span class="key">role</span><span class="punct">:</span> <span class="role-assistant">"assistant"</span><span class="punct">,</span> <span class="key">content</span><span class="punct">:</span> <span class="str">"Let me check."</span><span class="punct">,</span> <span class="key">tool_calls</span><span class="punct">:</span> <span class="str">[…]</span> <span class="punct">&#125;</span></span>
             <span class="rf-react-label highlight">Thought + Action</span>
           </li>
           <li class="rf-item is-hidden">
-            <span class="viz-tag hidden">숨김</span>
+            <span class="viz-tag hidden">중간</span>
             <span class="rf-item-text"><span class="punct">&#123;</span> <span class="key">role</span><span class="punct">:</span> <span class="role-tool">"tool"</span><span class="punct">,</span> <span class="key">content</span><span class="punct">:</span> <span class="str">"Sunny, 22°C"</span> <span class="punct">&#125;</span></span>
             <span class="rf-react-label highlight">Observation</span>
           </li>
           <li class="rf-item is-visible">
-            <span class="viz-tag visible">보임</span>
+            <span class="viz-tag visible">대화</span>
             <span class="rf-item-text"><span class="punct">&#123;</span> <span class="key">role</span><span class="punct">:</span> <span class="role-assistant">"assistant"</span><span class="punct">,</span> <span class="key">content</span><span class="punct">:</span> <span class="str">"It's sunny in Paris, 22°C."</span> <span class="punct">&#125;</span></span>
             <span class="rf-react-label">Final answer</span>
           </li>
@@ -1549,7 +1547,7 @@ ReAct 자체는 reasoning 패턴이라 어떤 API 위에서도 돌 수 있지만
         </div>
         <ul class="rf-item-list">
           <li class="rf-item">
-            <span class="viz-tag auto">자동</span>
+            <span class="viz-tag auto">사전</span>
             <span class="rf-item-text"><span class="punct">&#123;</span> <span class="key">type</span><span class="punct">:</span> <span class="str">"function"</span><span class="punct">,</span> <span class="key">function</span><span class="punct">:</span> <span class="str">&#123; name: "get_weather", parameters: &#123;…&#125; &#125;</span> <span class="punct">&#125;</span></span>
             <span class="rf-react-label">Capability</span>
           </li>
@@ -1582,7 +1580,7 @@ ReAct 자체는 reasoning 패턴이라 어떤 API 위에서도 돌 수 있지만
 
 </div>
 
-Claude Code 는 baseline 으로 본 ReAct agent 의 **확장**이에요. 두 가지 차이가 있습니다.
+Claude Code 는 baseline 으로 본 ReAct agent 의 <span class="key">**확장**</span>이에요. **두 가지 차이**가 있습니다.
 
 1. **<span class="k">system</span> 이 별도 top-level key 로 분리**됩니다. ReAct 에서는 <span class="k">messages</span> 배열 안의 한 element (<span class="k">role: "system"</span>) 였던 system 메시지가, Claude Code 에선 top-level key 로 승격해요.
 2. **각 key 안의 내용이 훨씬 풍부**해집니다.
@@ -1590,7 +1588,7 @@ Claude Code 는 baseline 으로 본 ReAct agent 의 **확장**이에요. 두 가
     - <span class="k">tools</span> 가 *Core primitives* (Read, Edit, Bash 등) · *Meta tools* (Skill, Agent) · *MCP tools* (<span class="k">.mcp.json</span>) 의 **세 카테고리**로 분류돼요.
     - <span class="k">messages</span> 에는 매 turn 맨 앞에 **합성 <span class="k">&lt;system-reminder&gt;</span> 채널** 이 prepend 됩니다. CLAUDE.md · MEMORY.md · 오늘 날짜 같은 컨텍스트가 여기로 흘러 들어와요.
 
-그래서 한 번 LLM 을 호출할 때 LLM 에게 들어가는 API block 형태의 context 는 다음 세 top-level key 로 구성돼요.
+그래서 한 번 LLM 을 호출할 때 LLM 에게 들어가는 API block 형태의 context 는 다음 <span class="key">**세 top-level key**</span> 로 구성돼요.
 
 <div class="three-siblings">
   <div class="sk sk-system">
@@ -1603,18 +1601,18 @@ Claude Code 는 baseline 으로 본 ReAct agent 의 **확장**이에요. 두 가
   </div>
   <div class="sk sk-messages">
     <div class="sk-name">messages</div>
-    <div class="sk-desc">합성 reminder + conversation history + 이번 turn 의 user 입력.</div>
+    <div class="sk-desc">합성 reminder + conversation history + 이번 차례의 user 입력.</div>
   </div>
 </div>
 
-세 key 는 한 JSON 객체 안에서 **동등한 위치에 놓인 독립 채널** 입니다. Langfuse 같은 tracing 도구에서도 *System Instructions* · *Tools* · *Input* 세 패널로 따로따로 분리되어 보여요.
+세 key 는 한 JSON 객체 안에서 <span class="key">**동등한 위치에 놓인 독립 채널**</span> 입니다. Langfuse 같은 tracing 도구에서도 *System Instructions* · *Tools* · *Input* 세 패널로 따로따로 분리되어 보여요.
 
 각 key 안에 정확히 무엇이 들어가는지 한 그림으로 정리하면:
 
 <div class="api-figure">
 
   <h3 class="af-title">Extended context structure for Claude Code agent</h3>
-  <p class="af-sub">system + tools + messages 의 3 top-level key 로 Claude Code 의 한 turn 을 그린 모습</p>
+  <p class="af-sub">system + tools + messages 세 블록으로 Claude Code 의 한 입력을 그린 모습</p>
 
   <div class="af-card">
     <div class="af-body">
@@ -1752,7 +1750,7 @@ Claude Code 는 baseline 으로 본 ReAct agent 의 **확장**이에요. 두 가
 
 ## 작은 surprise 하나
 
-이 anatomy 를 처음 보는 사람들이 가장 의외로 느끼는 건 보통 **4번 영역** 입니다.
+이 anatomy 를 처음 보는 사람들이 가장 의외로 느끼는 건 보통 <span class="key">**4번 영역**</span> 입니다.
 
 <div class="surprise">
 <span class="label">⚡ SURPRISE</span> *"내가 쓴 **CLAUDE.md** 는 당연히 system prompt 안에 들어가는 거 아니야?"* 라고 생각하기 쉽죠. 그런데 실제로는 그렇지 않아요.
@@ -1765,8 +1763,8 @@ Claude Code 는 baseline 으로 본 ReAct agent 의 **확장**이에요. 두 가
 
 이 글에서 챙겨갈 정리:
 
-> Claude Code 의 한 turn 은 한 JSON payload 입니다. **3 top-level key** 안에 총 **6 영역** 이 채워져 있어요.
+> Claude Code 가 LLM 에 보내는 한 번의 입력은 <span class="key">**세 블록**</span> (<span class="k">system</span> · <span class="k">tools</span> · <span class="k">messages</span>) 으로 나뉘고, 그 안에 총 <span class="key">**6 영역**</span> 이 채워져 있어요.
 >
 > - <span class="k">system</span>: 정적 system · 동적 system
 > - <span class="k">tools</span>: tool 정의들
-> - <span class="k">messages</span>: 합성 reminder · conversation history · 이번 turn
+> - <span class="k">messages</span>: 합성 reminder · conversation history · 이번 입력

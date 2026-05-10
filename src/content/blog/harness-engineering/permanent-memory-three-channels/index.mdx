@@ -1,0 +1,385 @@
+---
+title: '영구 기억의 세 갈래 — CLAUDE.md / MEMORY.md / Team Memory'
+description: '6 영역 중 4번 (synthetic <system-reminder>) 안에 들어가는 다섯 종류의 memory 파일이 어떻게 한 채널로 합쳐져 LLM 에 도달하는지 — 그리고 Phase 2 에서 발견된 의외의 분류 규칙들.'
+pubDate: 'May 31 2026'
+category: harness-engineering
+heroImage: '../../../../assets/heroes/hero-harness-engineering.png'
+series: 'context-engineering-of-claude-code'
+seriesOrder: 6
+---
+
+<style>{`
+  .series-banner {
+    color: rgb(31, 71, 135);
+    font-size: 0.92em;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border-left: 3px solid var(--accent);
+    margin: 0 0 1.6em;
+    line-height: 1.55;
+  }
+  .series-banner strong { font-weight: 700; }
+
+  .k {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    color: #1f4787;
+    font-size: 0.94em;
+  }
+
+  .note-flag {
+    background: rgba(96, 115, 159, 0.22);
+    display: inline-block;
+    color: rgb(60, 70, 90);
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 9px;
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+
+  .surprise {
+    border-left: 4px solid var(--claude);
+    padding: 0.95em 1.2em;
+    margin: 1.6em 0;
+    border-radius: 0 8px 8px 0;
+    line-height: 1.65;
+  }
+  .surprise .label {
+    background: var(--claude);
+    display: inline-block;
+    color: white;
+    font-size: 0.7em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 9px;
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+
+  /* Memory channel diagram */
+  .memchan {
+    background: linear-gradient(135deg, rgba(31, 71, 135, 0.03), rgba(204, 120, 92, 0.03));
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    margin: 2em 0;
+    padding: 22px 18px;
+    border-radius: 12px;
+    border: 1px solid rgba(96, 115, 159, 0.18);
+  }
+  .memchan-title {
+    text-align: center;
+    font-size: 0.78em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: rgb(var(--gray-dark));
+    margin-bottom: 14px;
+  }
+  .memchan-files {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .memchan-file {
+    background: white;
+    padding: 9px 11px;
+    border: 1px solid rgba(96, 115, 159, 0.25);
+    border-radius: 8px;
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.78em;
+    text-align: center;
+    color: rgb(var(--gray-dark));
+    line-height: 1.4;
+  }
+  .memchan-file .mc-type {
+    display: block;
+    font-size: 0.78em;
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    margin-bottom: 2px;
+  }
+  .memchan-arrow {
+    text-align: center;
+    color: var(--claude-dark);
+    font-size: 1.4em;
+    margin: 6px 0;
+  }
+  .memchan-channel {
+    background: rgba(204, 120, 92, 0.10);
+    padding: 14px 18px;
+    border: 2px solid var(--claude);
+    border-radius: 10px;
+    text-align: center;
+    line-height: 1.55;
+  }
+  .memchan-channel-name {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    color: var(--claude-dark);
+    font-weight: 700;
+    font-size: 0.95em;
+  }
+  .memchan-channel-desc {
+    font-size: 0.85em;
+    color: rgb(var(--gray-dark));
+    margin-top: 4px;
+  }
+
+  .suffix-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.4em 0;
+    font-size: 0.92em;
+    line-height: 1.55;
+  }
+  .suffix-table th, .suffix-table td {
+    padding: 0.55em 0.8em;
+    border-bottom: 1px solid rgb(var(--gray-light));
+    text-align: left;
+    vertical-align: top;
+  }
+  .suffix-table th {
+    background: rgba(96, 115, 159, 0.12);
+    font-weight: 700;
+  }
+  .suffix-table code {
+    font-size: 0.88em;
+    color: var(--claude-dark);
+  }
+`}</style>
+
+<div class="series-banner">
+📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 여섯 번째 글입니다. 지난 <a href="../git-context/">5편</a> 까지가 *system 영역* 이었어요. 이번 편부터 자리를 옮겨 *messages 영역* 으로 들어갑니다. 첫 주제는 *합성 <span class="k">&lt;system-reminder&gt;</span>* 안에 박히는 영구 기억의 다섯 갈래.
+</div>
+
+## 같은 채널, 다섯 종류의 파일
+
+2편의 마지막에 가장 의외라고 한 부분, 기억 나시나요?
+
+<blockquote>
+<span class="key">CLAUDE.md · MEMORY.md · 오늘 날짜</span> 처럼 harness 가 끌어오는 컨텍스트는 system prompt 가 아니라, <span class="k">messages</span> 배열의 첫 번째 user message 에 합성으로 prepend 되는 <span class="k">&lt;system-reminder&gt;</span> 블록 안에 들어갑니다.
+</blockquote>
+
+3편~5편의 *system 영역* 을 다 봤으니, 이번 편이 바로 그 *messages 영역* 으로 자리를 옮기는 첫 글이에요. 결론부터 말하면. **다섯 종류의 메모리 파일이 같은 채널을 타고 흘러 들어와요**. 이름은 "claudeMd" 인데, 실제 콘텐츠는 CLAUDE.md 만이 아닙니다.
+
+<div class="memchan">
+  <div class="memchan-title">하나의 채널, 다섯 갈래의 파일</div>
+  <div class="memchan-files">
+    <div class="memchan-file"><span class="mc-type">Managed</span>/etc/claude-code/<br/>CLAUDE.md</div>
+    <div class="memchan-file"><span class="mc-type">User</span>&#126;/.claude/<br/>CLAUDE.md</div>
+    <div class="memchan-file"><span class="mc-type">Project</span>&lt;repo&gt;/<br/>CLAUDE.md</div>
+    <div class="memchan-file"><span class="mc-type">Local</span>&lt;repo&gt;/<br/>CLAUDE.local.md</div>
+    <div class="memchan-file"><span class="mc-type">AutoMem</span>&#126;/.claude/<br/>memory/MEMORY.md</div>
+  </div>
+  <div class="memchan-arrow">↓</div>
+  <div class="memchan-channel">
+    <div class="memchan-channel-name">&lt;system-reminder&gt; # claudeMd</div>
+    <div class="memchan-channel-desc">합성 user message 의 한 블록에 모두 합쳐져 LLM 에 도달</div>
+  </div>
+</div>
+
+다섯 종류는 각각 누가, 어떤 의도로 쓰느냐가 다릅니다. <span class="term">Managed</span> 는 조직 정책 (관리자가 배포), <span class="term">User</span> 는 내 노트북 전체에 적용되는 내 설정, <span class="term">Project</span> 는 이 레포에 체크인된 팀 공유 규칙, <span class="term">Local</span> 은 이 레포에 한정된 내 비공개 메모, <span class="term">AutoMem</span> 은 모델이 직접 관리하는 자기 노트.
+
+다섯이 같은 블록 안에 모이지만, 어떤 종류인지를 알려주는 단서가 한 줄씩 붙어요. 모델이 *"이 바이트는 누가 쓴 거지?"* 를 구분할 수 있게 하는 장치입니다.
+
+## description suffix — 다섯 종류를 가르는 한 줄
+
+`getClaudeMds()` 가 다섯 파일을 한 string 으로 합칠 때, 각 파일은 다음과 같은 머리말을 갖습니다.
+
+<table class="suffix-table">
+  <thead>
+    <tr>
+      <th>타입</th>
+      <th>description suffix</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="term">Project</span></td>
+      <td><code>(project instructions, checked into the codebase)</code></td>
+    </tr>
+    <tr>
+      <td><span class="term">Local</span></td>
+      <td><code>(user's private project instructions, not checked in)</code></td>
+    </tr>
+    <tr>
+      <td><span class="term">User / Managed</span></td>
+      <td><code>(user's private global instructions for all projects)</code></td>
+    </tr>
+    <tr>
+      <td><span class="term">AutoMem</span></td>
+      <td><code>(user's auto-memory, persists across conversations)</code></td>
+    </tr>
+    <tr>
+      <td>TeamMem (현재 dead code)</td>
+      <td><code>(shared team memory, synced across the organization)</code></td>
+    </tr>
+  </tbody>
+</table>
+
+그래서 trace 의 user-message 본문을 grep 으로 살펴봐도 어떤 파일이 어떤 타입으로 분류돼 들어갔는지를 즉시 식별할 수 있어요. 이 suffix 테이블이 trace 디버깅에서 의외로 자주 쓰입니다.
+
+<div class="callout-accent">
+<strong>실제로 trace 에서 보는 모양</strong>
+
+```
+<system-reminder>
+As you answer the user's questions, you can use the following context:
+# claudeMd
+Codebase and user instructions are shown below. ...
+
+Contents of /home/jet/.claude/CLAUDE.md (project instructions, checked into the codebase):
+<...본문...>
+
+Contents of /home/jet/repo/CLAUDE.md (project instructions, checked into the codebase):
+<...본문...>
+
+Contents of /home/jet/repo/CLAUDE.local.md (user's private project instructions, not checked in):
+<...본문...>
+
+Contents of /home/jet/.claude/memory/MEMORY.md (user's auto-memory, persists across conversations):
+<...본문...>
+
+# currentDate
+Today's date is 2026-05-10.
+</system-reminder>
+```
+</div>
+
+## 발견 위로 걷는 walk — root → cwd
+
+다섯 종류의 파일이 어디 있는지를 harness 가 어떻게 알아챌까요. `getMemoryFiles()` 가 하는 일은 단순합니다 — **현재 작업 디렉토리에서 시작해 파일시스템 root 까지 거슬러 올라가며**, 각 단계에서 `CLAUDE.md`, `.claude/CLAUDE.md`, `.claude/rules/*.md`, `CLAUDE.local.md` 가 있는지 봅니다.
+
+```
+cwd:  /home/jet/repo/src/feature
+       ↑
+       /home/jet/repo/src        ← 여기에도 CLAUDE.md 있나?
+       ↑
+       /home/jet/repo            ← 여기는?
+       ↑
+       /home/jet                 ← 여기도?
+       ↑
+       /                         ← 끝
+```
+
+이렇게 모은 후 순서를 *root → cwd* 로 뒤집어서 합칩니다. **cwd 에 가까운 파일이 뒤로 가요**. 모델이 prompt 의 끝부분에 더 강하게 집중하는 경향이 있으니까, 가까운 파일에 우선순위를 주는 셈이에요.
+
+<div class="note-box">
+<span class="note-flag">📝 NOTE</span> <strong>walk 는 git boundary 를 모릅니다.</strong> <code>/home/jet/repo</code> 에서 시작했다고 해서 <code>/home/jet</code> 에서 멈추지 않아요. 무조건 root 까지 갑니다. 이게 의외의 효과를 만드는데, 잠시 후에 봅니다.
+</div>
+
+## MEMORY.md 만 두 채널을 탑니다
+
+다섯 종류 중 <span class="term">AutoMem</span> 하나만 *두 채널* 을 동시에 탑니다. 다른 넷 (Managed/User/Project/Local) 은 모두 그 자체로 콘텐츠일 뿐이지만, MEMORY.md 는 콘텐츠 + 사용 가이드가 짝을 이뤄야 하기 때문이에요.
+
+<div class="callout">
+<strong>MEMORY.md 의 dual injection</strong>
+
+| 무엇을 | 어디로 | 왜 거기로 |
+|---|---|---|
+| MEMORY.md 의 **본문** | <span class="k">&lt;system-reminder&gt;</span> 의 <span class="k">#&nbsp;claudeMd</span> 안 (다른 4 종류와 같은 채널) | 모델이 자기 노트의 *내용* 을 읽어야 함 |
+| MEMORY.md 를 *어떻게 쓸지* 의 절차 (taxonomy, when-to-save, what-not-to-save) | system prompt 의 <span class="k">#&nbsp;auto memory</span> 슬롯 | 절차는 모든 turn 동일하니 cache 가능한 system 쪽이 효율적 |
+</div>
+
+이 분리가 잘 된 이유는 *역할이 다르기 때문* 이에요. 메모리에 무엇을 적었는지 (data) 와 메모리를 어떻게 다뤄야 하는지 (policy) 는 변하는 빈도가 달라요. data 는 자주 바뀌고, policy 는 거의 안 바뀜. 그래서 policy 는 cache 가 잘 되는 system 쪽에 두고, data 는 매 turn 새로 prepend 되는 user-message 쪽에 둔 겁니다.
+
+## Team Memory 는 기본 환경에서 dead code
+
+다섯 갈래라고 했지만 사실 한 갈래는 기본 환경에서 *작동하지 않아요*. <span class="term">TeamMem</span> 은 `feature('TEAMMEM')` 게이트로 둘러싸여 있는데, 이 함수가 *컴파일 타임에 항상 false* 로 치환됩니다 (`scripts/build/build.ts:95`).
+
+```ts
+// utils/claudemd.ts 안의 분기
+if (feature('TEAMMEM')) {           // ← bundle 빌드에서 false 상수
+  result.push(teamMemEntry)         // ← 이 줄은 죽은 코드
+}
+```
+
+그래서 기본 환경에서 trace 를 살펴보면 `<team-memory-content>` 태그를 **절대로** 못 봐요. 만약 보인다면 빌드가 잘못된 거예요. 약간 이상하게 들리지만, 이게 build sanity check 으로도 쓰입니다 — *"내 빌드에서 dead code 가 잘 죽었나?"* 의 검증 사례인 셈.
+
+## Phase 2 에서 발견한 것들
+
+이론으론 깔끔하지만, 실제 trace 를 떠 보면 의외의 모서리들이 있어요. 세 가지만 짚고 갑니다.
+
+### 1. `# claudeMd` 가 비활성화되면 *비워지는 게 아니라 사라집니다*
+
+`CLAUDE_CODE_DISABLE_CLAUDE_MDS=1` 로 띄우면 합성 user-message 의 모양이 이렇게 바뀝니다:
+
+```
+<system-reminder>
+As you answer the user's questions, you can use the following context:
+# currentDate
+Today's date is 2026-05-10.
+</system-reminder>
+```
+
+`# claudeMd` 헤더 자체가 없어요. 빈 블록이 남는 게 아니라 **블록이 통째로 omit**. 의외로 유용한 텔레메트리 신호인데:
+
+<table class="compare-table">
+<thead>
+<tr><th>literal string 의 상태</th><th>의미</th></tr>
+</thead>
+<tbody>
+<tr><td><span class="k">#&nbsp;claudeMd</span> 가 <strong>없음</strong></td><td><span class="mod">CLAUDE_CODE_DISABLE_CLAUDE_MDS=1</span> 가 켜졌다</td></tr>
+<tr><td><span class="k">#&nbsp;claudeMd</span> 가 <strong>있음 +</strong> <span class="k">Contents&nbsp;of</span> 가 <strong>0개</strong></td><td>파이프라인은 돌았는데 모든 파일이 필터링됐다 (예: <span class="mod">claudeMdExcludes</span>)</td></tr>
+<tr><td><span class="k">#&nbsp;claudeMd</span> 가 <strong>있음 +</strong> <span class="k">Contents&nbsp;of</span> 가 <strong>N개</strong></td><td>정상</td></tr>
+</tbody>
+</table>
+
+trace 한 줄 grep 으로 *"왜 CLAUDE.md 가 안 들어갔지?"* 의 원인이 settings 인지 env 인지를 즉시 구분할 수 있어요.
+
+### 2. `@include` 는 host 본문에서 directive 를 *지우지 않아요*
+
+CLAUDE.md 안에서 다른 파일을 끌어올 수 있는 `@include` 문법이 있어요:
+
+```markdown
+## 추가 컨텍스트
+
+@./included.md
+```
+
+기대: directive 를 만나면 `included.md` 의 내용이 그 자리에 *치환* 되어 들어간다.
+
+실제: directive 도 그대로 *남고*, `included.md` 가 별도의 `Contents of ...` 엔트리로 *추가* 됩니다. 즉 *additive*, not *transformational*.
+
+trace 에 들어가는 모양:
+
+```
+Contents of <repo>/CLAUDE.md (project instructions, ...):
+...
+## 추가 컨텍스트
+
+@./included.md           ← directive 그대로 살아 있음
+
+Contents of <repo>/included.md (project instructions, ...):
+<included.md 의 본문>     ← 별도 엔트리로 추가됨
+```
+
+token 비용 측면에서 directive 자체는 작아 (5~10 토큰) 거의 무시할 만하지만, 모델 입장에선 두 번 등장하는 셈이에요 — 한 번은 `@./included.md` literal 로, 한 번은 expanded 콘텐츠로. 깊은 chain (max depth 5) 일수록 누적됩니다.
+
+## Take-home
+
+이 글의 정리:
+
+<blockquote>
+<span class="k">#&nbsp;claudeMd</span> 라는 한 채널 안에 다섯 종류의 영구 기억 (Managed · User · Project · Local · AutoMem) 이 같은 모양으로 합쳐져 들어옵니다. 다른 건 description suffix 한 줄.
+<br/><br/>
+MEMORY.md 만 *content* 와 *policy* 가 분리되어 두 채널을 탑니다 — content 는 다른 넷과 같은 user-message 쪽, policy 는 cache 잘 되는 system prompt 쪽.
+<br/><br/>
+trace 를 디버깅할 땐 description suffix 를 grep 의 첫 단서로 써 보세요. 어떤 파일이 어떤 타입으로 분류됐는지가 거기서 다 드러나요.
+</blockquote>
+
+다음 글은 *messages 영역* 의 또 다른 자리 — 사용자가 *명시 호출* 로 발동시키는 자산을 봅니다. <span class="term">Skills</span> 와 <span class="term">Slash Commands</span> 가 주제예요. 4편에서 본 *thin advertise / fat invoke* 패턴이 본격적으로 풀리는 자리.
+
+## References
+
+- 본문에서 인용한 코드 라인: `utils/claudemd.ts:790` (`getMemoryFiles`), `:1153` (`getClaudeMds`), `:547` (`isClaudeMdExcluded`), `:343` (`parseMemoryFileContent`)
+- MEMORY.md dual injection: `memdir/memdir.ts:419` (`loadMemoryPrompt` — Site A), `utils/claudemd.ts:980-992` (Site B)
+- `prependUserContext`: `utils/api.ts:449-474`
+- TEAMMEM compile-time stripping: `scripts/build/build.ts:95`
+- Phase 2 검증 trace 들 (Langfuse): slot 5 (CLAUDE.md), slot 6 (MEMORY.md), slot 13 (TEAMMEM dead code 확인)

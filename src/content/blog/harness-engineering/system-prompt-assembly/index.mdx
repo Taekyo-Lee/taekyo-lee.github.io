@@ -1,0 +1,535 @@
+---
+title: 'Claude Code 의 system message block'
+description: '2편 master diagram 의 첫 자리, system 안으로 한 단계 더 들어갑니다. 네 개의 서브 블록과 21 개 slot, 그리고 한 가운데를 가르는 정적/동적 절단점.'
+pubDate: 'May 10 2026'
+category: harness-engineering
+heroImage: '../../../../assets/heroes/hero-harness-engineering.png'
+series: 'context-engineering-of-claude-code'
+seriesOrder: 3
+---
+
+<style>{`
+  .series-banner {
+    color: rgb(31, 71, 135);
+    font-size: 0.92em;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border-left: 3px solid var(--accent);
+    margin: 0 0 1.6em;
+    line-height: 1.55;
+  }
+  .k {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    color: #1f4787;
+    font-size: 0.94em;
+  }
+  .note-flag {
+    background: rgba(96, 115, 159, 0.22);
+    display: inline-block;
+    color: rgb(60, 70, 90);
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 9px;
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+  .surprise {
+    border-left: 4px solid var(--claude);
+    padding: 0.95em 1.2em;
+    margin: 1.6em 0;
+    border-radius: 0 8px 8px 0;
+    line-height: 1.65;
+  }
+  .surprise .label {
+    background: var(--claude);
+    display: inline-block;
+    color: white;
+    font-size: 0.7em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 9px;
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+
+  /* 4-element of system key */
+  .four-elem {
+    margin: 1.8em 0;
+    padding: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(96, 115, 159, 0.25);
+  }
+  .fe-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 130px;
+    gap: 0;
+    padding: 11px 16px;
+    border-top: 1px solid rgba(96, 115, 159, 0.15);
+    align-items: center;
+    font-size: 0.88em;
+  }
+  .fe-row:first-child { border-top: none; }
+  .fe-row .fe-num {
+    font-family: ui-monospace, monospace;
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 0.78em;
+    letter-spacing: 0.06em;
+  }
+  .fe-row .fe-name {
+    font-family: ui-monospace, monospace;
+    font-weight: 700;
+    color: rgb(var(--black));
+    font-size: 0.92em;
+  }
+  .fe-row .fe-cache {
+    font-size: 0.74em;
+    text-align: right;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .fe-row .fe-cache.cache-yes { color: rgb(var(--gray-dark)); }
+  .fe-row .fe-cache.cache-no { color: var(--claude); }
+  .fe-boundary {
+    background: rgba(204, 120, 92, 0.18);
+    color: var(--claude-dark);
+    text-align: center;
+    padding: 8px 14px;
+    font-size: 0.74em;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    border-top: 2px dashed var(--claude);
+    border-bottom: 2px dashed var(--claude);
+  }
+  .fe-row.fe-static { background: rgba(35, 55, 255, 0.04); }
+  .fe-row.fe-dynamic { background: rgba(204, 120, 92, 0.04); }
+  .fe-row.fe-trailer { }
+  .fe-step-2-label {
+    text-align: center;
+    font-size: 0.78em;
+    font-weight: 600;
+    color: rgb(var(--gray-dark));
+    letter-spacing: 0.04em;
+    padding: 8px 12px;
+    border-top: 1.5px dashed rgba(96, 115, 159, 0.45);
+    border-bottom: 1.5px dashed rgba(96, 115, 159, 0.45);
+  }
+  .fe-step-2-label code {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.92em;
+    color: var(--accent);
+  }
+
+  /* 20-sections detail table */
+  .sect-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.4em 0;
+    font-size: 0.88em;
+    line-height: 1.55;
+  }
+  .sect-table th, .sect-table td {
+    padding: 0.5em 0.7em;
+    border-bottom: 1px solid rgb(var(--gray-light));
+    text-align: left;
+    vertical-align: top;
+  }
+  .sect-table th { font-weight: 700; }
+  .sect-table .num { font-family: ui-monospace, monospace; color: var(--accent); font-weight: 700; width: 36px; }
+  .sect-table .nm { font-family: ui-monospace, monospace; font-size: 0.88em; color: rgb(var(--black)); font-weight: 600; }
+  .sect-table tr.static-row { background: rgba(35, 55, 255, 0.05); }
+  .sect-table tr.dynamic-row { background: rgba(204, 120, 92, 0.04); }
+  .sect-table tr.boundary-row { background: rgba(204, 120, 92, 0.18); font-weight: 700; text-align: center; color: var(--claude-dark); letter-spacing: 0.1em; font-size: 0.78em; }
+  .sect-table tr.boundary-row td { text-align: center; padding: 8px 12px; }
+  .boundary-marker {
+    text-align: center;
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.78em;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--claude-dark);
+    margin: 1.4em 0;
+    padding: 8px 12px;
+    border-top: 2px dashed var(--claude);
+    border-bottom: 2px dashed var(--claude);
+  }
+
+  /* Boundary halves visualization */
+  .bd-pair {
+    margin: 1.6em 0;
+    padding: 16px 18px;
+    border: 1px solid rgba(96, 115, 159, 0.2);
+    border-radius: 10px;
+  }
+  .bd-half {
+    display: grid;
+    grid-template-columns: 110px 130px 1fr;
+    gap: 14px;
+    padding: 11px 14px;
+    border-radius: 8px;
+    align-items: center;
+    font-size: 0.92em;
+  }
+  .bd-half.bd-static  { background: rgba(35, 55, 255, 0.05); }
+  .bd-half.bd-dynamic { background: rgba(204, 120, 92, 0.05); }
+  .bd-half .bd-tag { font-weight: 700; }
+  .bd-half.bd-static .bd-tag  { color: var(--accent); }
+  .bd-half.bd-dynamic .bd-tag { color: var(--claude-dark); }
+  .bd-half .bd-range {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.86em;
+    color: rgb(var(--gray-dark));
+  }
+  .bd-half .bd-desc { color: rgb(var(--gray-dark)); }
+  .bd-pair .boundary-marker { margin: 8px 0; }
+
+  /* Three-sibling reminder cards stacked inside an "input" container */
+  .three-siblings {
+    background: rgba(96, 115, 159, 0.03);
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin: 1.8em auto 0.5em;
+    padding: 22px 18px 18px;
+    border: 1.5px dashed rgba(96, 115, 159, 0.45);
+    border-radius: 12px;
+    max-width: 360px;
+    position: relative;
+  }
+  .three-siblings::before {
+    background: white;
+    content: "한 번의 입력";
+    position: absolute;
+    top: -10px;
+    left: 18px;
+    padding: 0 10px;
+    font-size: 0.7em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: rgb(var(--gray-dark));
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  }
+  .three-siblings .sk {
+    background: rgba(255, 255, 255, 0.85);
+    padding: 11px 14px;
+    border-radius: 8px;
+    border-left: 4px solid;
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.92em;
+    text-align: center;
+  }
+  .three-siblings .sk-system   { border-color: var(--accent); background: rgba(31, 71, 135, 0.07); }
+  .three-siblings .sk-tools    { border-color: #059669; background: rgba(5, 150, 105, 0.04); opacity: 0.45; }
+  .three-siblings .sk-messages { border-color: var(--claude-dark); background: rgba(204, 120, 92, 0.04); opacity: 0.45; }
+  .three-siblings .sk-name { font-weight: 700; font-size: 1.02em; }
+  .three-siblings .sk-system   .sk-name { color: var(--accent); }
+  .three-siblings .sk-tools    .sk-name { color: #059669; }
+  .three-siblings .sk-messages .sk-name { color: var(--claude-dark); }
+  .sk-focus-arrow {
+    text-align: center;
+    font-size: 0.95em;
+    color: var(--accent);
+    margin: 0 0 1.4em;
+    font-weight: 600;
+  }
+
+  /* system block expanded — mirrors 2편 .af-key style */
+  .sysblock-card {
+    background: rgba(31, 71, 135, 0.04);
+    margin: 1.6em 0;
+    padding: 18px 22px;
+    border: 1px solid rgba(31, 71, 135, 0.18);
+    border-left: 4px solid var(--accent);
+    border-radius: 10px;
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.9em;
+  }
+  .sysblock-card .sb-header {
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 10px;
+    font-size: 1.05em;
+  }
+  .sysblock-card .sb-bracket { color: rgb(var(--gray)); font-weight: 400; }
+  .sysblock-card .sb-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 8px;
+  }
+  .sysblock-card .sb-item {
+    background: white;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    padding: 9px 12px;
+    margin-bottom: 6px;
+    border-radius: 6px;
+    border: 1px solid rgba(96, 115, 159, 0.18);
+    gap: 14px;
+  }
+  .sysblock-card .sb-item-code { color: rgb(var(--gray-dark)); }
+  .sysblock-card .sb-item-code .sb-key { color: var(--accent); font-weight: 700; }
+  .sysblock-card .sb-item-code .sb-str { color: var(--claude-dark); }
+  .sysblock-card .sb-anno {
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    font-size: 0.85em;
+    color: rgb(var(--gray-dark));
+    text-align: right;
+    font-style: italic;
+  }
+  .sysblock-card .sb-anno.sb-anno-quote {
+    color: var(--claude-dark);
+    font-style: normal;
+    font-weight: 600;
+  }
+  .sysblock-card .sb-badge {
+    background: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    color: white;
+    font-weight: 700;
+    font-size: 0.82em;
+  }
+  .sysblock-card .sb-step-2-label {
+    text-align: center;
+    font-size: 0.78em;
+    font-weight: 600;
+    color: rgb(var(--gray-dark));
+    letter-spacing: 0.04em;
+    margin: 14px 0 8px;
+    padding: 6px 10px;
+    border-top: 1.5px dashed rgba(96, 115, 159, 0.45);
+  }
+  .sysblock-card .sb-step-2-label code {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.92em;
+    color: var(--accent);
+  }
+  @media (max-width: 600px) {
+    .sysblock-card .sb-item { grid-template-columns: 1fr; }
+    .sysblock-card .sb-anno { text-align: left; margin-top: 4px; }
+  }
+
+  /* Force-remove all backgrounds */
+  code, .mod {
+    background: transparent !important;
+  }
+`}</style>
+
+<div class="series-banner">
+📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 세 번째 글입니다. <a href="../claude-code-context-architecture/">2편</a> 에서, Claude Code 가 LLM 에 보내는 입력이 *세 블록* (<span class="k">system</span> · <span class="k">tools</span> · <span class="k">messages</span>) 으로 나뉜다는 걸 봤어요. 이번 편부터 그 셋을 *왼쪽부터* 차례대로 들여다 봅니다. 시작은 <span class="k">system</span> 블록.
+</div>
+
+## system 블록 안으로 한 단계 더
+
+Claude Code 가 LLM 에 보내는 입력은 **세 블록** 으로 나뉘어 있어요.
+
+<div class="three-siblings">
+  <div class="sk sk-system">
+    <div class="sk-name">system</div>
+  </div>
+  <div class="sk sk-tools">
+    <div class="sk-name">tools</div>
+  </div>
+  <div class="sk sk-messages">
+    <div class="sk-name">messages</div>
+  </div>
+</div>
+
+### system 블록 안의 모양
+
+<div class="sysblock-card">
+  <div class="sb-header">system<span class="sb-bracket">: [</span></div>
+  <ul class="sb-list">
+    <li class="sb-item">
+      <span class="sb-item-code">&#123; <span class="sb-key">text</span>: <span class="sb-str">"&lt;attribution header&gt;"</span> &#125;</span>
+      <span class="sb-anno">모든 세션 거의 동일</span>
+    </li>
+    <li class="sb-item">
+      <span class="sb-item-code">&#123; <span class="sb-key">text</span>: <span class="sb-str">"&lt;system prompt prefix&gt;"</span> &#125;</span>
+      <span class="sb-anno">모든 세션 거의 동일</span>
+    </li>
+    <li class="sb-item">
+      <span class="sb-item-code">&#123; <span class="sb-key">text</span>: <span class="sb-str">"&lt;static system blocks&gt;"</span> &#125;</span>
+      <span class="sb-anno">모든 세션 거의 동일</span>
+    </li>
+    <li class="sb-item">
+      <span class="sb-item-code">&#123; <span class="sb-key">text</span>: <span class="sb-str">"&lt;dynamic system blocks&gt;"</span> &#125;</span>
+      <span class="sb-anno">매 LLM 호출마다 다름</span>
+    </li>
+  </ul>
+  <div class="sb-bracket">]</div>
+</div>
+
+한 번의 입력에서 system 블록은 <span class="key">**네 개의 서브 블록**</span> 이 순서대로 이어붙은 한 array 예요. 각 서브 블록마다 **수명** 이 달라요. 어떤 건 **세션 내부에선 동일** 하고, 어떤 건 **LLM 호출마다 새로 빌드** 돼요.
+
+<div class="callout">
+📝 <strong>note</strong> — 이 *수명* 분류는 technical 하게는 LLM API 의 <em>prompt cache 정책</em> 과 직결돼요. *모든 세션 거의 동일* 한 서브 블록은 cache prefix 에 한 번 등록되면 이후 LLM 호출이 그 위에서 hit 돼서, <em>응답이 빨라지고 요금도 줄어들어요</em>. *매 LLM 호출 다른* 서브 블록은 cache 가 안 잡혀서 매번 full price 고요.
+</div>
+
+이번 포스트가 다루는 건 **셋**이에요.
+
+1. **네 개의 서브 블록** 이 어떤 콘텐츠로 채워지는지
+2. 그 안의 **21 개 slot** (서브 블록을 더 잘게 쪼갠 단위, *정적 7 개 + 동적 14 개*) 이 어떤 순서로 쌓이는지
+3. 그 섹션을 **정적과 동적** 두 부분으로 가르는 **경계선**
+
+이 셋이 system 블록의 <span class="key">**골격**</span> 이에요.
+
+## 네 개의 서브 블록
+
+네 서브 블록이 어떻게 다른지를 한 표로 잡고 시작해요.
+
+<div class="four-elem">
+  <div class="fe-row">
+    <span class="fe-num">1</span>
+    <span class="fe-name">attribution header</span>
+    <span class="fe-cache cache-yes">모든 세션 거의 동일</span>
+  </div>
+  <div class="fe-row">
+    <span class="fe-num">2</span>
+    <span class="fe-name">system prompt prefix</span>
+    <span class="fe-cache cache-yes">모든 세션 거의 동일</span>
+  </div>
+  <div class="fe-row fe-static">
+    <span class="fe-num">3</span>
+    <span class="fe-name">static system blocks</span>
+    <span class="fe-cache cache-yes">모든 세션 거의 동일</span>
+  </div>
+  <div class="fe-boundary">SYSTEM_PROMPT_DYNAMIC_BOUNDARY</div>
+  <div class="fe-row fe-dynamic">
+    <span class="fe-num">4</span>
+    <span class="fe-name">dynamic system blocks</span>
+    <span class="fe-cache cache-no">매 LLM 호출마다 다름</span>
+  </div>
+</div>
+
+- **서브 블록 #1: attribution header** — Claude Code 의 billing/tracking 한 줄 (`x-anthropic-billing-header: cc_version=...`). Claude Code 빌드가 같으면 *모든 세션 거의 동일*.
+- **서브 블록 #2: system prompt prefix** — Anthropic 의 base persona 한 줄 (`You are Claude Code, Anthropic's official CLI for Claude.`). 모든 세션에서 동일.
+- **서브 블록 #3: static system blocks** — *모든 세션에서 거의 동일한* 7 개 slot 묶음. base persona 의 행동 규칙들.
+- **서브 블록 #4: dynamic system blocks** — *세션마다 다른* 14 개 slot. environment 정보, settings, MCP, gitStatus trailer 등. 같은 세션 안에서도 매 LLM 호출마다 다를 수 있음.
+
+서브 블록 #3 과 #4 사이에 한 marker 가 위치하고 있어요. <span class="key">**`SYSTEM_PROMPT_DYNAMIC_BOUNDARY`**</span>. 이 한 줄이 **변하지 않는 부분** 과 **변할 수 있는 부분** 을 가르는 구분선이에요.
+
+## 21 개 slot
+
+네 서브 블록을 더 잘게 쪼개면 총 <span class="key">**21 개 slot**</span>. **static system blocks** 가 **7 개**, **dynamic system blocks** 가 **14 개** (마지막 한 자리는 `appendSystemContext` 가 별도 함수로 추가하는 *trailer (gitStatus)* — 자세한 건 5편).
+
+#### 서브 블록 #3 (static system blocks) — 7 개 slot
+
+<table class="sect-table">
+<thead>
+<tr><th class="num">#</th><th>section name</th><th>콘텐츠</th></tr>
+</thead>
+<tbody>
+<tr class="static-row"><td class="num">1</td><td class="nm">getSimpleIntroSection</td><td><em>"You are Claude Code, Anthropic's official CLI…"</em> 한 줄 (outputStyle 활성 시 변형됨)</td></tr>
+<tr class="static-row"><td class="num">2</td><td class="nm">getSimpleSystemSection</td><td><span class="k">#&nbsp;System</span> — 출력 규칙, hook semantics, error handling</td></tr>
+<tr class="static-row"><td class="num">3</td><td class="nm">getSimpleDoingTasksSection</td><td><span class="k">#&nbsp;Doing&nbsp;tasks</span> — 작업 스타일 가이드 (outputStyle 의 keepCodingInstructions 가 false 면 사라짐)</td></tr>
+<tr class="static-row"><td class="num">4</td><td class="nm">getActionsSection</td><td><span class="k">#&nbsp;Executing&nbsp;actions&nbsp;with&nbsp;care</span></td></tr>
+<tr class="static-row"><td class="num">5</td><td class="nm">getUsingYourToolsSection</td><td><span class="k">#&nbsp;Using&nbsp;your&nbsp;tools</span> — TaskCreate, parallel call 등</td></tr>
+<tr class="static-row"><td class="num">6</td><td class="nm">getSimpleToneAndStyleSection</td><td><span class="k">#&nbsp;Tone&nbsp;and&nbsp;style</span> — emoji 정책, file_path:line ref 형식</td></tr>
+<tr class="static-row"><td class="num">7</td><td class="nm">getOutputEfficiencySection</td><td><span class="k">#&nbsp;Output&nbsp;efficiency</span> — 간결성</td></tr>
+</tbody>
+</table>
+
+<div class="boundary-marker">═══ SYSTEM_PROMPT_DYNAMIC_BOUNDARY ═══</div>
+
+#### 서브 블록 #4 (dynamic system blocks) — 14 개 slot
+
+<table class="sect-table">
+<thead>
+<tr><th class="num">#</th><th>section name</th><th>콘텐츠</th></tr>
+</thead>
+<tbody>
+<tr class="dynamic-row"><td class="num">8</td><td class="nm">session_guidance</td><td><span class="k">#&nbsp;Session-specific&nbsp;guidance</span> — runtime tools list 안내 (Skill 도구 사용법 한 줄)</td></tr>
+<tr class="dynamic-row"><td class="num">9</td><td class="nm">memory</td><td><span class="k">#&nbsp;auto&nbsp;memory</span> — MEMORY.md 의 *procedural prompt* (taxonomy, when-to-save, what-not-to-save)</td></tr>
+<tr class="dynamic-row"><td class="num">10</td><td class="nm">ant_model_override</td><td>Anthropic 사내 모델 override 옵션 (보통 부재)</td></tr>
+<tr class="dynamic-row"><td class="num">11</td><td class="nm">env_info_simple</td><td><span class="k">#&nbsp;Environment</span> — cwd, platform, shell, model, knowledge cutoff</td></tr>
+<tr class="dynamic-row"><td class="num">12</td><td class="nm">language</td><td><span class="k">#&nbsp;Language</span> — settings.language 가 set 됐을 때만 emit</td></tr>
+<tr class="dynamic-row"><td class="num">13</td><td class="nm">output_style</td><td><span class="k">#&nbsp;Output&nbsp;Style:&nbsp;&lt;name&gt;</span> + style body — settings.outputStyle 활성 시</td></tr>
+<tr class="dynamic-row"><td class="num">14</td><td class="nm">mcp_instructions</td><td><span class="k">#&nbsp;MCP&nbsp;Server&nbsp;Instructions</span> — 연결된 MCP 서버 instructions</td></tr>
+<tr class="dynamic-row"><td class="num">15</td><td class="nm">scratchpad</td><td><span class="k">#&nbsp;Scratchpad&nbsp;Directory</span> — tengu_scratch flag 활성 시 (보통 off)</td></tr>
+<tr class="dynamic-row"><td class="num">16</td><td class="nm">frc</td><td>function-result-clearing 규칙 (model-dependent)</td></tr>
+<tr class="dynamic-row"><td class="num">17</td><td class="nm">summarize_tool_results</td><td>한 줄 메타 지시 (<em>"...important information may be cleared later"</em>) — <strong>항상 emit, settings 로 못 끔</strong></td></tr>
+<tr class="dynamic-row"><td class="num">18</td><td class="nm">numeric_length_anchors</td><td>Anthropic 사내 (보통 부재)</td></tr>
+<tr class="dynamic-row"><td class="num">19</td><td class="nm">token_budget</td><td>TOKEN_BUDGET feature 활성 시</td></tr>
+<tr class="dynamic-row"><td class="num">20</td><td class="nm">brief</td><td>KAIROS feature 활성 시</td></tr>
+<tr class="dynamic-row"><td class="num">21</td><td class="nm">trailer (gitStatus)</td><td><span class="k">gitStatus:</span> ... — git repo 상태의 한 덩어리. <em>`appendSystemContext` 가 별도 함수로 마지막에 add</em>. 5편 단독 주제</td></tr>
+</tbody>
+</table>
+
+<div class="callout-accent">
+<strong>21 개 slot 중 기본 환경에서 *실제로 보이는* 건 보통 7~9 개</strong>
+
+위 14 개 dynamic slots 중 다수가 조건부예요:
+
+- *Anthropic 사내 전용*: 10, 18
+- *feature-flag 게이트*: 15, 19, 20
+- *settings 조건부*: 12, 13
+- *모델 조건부*: 16
+
+일반적인 trace 는 보통 **8 / 9 / 11 / 14 / 17 / 21 + (12 또는 13)** 정도만 보여요. <em>"왜 내 trace 에 slot N 이 없지?"</em> 하는 첫 의심점은 거의 항상 feature/settings 게이트고요.
+</div>
+
+## 정적과 동적의 경계
+
+21 개 slot 중 <span class="key">**slot 7 과 slot 8 사이**</span> 에 한 marker 가 위치해요. **`SYSTEM_PROMPT_DYNAMIC_BOUNDARY`**. 이 한 줄이 **변하지 않는 부분** 과 **변할 수 있는 부분** 을 가르는 경계예요. `splitSysPromptPrefix` (`utils/api.ts:321`) 가 array 를 둘로 나눕니다.
+
+<div class="bd-pair">
+  <div class="bd-half bd-static">
+    <span class="bd-tag">정적 부분</span>
+    <span class="bd-range">sections 1-7</span>
+    <span class="bd-desc">모든 세션에서 거의 동일</span>
+  </div>
+  <div class="boundary-marker">═══ SYSTEM_PROMPT_DYNAMIC_BOUNDARY ═══</div>
+  <div class="bd-half bd-dynamic">
+    <span class="bd-tag">동적 부분</span>
+    <span class="bd-range">sections 8-21</span>
+    <span class="bd-desc">세션/LLM 호출마다 다름</span>
+  </div>
+</div>
+
+### 정적 부분의 의미
+
+sections 1-7 은 **모든 세션에서 거의 동일**해요. 같은 model 을 쓰는 모든 LLM 호출이 이 7 개 slot 의 **byte-identical 한 prefix** 를 공유합니다. <span class="key">**base persona + 행동 규칙**</span> 의 자리. Anthropic 이 한 번 정해 두고 거의 안 바꾸는 영역이에요.
+
+<div class="callout">
+📝 <strong>'<span style={{ color: '#dc2626' }}>거의</span>' 동일하다고?</strong> — 정적 부분도 세션마다 변할 수 있는 자리가 셋 있어요.
+
+- **`outputStyle` 토글**: intro 라인 다시 쓰기 + `# Doing tasks` 제거 가능 (4편 자세히)
+- **Claude Code 빌드 update**: `cc_version` 변경 + Anthropic 의 base prompt 텍스트 미세 조정 가능
+- **model 변경**: 일부 sub-section 이 model 별로 미세 다름 (예: `frc` 같은 model-dependent slot)
+
+세 trigger 가 흔하진 않으니 *거의* 라는 단어를 썼지만, <strong style={{ color: '#dc2626' }}>언제든 동일은 아니라는 점</strong> 기억해 두세요.
+</div>
+
+### 동적 부분의 의미
+
+sections 8-21 은 **매 세션마다** (어쩌면 **매 LLM 호출마다**) 달라질 수 있어요. cwd 가 다르고, settings 가 다르고, MCP 서버가 다르고, scratchpad path 가 다름. <span class="key">**환경 · 설정 · 콘텐츠**</span> 의 자리예요.
+
+<div class="callout">
+💡 <strong>TIP</strong> — slot 17 (<code>summarize_tool_results</code>) 은 <em>settings 로 끌 수 없는 메타 지시</em> 예요. 매 LLM 호출에 항상 위치해서 모델에게 <em>self-summarization</em> 을 일관되게 요청해요.
+
+> *When working with tool results, write down any important information you might need later in your response, as the original tool result may be cleared later.*
+
+한 줄짜리라 token 부담은 무시할 정도지만, fleet 전체로 보면 의미 있게 누적되는 자리예요.
+</div>
+
+## Take-home
+
+이 글의 정리:
+
+<blockquote>
+<p>2편에서 본 <span class="k">system</span> 블록 안은 <span class="key">네 개의 서브 블록</span> 이 들어 있는 array 였어요. 각 서브 블록마다 수명이 달라요. 그 넷이 모여 <em>21 개 slot</em> (정적 7 + 동적 14) 의 어셈블리.</p>
+<p>한 가운데를 가르는 <span class="key">SYSTEM_PROMPT_DYNAMIC_BOUNDARY</span> 가 <em>변하지 않는 부분</em> 과 <em>변할 수 있는 부분</em> 의 경계예요. 정적 부분 (slot 1-7) 은 모든 세션에서 거의 동일한 <em>base persona + 행동 규칙</em>, 동적 부분 (slot 8-21) 은 매 LLM 호출마다 새로 빌드되는 <em>환경 · 설정 · 콘텐츠</em>.</p>
+<p>21 개 slot 중 기본 환경에서 <em>실제로 보이는</em> 건 보통 7~9 개예요. 나머지는 <em>Anthropic 사내 전용</em>, <em>feature-flag</em>, <em>settings 조건부</em> 로 게이트. trace 에 slot N 이 없으면 첫 의심점은 거의 항상 게이트예요.</p>
+</blockquote>

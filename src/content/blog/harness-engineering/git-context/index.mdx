@@ -1,0 +1,195 @@
+---
+title: '작은 비밀 한 줄 — gitStatus, system prompt 의 trailing block'
+description: 'system 영역의 마지막 한 자리. 모든 trace 에 항상 위치한 한 덩어리, 5 git 명령으로 채워지는 한 snapshot. 작지만 의도된 정적 — *snapshot 이니 trust 하지 말고 필요하면 fetch* 라는 한 줄이 load-bearing.'
+pubDate: 'May 24 2026'
+category: harness-engineering
+heroImage: '../../../../assets/heroes/hero-harness-engineering.png'
+series: 'context-engineering-of-claude-code'
+seriesOrder: 5
+---
+
+<style>{`
+  .series-banner {
+    color: rgb(31, 71, 135);
+    font-size: 0.92em;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border-left: 3px solid var(--accent);
+    margin: 0 0 1.6em;
+    line-height: 1.55;
+  }
+  .k {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    color: #1f4787;
+    font-size: 0.94em;
+  }
+  .note-flag {
+    background: rgba(96, 115, 159, 0.22);
+    display: inline-block;
+    color: rgb(60, 70, 90);
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 9px;
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+
+  .anatomy {
+    background: rgba(96, 115, 159, 0.05);
+    margin: 2em 0;
+    padding: 18px 22px;
+    border-radius: 10px;
+    border: 1px solid rgba(96, 115, 159, 0.2);
+    font-family: ui-monospace, monospace;
+    font-size: 0.85em;
+    line-height: 1.7;
+    color: rgb(var(--gray-dark));
+    overflow-x: auto;
+  }
+  .anatomy .label { color: var(--accent); font-weight: 700; }
+  .anatomy .value { color: rgb(var(--black)); }
+  .anatomy .gloss { color: rgb(var(--gray)); font-style: italic; }
+`}</style>
+
+<div class="series-banner">
+📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 다섯 번째 글입니다. 짧고 단단한 한 편이에요. <a href="../system-prompt-assembly/">3편</a> 의 골격에서 *마지막 trailing block* 한 자리를 봅니다. 시리즈 통틀어 가장 작지만 가장 자주 만나는 한 덩어리, gitStatus.
+</div>
+
+## 모든 trace 에 항상 있는 그 한 블록
+
+`gen_ai.system_instructions` 를 열어 보면 가장 아래에 항상 이런 블록이 있어요 (git repo 에서 띄운 경우):
+
+<div class="anatomy">
+<span class="label">gitStatus:</span> This is the git status at the start of the conversation. Note that this status is a snapshot in time, and will not update during the conversation.<br/><br/>
+<span class="label">Current branch:</span> <span class="value">main</span><br/><br/>
+<span class="label">Main branch (you will usually use this for PRs):</span> <span class="value">main</span><br/><br/>
+<span class="label">Git user:</span> <span class="value">Taekyo Lee</span><br/><br/>
+<span class="label">Status:</span><br/>
+<span class="value">M&nbsp;src/foo.ts</span><br/>
+<span class="value">??&nbsp;another.txt</span><br/><br/>
+<span class="label">Recent commits:</span><br/>
+<span class="value">abc1234 fix: handle null branch</span><br/>
+<span class="value">def5678 feat: add new endpoint</span><br/>
+<span class="gloss">...</span>
+</div>
+
+3편의 어셈블리 그림에서 *20 sections 다음, dynamic 절반의 맨 뒤에* 한 덩어리로 append 되는 자리. `appendSystemContext` 가 마지막에 한 줄로 붙입니다. 별 거 아닌 듯 짧지만 *모든 trace* 에 *항상* 위치해 있어요. 이번 글의 주인공.
+
+## 다섯 줄 — 어디서 왔나
+
+`getGitStatus()` 가 5 개의 git 명령을 *동시에* 돌려서 만듭니다.
+
+| 명령 | 채우는 줄 |
+|---|---|
+| `git branch --show-current` | `Current branch:` |
+| `git remote show origin` (HEAD ref) | `Main branch (you will usually use this for PRs):` |
+| `git status --short` | `Status:` (2K char cap, 넘으면 truncation marker 추가) |
+| `git log --oneline -n 5` | `Recent commits:` |
+| `git config user.name` | `Git user:` (없으면 줄 자체를 omit) |
+
+`--no-optional-locks` 가 모든 호출에 같이 들어가서 동시에 도는 fetch/rebase 와 lock 충돌 안 일어나요.
+
+### `Status:` 의 2K 캡 — 작지만 의미 있는
+
+`MAX_STATUS_CHARS = 2000`. 작업 중인 큰 monorepo 에서 50KB 의 modified files 가 나와도, 2K 에서 자릅니다. 잘리면 한 줄이 추가돼요:
+
+```
+… (truncated because it exceeds 2k characters. If you need more
+information, run "git status" using BashTool)
+```
+
+이 한 줄이 *명시적으로 모델에게 fallback path 를 알려줍니다*. *"필요하면 Bash 로 직접 git status 돌려"*. 같은 패턴 (작은 hint + 모델이 직접 fetch) 이 시리즈의 다른 자리에서도 반복돼요. 9편의 transcript pointer (compaction 후의 .jsonl 경로), 4편의 scratchpad 의 dir 경로 모두 같은 모티프.
+
+## *one-shot snapshot* — 의도된 정적
+
+위 블록의 첫 줄을 다시 봅시다:
+
+> *Note that this status is a snapshot in time, and will not update during the conversation.*
+
+이게 **load-bearing** 한 줄이에요. *"trust 하지 마"* 라고 모델에게 명시. 왜?
+
+session 시작 시 한 번 계산하고 *그 자리에 박아두면*. session 동안 dynamic 절반의 *마지막 byte 들* 로 살아있어요. 모델이 5 turn 후에 보는 gitStatus 도 byte-identical. 같은 session 안에선 cache hit 가능.
+
+만약 매 turn 새로 계산하면. 파일 한 줄만 바뀌어도 dynamic 절반의 *마지막 byte* 가 바뀌어 prefix invalidate. 매 turn full price.
+
+그러니 *snapshot* 으로 박아두고, *"필요하면 직접 돌려"* 라는 escape hatch 를 따로 줍니다. *low-stakes orientation*, *high-stakes* 는 모델이 직접 fetch.
+
+<div class="callout">
+<strong>두 trace 의 <span class="mod">Current&nbsp;branch:</span> 가 다르면 다른 session</strong>
+
+session 동안엔 gitStatus 가 위치해 있어요. session 이 새로 시작될 때만 다시 계산. 그러니 *같은 사용자가 두 trace 에서 다른 branch* 가 보이면. 두 session 이라는 신호. 한 사용자가 여러 branch 를 오가며 작업할 때 trace 들을 user activity 로 다시 매핑하는 데 의외로 유용.
+</div>
+
+## subagent 변형 — Explore / Plan 은 *없어요*
+
+8편에서 본격적으로 다룰 디테일을 미리 살짝 만나면, built-in `Explore` 와 `Plan` subagent 는 부모로부터 systemContext 를 *gitStatus 뺀 채* 로 상속받아요.
+
+```ts
+// tools/AgentTool/runAgent.ts:401-408
+const resolvedSystemContext =
+  agentDefinition.agentType === 'Explore' ||
+  agentDefinition.agentType === 'Plan'
+    ? systemContextNoGit
+    : baseSystemContext
+```
+
+이유 (코드 주석 발췌): *"Explore/Plan 은 read-only search agent. parent-session-start gitStatus 는 explicitly stale 하다고 명시된 dead weight. 필요하면 자기가 git status 직접 돌려서 fresh data 받음. fleet-wide ~1-3 Gtok/week 절약."*
+
+Explore subagent 의 trace 에서 system prompt 끝에 `gitStatus:` 가 *없으면* 정상이에요. 있으면 strip 로직이 안 돈 거.
+
+## 자리 — *왜 trailer 인가*
+
+3편의 골격에서 gitStatus 가 *동적 부분의 마지막 trailer* 자리에 가는 이유가 또렷해져요.
+
+- **session 마다 fresh 함**. 같은 repo 라도 가끔 branch 가 바뀌니, session 간 cache 공유 어려움 → 정적 부분에는 못 들어감
+- **session 안에선 stable**. 일단 박히면 안 바뀜 → 한 번 박은 채로 둬도 됨
+- **Anthropic 의 base 가 결정 못 함**. 사용자의 cwd · branch · status 에 의존 → 동적 영역
+- **session 의 *어떤 단계* 든 prefix 의 일부* 이긴 해야 함**. 동적 부분이 적당한 자리
+
+그러니 `appendSystemContext` 가 어셈블리의 *마지막 단계* 에서 한 줄로 추가합니다. 정적 prefix 깨지 않고, 동적 부분의 끝에 붙어 *세션-안 안정성* 을 누리는 자리.
+
+3편의 cache scope 분류 표에 한 줄로:
+
+| 영역 | session 간 공유 | session 안 안정 |
+|---|---|---|
+| 정적 부분 (sections 1-7) | 가능 (model + outputStyle 같으면) | yes |
+| 동적 부분 (sections 8-20) | 보통 불가 | session 마다 다름 |
+| **gitStatus trailer** | **불가** (branch · status 가 다름) | **yes** (snapshot 으로 들어감) |
+
+세 카테고리가 *cache 의 세 가지 시간 스케일* 을 각각 차지해요.
+
+## tracing 의 작은 단서들
+
+| 찾을 것 | 의미 |
+|---|---|
+| `gitStatus:` 블록 부재 | git repo 가 아니거나, CCR 모드 (`CLAUDE_CODE_REMOTE`), 또는 `shouldIncludeGitInstructions()` false |
+| `gitStatus:` 블록 있는데 `Git user:` 줄 없음 | `git config user.name` 이 set 안 됨 |
+| `… (truncated …)` marker | 작업 중인 파일 너무 많음 (2K 넘김). 모델이 fallback 으로 BashTool 직접 호출 가능 |
+| 같은 사용자 트레이스인데 두 trace 의 `Current branch:` 다름 | 두 *session* (한 session 안에선 stable) |
+| Explore subagent 의 system prompt 에 `gitStatus:` 있음 | strip 로직 미동작. 의외, 디버깅 단서 |
+
+## Take-home
+
+이 글의 정리:
+
+<blockquote>
+gitStatus 는 system 영역의 *마지막 trailing block*. 5 git 명령이 동시에 돌아 한 snapshot 을 만들고, <span class="key">session 시작 시 한 번 박아둔 채로 끝까지 가요</span>.
+<br/><br/>
+*"snapshot 이니까 trust 하지 말고 필요하면 직접 fetch"* 라는 한 줄이 load-bearing. <span class="key">low-stakes orientation 은 작은 한 블록으로, high-stakes 는 모델이 직접 fetch</span> 라는 디자인 선택.
+<br/><br/>
+3편의 cache 분류와 합치면 gitStatus 가 *세 번째 카테고리* 를 차지해요. <em>session 간 공유 불가 + session 안 안정</em>. 이 자리가 *trailer 로 가는 이유*.
+<br/><br/>
+9편의 compaction 의 transcript pointer, 4편의 scratchpad 의 dir 경로도 같은 모티프. <span class="key">작은 hint + 모델 fetch</span>. 시리즈 전반에 반복되는 한 패턴.
+</blockquote>
+
+여기까지로 *system 영역* 이 끝납니다. 다음 글부터는 *messages 영역* 으로 자리를 옮겨요. 첫 주제는 합성 `<system-reminder>` 의 첫 user message 안에 박히는 *영구 기억의 다섯 갈래* — CLAUDE.md, MEMORY.md, Team memory.
+
+## References
+
+- gitStatus 어셈블리: `context.ts:36-111` (`getGitStatus`), `:116-148` (`getSystemContext`)
+- trailer append: `utils/api.ts:437` (`appendSystemContext`)
+- Explore/Plan strip: `tools/AgentTool/runAgent.ts:401-408`
+- Phase 2 검증: trace 1-2 (gitStatus 한 번 들어감 + mid-session 변경 무시)

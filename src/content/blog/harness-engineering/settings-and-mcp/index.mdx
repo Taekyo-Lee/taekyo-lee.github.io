@@ -1,0 +1,429 @@
+---
+title: 'dynamic slots 을 채우는 Settings 와 MCP'
+description: '3편의 골격 위에 무엇이 박히는가. settings.json 의 수십 키 중 LLM 에 닿는 다섯 개와 그 슬롯 위치, outputStyle 의 *4 효과* 비대칭, MCP 의 세 site (tool 정의 / instructions / @-mentioned).'
+pubDate: 'May 17 2026'
+category: harness-engineering
+heroImage: '../../../../assets/heroes/hero-harness-engineering.png'
+series: 'context-engineering-of-claude-code'
+seriesOrder: 4
+---
+
+<style>{`
+  .series-banner {
+    color: rgb(31, 71, 135);
+    font-size: 0.92em;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border-left: 3px solid var(--accent);
+    margin: 0 0 1.6em;
+    line-height: 1.55;
+  }
+  .k {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    color: #1f4787;
+    font-size: 0.94em;
+  }
+  .note-flag {
+    background: rgba(96, 115, 159, 0.22);
+    display: inline-block;
+    color: rgb(60, 70, 90);
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 9px;
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+  .surprise {
+    border-left: 4px solid var(--claude);
+    padding: 0.95em 1.2em;
+    margin: 1.6em 0;
+    border-radius: 0 8px 8px 0;
+    line-height: 1.65;
+  }
+  .surprise .label {
+    background: var(--claude);
+    display: inline-block;
+    color: white;
+    font-size: 0.7em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 9px;
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+
+  .key-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.4em 0;
+    font-size: 0.9em;
+    line-height: 1.55;
+  }
+  .key-table th, .key-table td {
+    padding: 0.55em 0.8em;
+    border-bottom: 1px solid rgb(var(--gray-light));
+    text-align: left;
+    vertical-align: top;
+  }
+  .key-table th { font-weight: 700; }
+    background: rgba(96, 115, 159, 0.12);
+  .key-table .kn { font-family: ui-monospace, monospace; font-size: 0.9em; color: var(--accent); font-weight: 700; }
+  .key-table tr.row-warm { background: rgba(204, 120, 92, 0.05); }
+
+  .three-sites {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin: 2em 0;
+  }
+  .site-card {
+    background: white;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid rgba(96, 115, 159, 0.25);
+  }
+  .site-card .sc-tag {
+    background: rgba(35, 55, 255, 0.12);
+    display: inline-block;
+    font-size: 0.7em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 3px 9px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    color: var(--accent);
+  }
+  .site-card .sc-name { font-weight: 700; margin-bottom: 4px; }
+  .site-card .sc-desc { font-size: 0.86em; color: rgb(var(--gray-dark)); line-height: 1.5; }
+
+  .cascade {
+    background: rgba(96, 115, 159, 0.06);
+    margin: 1.6em 0;
+    padding: 14px 18px;
+    border-radius: 8px;
+    font-family: ui-monospace, monospace;
+    font-size: 0.86em;
+    line-height: 1.7;
+    color: rgb(var(--gray-dark));
+    overflow-x: auto;
+  }
+  .cascade .priority { color: var(--claude); font-weight: 700; }
+  .cascade .layer { color: var(--accent); font-weight: 700; }
+
+  .four-effects {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin: 1.6em 0;
+  }
+  .fx {
+    background: white;
+    display: grid;
+    grid-template-columns: 70px 1fr 90px;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(96, 115, 159, 0.2);
+    align-items: center;
+    font-size: 0.9em;
+  }
+  .fx .fx-num {
+    font-weight: 700;
+    color: var(--claude);
+    text-align: center;
+    font-size: 0.78em;
+    letter-spacing: 0.06em;
+  }
+  .fx .fx-effect { line-height: 1.5; color: rgb(var(--gray-dark)); }
+  .fx .fx-effect strong { color: rgb(var(--black)); }
+  .fx .fx-where {
+    text-align: center;
+    font-family: ui-monospace, monospace;
+    font-size: 0.74em;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .fx.fx-static { background: rgba(35, 55, 255, 0.04); }
+  .fx.fx-dynamic { background: rgba(204, 120, 92, 0.04); }
+`}</style>
+
+<div class="series-banner">
+📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 네 번째 글입니다. <a href="../system-prompt-assembly/">3편</a> 에서 system prompt 의 골격 (4 element + 20 sections + cache 절단점) 을 봤다면, 이번엔 그 동적 슬롯들을 *무엇이 채우는지*. settings.json 의 키들과 .mcp.json 이 만드는 세 site 를 봅니다.
+</div>
+
+## settings 키 대부분은 LLM 에 안 닿습니다
+
+`~/.claude/settings.json` 을 열어 보면 키가 수십 개. 그런데 *실제로 prompt 바이트로 변환되어 LLM 에 도달하는 키* 는 **다섯 개** 정도 밖에 안 됩니다. 나머지는 모두 harness 내부 plumbing — 권한 게이트, theme, hook 실행, telemetry, 인증 등.
+
+이 글의 첫 절반은 그 다섯 개가 무엇이고 *3편의 어떤 슬롯을 어떻게 채우는지* 정리합니다.
+
+### settings cascade — 한 문단
+
+키마다 도달처가 다르지만 cascade 는 공통이에요. 다섯 layer 가 priority 낮은 순으로:
+
+<div class="cascade">
+<span class="priority">1 (낮음)</span>  <span class="layer">policySettings</span>   /etc/claude-code/managed-settings.json (관리자 배포)<br/>
+<span class="priority">2</span>          <span class="layer">userSettings</span>     ~/.claude/settings.json<br/>
+<span class="priority">3</span>          <span class="layer">projectSettings</span>  &lt;repo&gt;/.claude/settings.json (체크인)<br/>
+<span class="priority">4</span>          <span class="layer">localSettings</span>    &lt;repo&gt;/.claude/settings.local.json (gitignored)<br/>
+<span class="priority">5 (높음)</span>  <span class="layer">flagSettings</span>     CLI flag (--setting key=value)
+</div>
+
+뒤가 이깁니다. 같은 키가 여러 layer 에 있으면 priority 높은 쪽이 적용. 예외 하나만. `autoMemoryDirectory` 는 *projectSettings 에서 의도적으로 안 읽힘*. 나쁜 의도의 repo 가 *"내 메모리 dir 을 ~/.ssh 로 redirect"* 하는 걸 막기 위한 안전장치.
+
+### LLM 에 닿는 다섯 키
+
+3편의 슬롯 표와 매핑하면:
+
+<table class="key-table">
+<thead>
+<tr><th>키</th><th>3편의 어떤 슬롯</th><th>trace 에서 보는 모양</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><span class="kn">language</span></td>
+  <td>동적 slot 12 (<span class="mod">language</span>)</td>
+  <td><span class="k">#&nbsp;Language</span> 블록 (<em>Always respond in &lt;lang&gt;...</em>)</td>
+</tr>
+<tr class="row-warm">
+  <td><span class="kn">outputStyle</span></td>
+  <td>동적 slot 13 (<span class="mod">output_style</span>) <strong>+ 정적 prefix 의 두 자리</strong></td>
+  <td><span class="k">#&nbsp;Output&nbsp;Style:&nbsp;&lt;name&gt;</span> 헤더 + 본문 (자세히 아래)</td>
+</tr>
+<tr>
+  <td><span class="kn">autoMemoryEnabled</span></td>
+  <td>동적 slot 9 (memory) — false 면 사라짐</td>
+  <td><span class="k">#&nbsp;auto&nbsp;memory</span> 와 <span class="k">…/MEMORY.md</span> 가 둘 다 부재</td>
+</tr>
+<tr>
+  <td><span class="kn">autoMemoryDirectory</span></td>
+  <td>memory dir 경로 — slot 9 텍스트 + user message 의 <span class="k">Contents&nbsp;of</span> 헤더 양쪽에 박음</td>
+  <td><span class="k">…/MEMORY.md</span> 의 path 가 custom 경로</td>
+</tr>
+<tr>
+  <td><span class="kn">claudeMdExcludes</span></td>
+  <td>indirect — glob 매치 파일이 user-message bundle 에서 빠짐</td>
+  <td><span class="k">Contents&nbsp;of</span> 엔트리 N 개 줄어듦</td>
+</tr>
+</tbody>
+</table>
+
+### LLM 에 *안* 닿는 (헷갈리기 쉬운) 키들
+
+| 키 | 왜 harness-only 인가 |
+|---|---|
+| <span class="mod">model</span> | API client 가 이 값으로 모델을 고를 뿐, prompt 안에 안 들어감 |
+| <span class="mod">permissions: &#123; allow / deny / ask &#125;</span> | tool 사용 게이트, prompt 바이트는 안 변함 |
+| <span class="mod">hooks</span> | hook 자체가 context 를 *주입* 할 수는 있지만 (10편), 이 키 자체는 그냥 *어떤 hook 을 등록할지* 의 선언 |
+| <span class="mod">theme / vimEnabled / editorMode</span> | TUI 전용 |
+| <span class="mod">mcpServers</span> | 서버 *목록* 자체는 안 들어감. 단, 연결된 서버의 tool schema / instruction 이 따로 채널로 들어감 (밑에 봅니다) |
+
+<div class="callout-accent">
+<strong>SDK 호출자만의 두 옵션 — settings.json 바깥</strong>
+
+<span class="mod">customSystemPrompt: string</span> — 이거 set 하면 default system prompt (sections 1~20) 가 *전부* 사라지고 호출자가 넣은 string 으로 통째 대체. <span class="mod">gitStatus</span> trailer 도 함께 stripped.
+
+<span class="mod">appendSystemPrompt: string</span> — default sections 뒤에 한 덩어리 append. boundary 의 동적 쪽이라 cache 영향 적음.
+
+이 두 개는 settings 에 안 적습니다. SDK / programmatic 호출에서만 의미 있어요. trace 에서 default sections 가 통째로 빠진 게 보이면 <span class="mod">customSystemPrompt</span> 가 set 됐다는 신호.
+</div>
+
+## outputStyle 의 4 효과 — 정적 부분까지 깨는 한 키
+
+다섯 키 중 *가장 의외* 인 건 <span class="key">outputStyle</span> 이에요. 단순한 한 슬롯 추가가 아니라 *system prompt 의 네 자리* 를 동시에 수정합니다.
+
+<div class="four-effects">
+  <div class="fx fx-static">
+    <span class="fx-num">효과 1</span>
+    <div class="fx-effect"><strong>intro line 다시 쓰기</strong> — <span class="k">getSimpleIntroSection(outputStyleConfig)</span> 가 config 받아서 persona 첫 줄을 swap. 기본 <em>"You are Claude Code..."</em> → Explanatory 시 <em>"You are an interactive CLI tool..."</em></div>
+    <span class="fx-where">slot 1<br/>(정적!)</span>
+  </div>
+  <div class="fx fx-static">
+    <span class="fx-num">효과 2</span>
+    <div class="fx-effect"><strong><span class="k">#&nbsp;Doing&nbsp;tasks</span> 통째 제거</strong> (<span class="mod">keepCodingInstructions: false</span> 일 때) — ~1KB 의 코딩 가이드라인 한 블록이 사라짐. Explanatory 의 default 동작</div>
+    <span class="fx-where">slot 3<br/>(정적!)</span>
+  </div>
+  <div class="fx fx-dynamic">
+    <span class="fx-num">효과 3</span>
+    <div class="fx-effect"><strong><span class="k">#&nbsp;Output&nbsp;Style:&nbsp;&lt;name&gt;</span> 헤더 + 본문</strong> 추가 — config 의 prompt 필드가 통째로 들어감. style 작성자가 쓴 markdown body</div>
+    <span class="fx-where">slot 13<br/>(동적)</span>
+  </div>
+  <div class="fx fx-dynamic">
+    <span class="fx-num">효과 4</span>
+    <div class="fx-effect"><strong>style-specific sub-block</strong> (예: Explanatory 의 <span class="k">#&nbsp;Explanatory&nbsp;Style&nbsp;Active</span> / <span class="k">##&nbsp;Insights</span>) — 모델에게 <em>★ Insight ─────…</em> 형태의 framed aside 를 emit 하라고 지시</div>
+    <span class="fx-where">slot 13<br/>(동적, 본문 안)</span>
+  </div>
+</div>
+
+효과 1, 2 가 *정적 부분* (sections 1-7) 에 있다는 게 핵심이에요. *outputStyle 한 키 토글이 정적 prefix 까지 깨는* 결과를 만듭니다.
+
+### 결과 — language vs outputStyle 의 cache 비대칭
+
+3편에서 잠깐 본 비대칭이 여기서 본격적으로 풀려요.
+
+| setting 토글 | 정적 prefix 깨나? | 동적 prefix 깨나? |
+|---|---|---|
+| `language: "korean"` | 아니요 | 예 (slot 12 추가) |
+| `outputStyle: "Explanatory"` | **예** (효과 1, 2) | 예 (효과 3, 4) |
+
+`language` 는 정적 부분 무사. *cache hit 유지*. `outputStyle` 은 양쪽 다 깸. *full prefix rebuild*.
+
+<div class="surprise">
+<span class="label">⚡ SURPRISE</span> mid-session 에 두 outputStyle 을 번갈아 비교하면 매번 *정적 prefix 까지 rebuild* 됩니다. A/B 테스트할 거면 한 session 에선 한 style 로 고정 두는 게 실용적. <span class="key">outputStyle 은 시리즈 통틀어 가장 비싼 settings 키</span>.
+</div>
+
+### 호스팅 위치의 cascade — frontmatter `name:` 이 이김
+
+outputStyle 의 markdown 파일은 어디에 둬도 cascade 에 따라 발견돼요. project 가 user 를 이김. 한 가지 디테일 — 트레이스에 박히는 *이름* 은 **frontmatter 의 `name:` 필드** 가 우선, filename 은 fallback.
+
+```markdown
+---
+name: Strict Reviewer        ← 이게 헤더에 위치해요 (공백 있는 이름 OK)
+description: ...
+keep-coding-instructions: true
+---
+
+본문 ...
+```
+
+filename 이 `strict-reviewer.md` 라도, `# Output Style:` 헤더에는 **`# Output Style: Strict Reviewer`** 가 들어감.
+
+## scratchpad slot 15 — 보통 부재
+
+3편의 dynamic slot 표에서 한 슬롯 (15, scratchpad) 은 기본 환경에서 *보통 부재* 라고만 메모했어요. 잠깐 풀어 봅니다.
+
+`tengu_scratch` 라는 Statsig (GrowthBook) feature gate. 켜져 있으면 system prompt slot 15 에 이런 한 블록 들어감:
+
+```
+# Scratchpad Directory
+
+IMPORTANT: Always use this scratchpad directory for temporary files
+instead of `/tmp` or other system temp directories:
+`/tmp/claude-1000/abc-def-.../<sessionId>/scratchpad`
+...
+```
+
+내용은 *dir 의 경로 한 줄* + *그 dir 을 쓰라는 지시*. dir 자체는 session 끝나면 자동 cleanup, mode 0700.
+
+GrowthBook 통합이 minimal 해서 *기본은 off*. trace 에 slot 15 가 *없는 게 정상*. 모델이 임시 파일을 `/tmp` 같은 데에 쓰게 됩니다 (사용자는 잘 모르지만 trace 에선 명확).
+
+이건 *system prompt 의 한 슬롯이 작은 affordance 를 disclose* 하는 패턴이에요. dir 의 *존재* 와 *경로* 만 알리고, 안의 *파일* 은 모델이 직접 read 하지 않으면 prompt 에 안 들어옴. 9편의 sessions trio 에서 다른 두 메커니즘과 같이 봅니다.
+
+## MCP — config 파일은 안 가지만, 서버는 닿아요
+
+자리를 옮깁니다. `.mcp.json` 자체는 설정 파일이라 LLM 에 안 닿아요. 그런데 *연결된 서버* 가 일단 켜지면 *세 군데 site* 로 동시에 흘러 들어옵니다.
+
+```json
+{
+  "mcpServers": {
+    "filesystem": { "command": "npx", "args": ["@mcp/filesystem", "/path"] },
+    "playwright": { "command": "npx", "args": ["@playwright/mcp"] },
+    "github":     { "url": "https://api.github.com/mcp", "headers": {...} }
+  }
+}
+```
+
+연결된 후 prompt 에 도달하는 세 site:
+
+<div class="three-sites">
+  <div class="site-card">
+    <span class="sc-tag">Site A</span>
+    <div class="sc-name">tool 정의</div>
+    <div class="sc-desc">서버의 모든 tool 이 매 turn <span class="k">tools</span> 배열에 추가. 이름은 <span class="mod">mcp__&lt;server&gt;__&lt;tool&gt;</span> 로 namespaced.</div>
+  </div>
+  <div class="site-card">
+    <span class="sc-tag">Site B</span>
+    <div class="sc-name">서버 instructions</div>
+    <div class="sc-desc">서버가 자체 instructions 텍스트를 노출하면, system prompt 동적 slot 14 (<span class="k">#&nbsp;MCP&nbsp;Server&nbsp;Instructions</span>) 에 들어감. 대부분 서버는 안 가짐.</div>
+  </div>
+  <div class="site-card">
+    <span class="sc-tag">Site C</span>
+    <div class="sc-name">@-mentioned resource</div>
+    <div class="sc-desc">사용자가 <span class="mod">@mcp:server:resource-id</span> 라고 쳤을 때만 fetch 되어 user message 안에 inline.</div>
+  </div>
+</div>
+
+세 site 중 *제일 무거운 건 Site A* (tool 정의) 예요. 100 개 tool 을 가진 한 MCP 서버가 30K 토큰을 *매 turn* 캐시 prefix 에 추가할 수 있어요. 그래서 *ToolSearch defer* 라는 두 번째 mode 가 있습니다.
+
+### ToolSearch — *thin advertise / fat invoke* 의 또 다른 사례
+
+`isToolSearchEnabledOptimistic()` 이 true 면, 모든 MCP tool schema 를 *upfront 로 다 등록하지 않고* `ToolSearch` 라는 도구 하나만 등록합니다. 매 turn 에는 *tool 이름과 짧은 description 만* 담은 `deferred_tools_delta` attachment 가 흘러 들어오고, 모델이 *어떤 tool 이 필요할 것 같으면* `ToolSearch` 를 호출해서 그 schema 를 그 turn 에서 inline 으로 받음.
+
+<div class="callout-warm">
+<strong>같은 패턴이 또</strong>
+
+이 thin/fat 패턴 — 매 turn 에는 *얇은 advertise* 만, *호출 시에만 schema 를 fat 으로 받음* — 은 7편에서 본격적으로 보는 Skills 와 정확히 같은 디자인이에요. 8편의 Subagents 도 같은 골격. <em>advertise 는 cheap, invoke 는 expensive</em> 라는 한 줄 원칙이 시리즈 전반의 디자인 모티프.
+</div>
+
+### Site B 의 cache 처리 — 의도된 *uncached*
+
+3편에서 잠깐 봤죠. slot 14 (`mcp_instructions`) 는 다른 동적 slot 들과 다르게 `DANGEROUS_uncachedSystemPromptSection` 이라는 wrapper 를 써요. 의미는 *"이 슬롯은 cache 안 함"*.
+
+이유: MCP 서버는 mid-session 에 connect/disconnect 가 비동기로 일어남. cache 했는데 mid-session 에 새 서버가 붙으면 prefix 가 invalidate. 그러느니 *애초에 cache 에 안 넣음*. 한 번 잃을 비용을 매 turn 작게 분할.
+
+대안: `mcp_instructions_delta` mode 가 켜져 있으면 Site B 가 system prompt 에서 사라지고, 새 서버 연결될 때만 *그 서버의 instructions* 만 user-message attachment 로 따로 흘림. 이쪽이 더 효율적이지만 default 는 아님.
+
+## tracing 단서 정리
+
+settings 와 MCP 가 잘 작동하는지 trace 에서 보는 한 줄 단서들:
+
+<table class="key-table">
+<thead>
+<tr><th>찾을 것</th><th>어디서</th><th>의미</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><span class="k">#&nbsp;Output&nbsp;Style:</span> 헤더</td>
+  <td>system prompt panel</td>
+  <td><span class="mod">outputStyle</span> 활성. 헤더 옆 이름이 frontmatter <span class="mod">name:</span></td>
+</tr>
+<tr>
+  <td><span class="k">#&nbsp;Language</span> 블록</td>
+  <td>system prompt panel</td>
+  <td><span class="mod">language</span> set. body 는 byte-for-byte 같음 (<em>Always respond in...</em>)</td>
+</tr>
+<tr>
+  <td><span class="k">#&nbsp;auto&nbsp;memory</span> 부재</td>
+  <td>system prompt panel</td>
+  <td><span class="mod">autoMemoryEnabled: false</span> 또는 env var</td>
+</tr>
+<tr>
+  <td><span class="k">#&nbsp;MCP&nbsp;Server&nbsp;Instructions</span> 부재</td>
+  <td>system prompt panel</td>
+  <td>연결된 서버 중 instructions 노출하는 게 없거나, MCP 서버 자체가 0 개</td>
+</tr>
+<tr>
+  <td><span class="k">tool.definitions</span> 가 의외로 작음</td>
+  <td>tools panel</td>
+  <td>ToolSearch defer 활성. 나머지 tool 은 <span class="mod">deferred_tools_delta</span> attachment 로 숨어 있음</td>
+</tr>
+</tbody>
+</table>
+
+## Take-home
+
+이 글의 정리:
+
+<blockquote>
+3편의 골격 위에 settings.json 의 다섯 키가 위치해요. <span class="mod">language</span> · <span class="mod">outputStyle</span> · <span class="mod">autoMemoryEnabled</span> · <span class="mod">autoMemoryDirectory</span> · <span class="mod">claudeMdExcludes</span>. 나머지 수십 개는 모두 harness 내부.
+<br/><br/>
+<span class="key">outputStyle 의 *4 효과* 가 가장 의외</span>. 단순 슬롯 추가가 아니라 정적 prefix 의 intro 다시 쓰기 + <span class="k">#&nbsp;Doing&nbsp;tasks</span> 제거 + 동적 slot 13 헤더 + style-specific sub-block. *정적 부분까지 깨는 유일한 settings 키*.
+<br/><br/>
+MCP 는 *config 파일 자체* 는 안 가지만, 연결된 서버에서 흘러나오는 정보가 <span class="key">세 site</span> (tool 정의 / 서버 instructions / @-mentioned resource) 로 동시에. 가장 무거운 *tool 정의* 는 <span class="key">ToolSearch defer</span> 로 lazy load 가능. 같은 thin/fat 패턴이 7편의 Skills, 8편의 Subagents 에서도.
+</blockquote>
+
+다음 글은 system 영역의 마지막 한 자리 — *trailer 한 블록* 을 다루는 짧고 단단한 한 편입니다. 모든 trace 에 항상 위치해 있는 그 한 덩어리, gitStatus.
+
+## References
+
+- settings cascade: `utils/settings/settings.ts` (`getInitialSettings`, `getSettingsForSource`)
+- LLM-touching keys 의 도달처: `constants/prompts.ts:142` (`language`), `:151` (`outputStyle`), `:562` (intro rewrite), `:564-567` (`keepCodingInstructions` 분기)
+- SDK overrides: `utils/queryContext.ts:55-73` (`customSystemPrompt`), `:124-131` (`appendSystemPrompt`)
+- MCP: `services/mcp/config.ts` (discovery), `services/mcp/useManageMCPConnections.ts` (lifecycle), `constants/prompts.ts:579-604` (`getMcpInstructions`), `:513-520` (`mcp_instructions` slot 14, with cache-bypass)
+- ToolSearch: `utils/attachments.ts:1455` (`getDeferredToolsDeltaAttachment`)
+- Phase 2 검증: traces 1~5 (settings 토글 4 패턴, outputStyle 의 4 효과 empirical 확인), trace 9 (MCP instructions block 부재)

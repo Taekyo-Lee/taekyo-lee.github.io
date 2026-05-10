@@ -1,0 +1,355 @@
+---
+title: 'Hooks — harness 가 mid-flight 으로 context 를 주입하는 유일한 통로'
+description: '외부 process 가 LLM 의 다음 user message 안에 바이트를 박을 수 있는 단 하나의 메커니즘. UserPromptSubmit / PreToolUse / PostToolUse 의 두 injection mode (stdout vs additionalContext) 를 정리.'
+pubDate: 'Jun 28 2026'
+category: harness-engineering
+heroImage: '../../../../assets/heroes/hero-harness-engineering.png'
+series: 'context-engineering-of-claude-code'
+seriesOrder: 10
+---
+
+<style>{`
+  .series-banner {
+    color: rgb(31, 71, 135);
+    font-size: 0.92em;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border-left: 3px solid var(--accent);
+    margin: 0 0 1.6em;
+    line-height: 1.55;
+  }
+  .k {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    color: #1f4787;
+    font-size: 0.94em;
+  }
+  .note-flag {
+    background: rgba(96, 115, 159, 0.22);
+    display: inline-block;
+    color: rgb(60, 70, 90);
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 9px;
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+  .surprise {
+    border-left: 4px solid var(--claude);
+    padding: 0.95em 1.2em;
+    margin: 1.6em 0;
+    border-radius: 0 8px 8px 0;
+    line-height: 1.65;
+  }
+  .surprise .label {
+    background: var(--claude);
+    display: inline-block;
+    color: white;
+    font-size: 0.7em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 9px;
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+
+  .events-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.4em 0;
+    font-size: 0.92em;
+    line-height: 1.55;
+  }
+  .events-table th, .events-table td {
+    padding: 0.55em 0.8em;
+    border-bottom: 1px solid rgb(var(--gray-light));
+    text-align: left;
+    vertical-align: top;
+  }
+  .events-table th { font-weight: 700; }
+    background: rgba(96, 115, 159, 0.12);
+  .events-table .ev { font-family: ui-monospace, monospace; font-size: 0.88em; color: var(--accent); font-weight: 700; }
+  .events-table .yes { color: var(--claude); font-weight: 700; }
+  .events-table .no { color: rgb(var(--gray)); }
+
+  .modes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 2em 0;
+  }
+  @media (max-width: 600px) { .modes { grid-template-columns: 1fr; } }
+  .mode-card {
+    background: white;
+    padding: 16px 18px;
+    border-radius: 10px;
+    border: 1px solid rgba(96, 115, 159, 0.25);
+  }
+  .mode-card .mode-tag {
+    background: rgba(35, 55, 255, 0.12);
+    display: inline-block;
+    font-size: 0.7em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 3px 9px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    color: var(--accent);
+  }
+  .mode-card .mode-name { font-weight: 700; margin-bottom: 6px; font-size: 1.02em; }
+  .mode-card .mode-desc { font-size: 0.88em; color: rgb(var(--gray-dark)); line-height: 1.55; }
+`}</style>
+
+<div class="series-banner">
+📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 열 번째 글입니다. 지금까지 본 모든 context source 는 *harness 가 어떤 파일을 어떻게 읽어 prompt 에 박을지* 를 다뤘다면, 이번 글은 그걸 <em>뒤집어요</em>. 사용자가 직접 prompt 안에 바이트를 박을 수 있는 단 하나의 메커니즘, hooks.
+</div>
+
+## "harness 가 결정한다" 의 뒤집기
+
+지금까지 본 13개의 context source 는 모두 *harness 가 결정* 하는 것이었어요. *어떤 CLAUDE.md 를 읽을지*, *MEMORY.md 를 어떻게 truncate 할지*, *어떤 settings 키가 어디로 가는지* — 결정 권한은 Claude Code 의 코드 안에. 사용자는 그 룰 안에서 파일을 만들 뿐.
+
+<span class="term">Hooks</span> 는 그걸 정확히 뒤집어요. 사용자가 작성한 *외부 shell command* (또는 SDK callback) 가 매 turn (또는 특정 event) 마다 실행되고, 그 stdout 또는 JSON return 이 *LLM 의 다음 user message 안에 바이트를 박습니다*.
+
+<div class="callout-warm">
+<strong>hook 이 유일한 mid-flight injection 통로</strong>
+
+CLAUDE.md, MEMORY.md, gitStatus, output style, MCP instructions — 모두 *session 시작 시* (또는 매 turn 의 정해진 어셈블리 시점에) 위치합니다. 사용자가 mid-session 에 *동적으로* prompt 안에 뭔가를 추가하고 싶다면 hook 만이 답이에요.
+</div>
+
+## hook event 의 분류 — context 를 inject 할 수 있는 건 일부
+
+전체 hook event 는 20개 정도인데 (`HOOK_EVENTS` 배열에 정의), 그 중 *prompt 안으로 바이트를 박을 수 있는* 건 일부예요. 나머지는 observability-only — *"이런 일이 일어났다"* 만 알리고 끝납니다.
+
+<table class="events-table">
+<thead>
+<tr><th>event</th><th>fires when</th><th>injection 채널</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><span class="ev">UserPromptSubmit</span></td>
+  <td>사용자가 prompt 제출 후, LLM 호출 전</td>
+  <td>stdout + additionalContext 둘 다</td>
+</tr>
+<tr>
+  <td><span class="ev">SessionStart</span></td>
+  <td>session 당 한 번, 첫 LLM 호출 전</td>
+  <td>stdout + additionalContext 둘 다</td>
+</tr>
+<tr>
+  <td><span class="ev">SubagentStart</span></td>
+  <td>subagent dispatch 후, 그 첫 LLM 호출 전</td>
+  <td>additionalContext 만</td>
+</tr>
+<tr>
+  <td><span class="ev">PreToolUse</span></td>
+  <td>각 tool 호출 전</td>
+  <td>additionalContext 만</td>
+</tr>
+<tr>
+  <td><span class="ev">PostToolUse</span></td>
+  <td>각 tool 호출 후 (성공)</td>
+  <td>additionalContext 만</td>
+</tr>
+<tr>
+  <td><span class="ev">PostToolUseFailure</span></td>
+  <td>각 tool 호출 후 (실패)</td>
+  <td>additionalContext 만</td>
+</tr>
+</tbody>
+</table>
+
+나머지 event 들 (`Notification`, `Setup`, `TeammateIdle`, `TaskCreated/Completed`, `PermissionRequest/Denied`, `SessionEnd`, ...) 은 prompt 안으로 가는 path 가 정의되어 있지 않아요.
+
+## 두 injection mode — stdout vs additionalContext
+
+같은 hook 이라도 inject 방식이 두 개. 모양은 다르지만 *결과는 똑같이* `<system-reminder>` 블록으로 user message 안에 위치해요.
+
+<div class="modes">
+  <div class="mode-card">
+    <span class="mode-tag">Mode 1</span>
+    <div class="mode-name">stdout → hook_success</div>
+    <div class="mode-desc">hook 이 stdout 에 텍스트를 출력하면 그게 통째로 prompt 에 위치합니다. 단 <span class="mod">SessionStart</span> 와 <span class="mod">UserPromptSubmit</span> 두 event 만 이 path 가 동작.</div>
+  </div>
+  <div class="mode-card">
+    <span class="mode-tag">Mode 2</span>
+    <div class="mode-name">JSON return → additionalContext</div>
+    <div class="mode-desc">hook 이 stdout 의 마지막 줄에 특정 JSON shape 을 emit 하면 그 안의 <span class="mod">additionalContext</span> 필드가 prompt 에 들어감. 거의 모든 event 에서 동작.</div>
+  </div>
+</div>
+
+### Mode 1 — stdout
+
+settings.json:
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "echo 'today is meeting day'" }
+        ]
+      }
+    ]
+  }
+}
+```
+
+trace 의 `system_reminders` attribute 안에 이런 모양으로 위치합니다:
+
+```
+<system-reminder>
+UserPromptSubmit hook success: today is meeting day
+</system-reminder>
+```
+
+위에 적은 대로 *`SessionStart` 와 `UserPromptSubmit` 둘만* 이 path 를 honor 해요. `PreToolUse` 가 stdout 으로 *"about to run Bash"* 같은 걸 출력해도 — 모델은 안 봅니다. logging 으로만 잡힘.
+
+### Mode 2 — JSON return
+
+stdout 의 *마지막 줄* 에 이 shape 의 JSON 을 출력:
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "additionalContext": "extra context for the model"
+  }
+}
+```
+
+이 path 는 거의 모든 event 에서 동작해요. trace 의 모양:
+
+```
+<system-reminder>
+PreToolUse:Bash hook additional context: extra context for the model
+</system-reminder>
+```
+
+두 path 가 같은 hook 에서 *공존* 할 수 있어요. 자유 형식 stdout + 마지막 줄에 JSON → 두 블록이 동시에 들어감.
+
+## hookName 의 자동 생성 패턴 — `:matcher` suffix
+
+Phase 2 trace 36-40 에서 발견된 의외의 디테일.
+
+settings 에서 hook name 을 명시하지 않으면 harness 가 자동 생성하는데, *tool-related event 의 경우 matcher 가 같이 들어갑니다*:
+
+| event class | 자동 생성된 hookName | 예 |
+|---|---|---|
+| 비-tool event (UserPromptSubmit, SessionStart) | event 이름 그대로 | `UserPromptSubmit` |
+| tool-related (PreToolUse, PostToolUse) | `<event>:<matcher>` | `PreToolUse:Bash`, `PostToolUse:Edit\|Write` |
+
+그래서 trace 의 `<system-reminder>` 안에 박히는 literal text 가 `PreToolUse hook additional context: ...` 가 아니라 `PreToolUse:Bash hook additional context: ...` 예요.
+
+<div class="surprise">
+<span class="label">⚡ SURPRISE</span> trace 를 grep 으로 *"hook 이 firing 했나"* 검사할 때 <span class="key">정규식에 <span class="mod">:&lt;matcher&gt;</span> suffix 를 허용</span> 해야 합니다. <span class="mod">^PreToolUse hook</span> 만 보면 tool-related hook 들을 다 놓쳐요. 처음 한 번 헷갈리면 *"왜 내 hook 이 fire 안 되는데 다 잘 돌아가는 거지"* 디버깅에 시간이 빠집니다.
+</div>
+
+## 어디에 박히나 — 실제 trace 의 모양
+
+`UserPromptSubmit` hook 이 fire 하면, 그 다음 LLM 호출 turn 의 user-message 안에 위치합니다. 그 자리는 prepend 된 합성 reminder 와 사용자의 literal prompt 사이.
+
+OpenAI shim 환경에선 모두 한 user message 로 coalesced 되어 이런 모양:
+
+```
+[index 0 — user message]
+<system-reminder>...skill_listing...</system-reminder>
+
+<system-reminder>...claudeMd + currentDate...</system-reminder>
+
+<system-reminder>UserPromptSubmit hook success: today is meeting day</system-reminder>
+
+(사용자가 친 literal prompt)
+```
+
+`PreToolUse` / `PostToolUse` 의 경우는 좀 더 흥미로워요. *tool 의 result 와 같은 turn* 의 user message 안에 위치해요:
+
+```
+[Tool call: Bash] {"command": "pwd"}
+[Tool result] /home/jet/workspace
+<system-reminder>PreToolUse:Bash hook additional context: PRE-TOOL-SENTINEL...</system-reminder>
+<system-reminder>PostToolUse:Bash hook additional context: POST-TOOL-SENTINEL...</system-reminder>
+```
+
+여러 hook 이 같은 turn 에 fire 하면 모두 같은 user message 안에 `\n\n---\n\n` 로 join 되어 한꺼번에 들어감.
+
+## hook 의 `isMeta: true` — transcript 에 안 적힘
+
+9편의 transcript 가이드와 connecting 되는 한 가지: hook 으로 inject 된 reminder 들도 *`isMeta: true`* flag 를 답니다. 결과:
+
+- LLM 에는 user message 로 도달
+- on-disk transcript 에는 *기록 안 됨* (meta filter)
+- `--resume` 시 *replay 안 됨*
+
+그러니 hook 으로 inject 한 정보는 **본질적으로 per-turn delta**. *"한 번 보여주고 끝"*. 영구 기억이 필요하면 hook 으로 inject 하지 말고 CLAUDE.md / MEMORY.md 에 적어야 해요.
+
+<div class="callout-accent">
+<strong>blocking PreToolUse — 도구 호출을 막을 수 있어요</strong>
+
+PreToolUse hook 이 JSON return 으로 <span class="mod">&#123; "decision": "block", "reason": "..." &#125;</span> 를 emit 하면, 그 tool 호출 자체가 차단되고 reason 이 모델의 user message 안에 <span class="k">&lt;system-reminder&gt;</span> 로 위치해요. <em>"이 도구는 못 써, 이런 이유로"</em> 를 모델에게 mid-flight 으로 알리는 path. 정책 가드레일을 코드 변경 없이 wire 할 수 있는 강력한 메커니즘.
+</div>
+
+## hook 이 trace 에서 보이는 모양 — 두 surface
+
+### 1. hook span 자체
+
+매 hook firing 은 `span.type: "hook"` 의 별도 span 으로 잡힙니다. attributes:
+
+- `hook_event`, `hook_name` (auto-generated 또는 custom)
+- `num_hooks`, `hook_definitions`
+- `duration_ms`, `num_success`, `num_blocking`, `num_non_blocking_error`, `num_cancelled`
+
+이게 *"hook 이 돌았다"* 를 알려주는데, **inject 된 content 자체는 hook span 에 없어요**.
+
+### 2. 다음 LLM-call span 의 `system_reminders`
+
+inject 된 *바이트* 는 그 hook 다음에 firing 하는 LLM-call span 의 `attributes.system_reminders` 에서 봅니다.
+
+| 패턴 | 어떤 hook 이 firing 했나 |
+|---|---|
+| `<hookName> hook success: <stdout>` | SessionStart 또는 UserPromptSubmit 의 stdout path |
+| `<hookName> hook additional context: <content>` | 어떤 event 든 additionalContext path |
+| `<hookName> hook blocking error from command: ...` | PreToolUse 의 blocking decision |
+
+이 두 surface 의 분리 (*hook span 은 outcome, LLM span 은 content*) 가 trace 디버깅의 명료함을 만들어요. *"hook 이 돌았는데 model 이 못 봤다"* 면 둘 사이의 어떤 path 가 끊겼는지 단서가 또렷.
+
+## hook 의 mental model
+
+| | Hook | CLAUDE.md | MEMORY.md | Slash command |
+|---|---|---|---|---|
+| 결정 주체 | 사용자 (외부 process) | 사용자 (markdown) | 모델 (auto-write) | 사용자 (명시 호출) |
+| 호출 시점 | event 자동 fire | 매 turn auto | 매 turn auto | 명시 호출 |
+| 영속성 | per-turn (transcript 에 미기록) | persistent | persistent | per-turn |
+| 가장 좋은 use case | 동적 per-turn 정보 (오늘의 oncall, 환경 변화) | 항상 적용되는 규칙 | 모델이 발견한 사실의 누적 | 자주 쓰는 user 입력의 alias |
+
+hook 의 sweet spot: **per-turn 으로 동적, 모델이 한 번만 보면 되고, 빠른 shell command 또는 SDK callback 으로 source 되는 정보**. 영구도 아니고 user 입력의 alias 도 아닌 *그 사이의 영역*.
+
+## Take-home
+
+이 글의 정리:
+
+<blockquote>
+지금까지 본 13 개 context source 가 모두 *harness 가 결정* 하는 것이었다면, hooks 는 <span class="key">사용자가 직접 prompt 안에 바이트를 박을 수 있는 단 하나의 메커니즘</span> 입니다.
+<br/><br/>
+20 여 가지 hook event 중 *context 를 inject 할 수 있는* 건 6 개. 두 mode (*stdout* — SessionStart/UserPromptSubmit 만 / *additionalContext* — 거의 모든 event) 가 있고, 결과는 똑같이 <span class="k">&lt;system-reminder&gt;</span> 블록.
+<br/><br/>
+auto-generated hook name 의 <span class="key">:matcher suffix</span> 는 trace grep 패턴에 영향. <span class="mod">PreToolUse:Bash hook</span> 같은 형태로 들어가요.
+<br/><br/>
+hook injected content 는 *isMeta* 라서 transcript 에 기록 안 됨 → resume 시 replay 안 됨 → <span class="key">본질적으로 per-turn delta</span>. 영구 기억이 필요하면 CLAUDE.md / MEMORY.md 로 가야 합니다.
+</blockquote>
+
+다음 글이 시리즈의 마지막입니다. 지금까지 9 편에 걸쳐 본 모든 context source 들을 *한 master map* 으로 모으고, Phase 2 검증에서 *문서와 어긋났던 큰 correction* 들을 한 자리에 정리합니다.
+
+## References
+
+- Hook event 분류: `entrypoints/sdk/coreSchemas.ts` (`HOOK_EVENTS`)
+- 두 injection path: `utils/messages.ts:4106-4135` (hook_success / hook_additional_context attachment 렌더링)
+- `additionalContext` 추출: `utils/hooks.ts:621-652`
+- hook span 라이프사이클: `utils/telemetry/sessionTracing.ts:1061-1144`
+- SubagentStart injection: `tools/AgentTool/runAgent.ts:543`
+- Phase 2 검증: traces 30-31 (UserPromptSubmit stdout path), 36-40 (PreToolUse/PostToolUse additionalContext path + auto-generated `:matcher` suffix 발견)

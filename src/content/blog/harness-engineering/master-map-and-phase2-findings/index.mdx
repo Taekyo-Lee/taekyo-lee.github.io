@@ -1,0 +1,474 @@
+---
+title: '시리즈의 종합 — Master map 과 Phase 2 의 발견들'
+description: '9편에 걸쳐 본 모든 context source 를 한 master map 으로 모으고, Phase 2 검증에서 문서와 어긋났던 7가지 큰 correction 과 40+ 발견들을 정리. 이론으로 그린 그림과 실제 trace 가 어떻게 다른가의 마지막 한 자리.'
+pubDate: 'Jul 05 2026'
+category: harness-engineering
+heroImage: '../../../../assets/heroes/hero-harness-engineering.png'
+series: 'context-engineering-of-claude-code'
+seriesOrder: 11
+---
+
+<style>{`
+  .series-banner {
+    color: rgb(31, 71, 135);
+    font-size: 0.92em;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border-left: 3px solid var(--accent);
+    margin: 0 0 1.6em;
+    line-height: 1.55;
+  }
+  .k {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    color: #1f4787;
+    font-size: 0.94em;
+  }
+  .note-flag {
+    background: rgba(96, 115, 159, 0.22);
+    display: inline-block;
+    color: rgb(60, 70, 90);
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 9px;
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+  .surprise {
+    border-left: 4px solid var(--claude);
+    padding: 0.95em 1.2em;
+    margin: 1.6em 0;
+    border-radius: 0 8px 8px 0;
+    line-height: 1.65;
+  }
+  .surprise .label {
+    background: var(--claude);
+    display: inline-block;
+    color: white;
+    font-size: 0.7em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 9px;
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+
+  .master-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.4em 0;
+    font-size: 0.86em;
+    line-height: 1.5;
+  }
+  .master-table th, .master-table td {
+    padding: 0.5em 0.7em;
+    border-bottom: 1px solid rgb(var(--gray-light));
+    text-align: left;
+    vertical-align: top;
+  }
+  .master-table th { font-weight: 700; }
+    background: rgba(96, 115, 159, 0.12);
+  .master-table .src { font-weight: 700; color: var(--accent); }
+  .master-table .where { font-family: ui-monospace, monospace; font-size: 0.86em; }
+
+  .corrections {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin: 2em 0;
+  }
+  .corr-card {
+    background: rgba(204, 120, 92, 0.04);
+    padding: 14px 16px;
+    border-radius: 10px;
+    border-left: 4px solid var(--claude);
+  }
+  .corr-card .corr-label {
+    background: var(--claude);
+    display: inline-block;
+    color: white;
+    font-size: 0.7em;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+  }
+  .corr-card .corr-title { font-weight: 700; margin-bottom: 6px; font-size: 1em; }
+  .corr-card .corr-row { font-size: 0.88em; line-height: 1.55; color: rgb(var(--gray-dark)); margin-bottom: 4px; }
+  .corr-card .corr-row strong { color: rgb(var(--black)); }
+`}</style>
+
+<div class="series-banner">
+📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 마지막, 열한 번째 글입니다. 9편에 걸쳐 흩어졌던 14개 source 를 한 master map 으로 모으고, Phase 2 검증에서 문서와 어긋났던 큰 correction 들과 40+ 발견을 한 자리에 정리합니다.
+</div>
+
+## 시리즈를 한 표로 — *어떤 source 가 어디로 가나*
+
+지금까지 9 편 (3편~10편 + 11편 본 글의 종합) 에 걸쳐 본 14 개 source 를 *최종 입력의 어느 자리* 에 도달하는지로 정렬한 한 표입니다. 시리즈를 곁에 두고 trace 디버깅할 때 가장 자주 참조하게 될 자리.
+
+<table class="master-table">
+<thead>
+<tr><th>source</th><th>어떻게 (파일 / config)</th><th>어디로 (자리)</th><th>cache scope</th></tr>
+</thead>
+<tbody>
+
+<tr><td colspan="4" style={{ fontWeight: 700, fontSize: '0.9em' }}>📌 SYSTEM PROMPT — 정적 부분 (sections 1~7, cacheable)</td></tr>
+
+<tr>
+  <td class="src">intro</td>
+  <td>Anthropic baked + <span class="mod">outputStyle</span> 일부 수정</td>
+  <td class="where">slot 1</td>
+  <td>global / org</td>
+</tr>
+<tr>
+  <td class="src"># Doing tasks</td>
+  <td>Anthropic baked, <span class="mod">outputStyle</span> 의 <span class="mod">keepCodingInstructions</span> 가 false 면 사라짐</td>
+  <td class="where">slot 3 (조건부)</td>
+  <td>global / org</td>
+</tr>
+
+<tr><td colspan="4" style={{ fontWeight: 700, fontSize: '0.9em' }}>📌 SYSTEM PROMPT — 동적 부분 (sections 8~20)</td></tr>
+
+<tr>
+  <td class="src">session_guidance</td>
+  <td>Skill 안내 등</td>
+  <td class="where">slot 8</td>
+  <td>none</td>
+</tr>
+<tr>
+  <td class="src"># auto memory</td>
+  <td>MEMORY.md 의 *procedural prompt* (taxonomy / when-to-save)</td>
+  <td class="where">slot 9</td>
+  <td>global / org</td>
+</tr>
+<tr>
+  <td class="src"># Environment</td>
+  <td>cwd, model, OS, ...</td>
+  <td class="where">slot 11</td>
+  <td>none</td>
+</tr>
+<tr>
+  <td class="src"># Language</td>
+  <td><span class="mod">settings.language</span></td>
+  <td class="where">slot 12</td>
+  <td>none</td>
+</tr>
+<tr>
+  <td class="src"># Output Style</td>
+  <td><span class="mod">settings.outputStyle</span> + 그 markdown body</td>
+  <td class="where">slot 13</td>
+  <td>none</td>
+</tr>
+<tr>
+  <td class="src"># MCP Server Instructions</td>
+  <td>연결된 MCP 서버의 instructions</td>
+  <td class="where">slot 14 (uncached!)</td>
+  <td>none (의도)</td>
+</tr>
+<tr>
+  <td class="src"># Scratchpad Directory</td>
+  <td><span class="mod">tengu_scratch</span> 게이트, 보통 off</td>
+  <td class="where">slot 15</td>
+  <td>none</td>
+</tr>
+<tr>
+  <td class="src">summarize_tool_results</td>
+  <td>항상 emit (settings 로 못 끔)</td>
+  <td class="where">slot 17</td>
+  <td>none</td>
+</tr>
+<tr>
+  <td class="src">gitStatus:</td>
+  <td>session 시작 시 5 git 명령</td>
+  <td class="where">trailer (slot 마지막 뒤)</td>
+  <td>none (session 안 안정)</td>
+</tr>
+
+<tr><td colspan="4" style={{ fontWeight: 700, fontSize: '0.9em' }}>📌 TOOLS 배열</td></tr>
+
+<tr>
+  <td class="src">Core primitives</td>
+  <td>Read, Edit, Bash, Grep, ...</td>
+  <td class="where">tools[]</td>
+  <td>tools-cache</td>
+</tr>
+<tr>
+  <td class="src">Skill / Agent meta tools</td>
+  <td>built-in</td>
+  <td class="where">tools[]</td>
+  <td>tools-cache</td>
+</tr>
+<tr>
+  <td class="src">MCP tools</td>
+  <td>연결된 .mcp.json 서버. ToolSearch defer mode 에선 lazy load</td>
+  <td class="where">tools[]</td>
+  <td>tools-cache</td>
+</tr>
+
+<tr><td colspan="4" style={{ fontWeight: 700, fontSize: '0.9em' }}>📌 USER MESSAGES — 합성 <span class="mod">&lt;system-reminder&gt;</span> (매 turn prepend)</td></tr>
+
+<tr>
+  <td class="src"># claudeMd (5 종류)</td>
+  <td>CLAUDE.md (Managed/User/Project/Local) + MEMORY.md content + (Team)</td>
+  <td class="where">user message slot 0</td>
+  <td>none (단 content 가 같으면 prompt-cache 가 stable prefix 로 처리)</td>
+</tr>
+<tr>
+  <td class="src"># currentDate</td>
+  <td>매 turn fresh date</td>
+  <td class="where">user message slot 0</td>
+  <td>none</td>
+</tr>
+<tr>
+  <td class="src">skill_listing</td>
+  <td>turn 0 에만, 새 skill 들어오면 delta</td>
+  <td class="where">user message slot 0 attachment</td>
+  <td>none</td>
+</tr>
+
+<tr><td colspan="4" style={{ fontWeight: 700, fontSize: '0.9em' }}>📌 USER MESSAGES — 사용자 명시 호출</td></tr>
+
+<tr>
+  <td class="src">Slash command body</td>
+  <td>arg substitution + shell 실행 후 inline</td>
+  <td class="where">latest user message</td>
+  <td>none</td>
+</tr>
+<tr>
+  <td class="src">@-mentioned files / MCP resources</td>
+  <td>turn 안에 inline</td>
+  <td class="where">latest user message attachments</td>
+  <td>none</td>
+</tr>
+
+<tr><td colspan="4" style={{ fontWeight: 700, fontSize: '0.9em' }}>📌 USER MESSAGES — hook 으로 mid-flight 주입</td></tr>
+
+<tr>
+  <td class="src">Hook stdout</td>
+  <td>SessionStart, UserPromptSubmit 만</td>
+  <td class="where">next user message</td>
+  <td>none (transcript 에도 미기록)</td>
+</tr>
+<tr>
+  <td class="src">Hook additionalContext</td>
+  <td>거의 모든 event</td>
+  <td class="where">next user message</td>
+  <td>none (transcript 에도 미기록)</td>
+</tr>
+
+<tr><td colspan="4" style={{ fontWeight: 700, fontSize: '0.9em' }}>📌 USER MESSAGES — 별도 메커니즘</td></tr>
+
+<tr>
+  <td class="src">Conversation history</td>
+  <td><span class="mod">--resume</span> 시 .jsonl 에서 replay (단 isMeta 는 제외)</td>
+  <td class="where">user/assistant message 1..N-1</td>
+  <td>progressive cache hit</td>
+</tr>
+<tr>
+  <td class="src">Compact summary</td>
+  <td><span class="mod">/compact</span> 시 *inline text* 로 user message 안</td>
+  <td class="where">한 user message 안의 <span class="k">&lt;summary&gt;</span> XML</td>
+  <td>none</td>
+</tr>
+<tr>
+  <td class="src">Session memory</td>
+  <td>compaction 때만 도달, 보통 inert</td>
+  <td class="where">summary 안에 inline (활성 시)</td>
+  <td>none</td>
+</tr>
+
+</tbody>
+</table>
+
+이 한 표가 시리즈의 *공간 축* 정리입니다. 어떤 source 든 *최종 입력의 어느 자리* 에 박히는지 한눈에.
+
+## 7 가지 큰 correction — *문서와 trace 가 어긋난 자리*
+
+Phase 2 검증의 진짜 가치가 여기에 모입니다. 문서(가이드 초안) 가 *어떻게 쓰여 있었는지* 와 실제 trace 가 *어떻게 보였는지* 가 어긋난 자리 8 개. 각각이 시리즈의 어느 편에서 발견됐는지를 함께 메모.
+
+<div class="corrections">
+
+  <div class="corr-card">
+    <span class="corr-label">CORRECTION 1</span>
+    <div class="corr-title">resume 시 옛날 <span class="k">&lt;system-reminder&gt;</span> 는 *replay 안 된다* (9편)</div>
+    <div class="corr-row"><strong>가설</strong>: prepended reminder 가 .jsonl 에 기록되니, resume 시 두 개의 reminder 가 messages 배열에 있게 된다.</div>
+    <div class="corr-row"><strong>실제</strong>: 합성 reminder 는 <span class="mod">isMeta: true</span> 라서 transcript 에 *애초에 안 적힘*. resume 시 fresh 한 한 개만 prepend.</div>
+    <div class="corr-row"><strong>의미</strong>: CLAUDE.md 가 원본 session 후 수정되면 resume session 은 *수정된* 것만 봄. <span class="mod">currentDate</span> 도 resume 시점.</div>
+  </div>
+
+  <div class="corr-card">
+    <span class="corr-label">CORRECTION 2</span>
+    <div class="corr-title">post-compact 의 messages 배열은 *훨씬 messier* (9편)</div>
+    <div class="corr-row"><strong>가설</strong>: <span class="mod">[&lt;reminder&gt;, &lt;compact_boundary&gt;, &lt;preservedSegment&gt;, &lt;new input&gt;]</span> 의 깔끔한 4-원소 배열.</div>
+    <div class="corr-row"><strong>실제</strong>: 합성 Read tool_use + tool_result 가 prepend 되어 있고, 그 뒤에 한 거대한 user message — reminder + summary preamble + <span class="mod">&lt;summary&gt;</span> XML + transcript pointer + command tags + 새 prompt 가 통째로 inline.</div>
+    <div class="corr-row"><strong>의미</strong>: <span class="mod">compact_boundary</span> 라는 별도 message type 이 *wire format* 에 없음. <span class="mod">&lt;summary&gt;</span> XML wrapper 가 in-text boundary marker 역할.</div>
+  </div>
+
+  <div class="corr-card">
+    <span class="corr-label">CORRECTION 3</span>
+    <div class="corr-title">slash command 의 metadata 헤더는 XML 태그 (7편)</div>
+    <div class="corr-row"><strong>가설</strong>: <span class="mod">"Slash command /foo loaded"</span> 같은 free-form 텍스트가 별도 user message 로.</div>
+    <div class="corr-row"><strong>실제</strong>: <span class="mod">&lt;command-name&gt;</span>, <span class="mod">&lt;command-message&gt;</span>, <span class="mod">&lt;command-args&gt;</span> XML 태그가 같은 user message 에 prepend.</div>
+    <div class="corr-row"><strong>의미</strong>: 모델이 *"이 user message 는 slash 호출"* 임을 인지해 다시 Skill tool 호출하지 않게 하는 신호.</div>
+  </div>
+
+  <div class="corr-card">
+    <span class="corr-label">CORRECTION 4</span>
+    <div class="corr-title">slash command 의 shell substitution 패턴 (7편)</div>
+    <div class="corr-row"><strong>가설</strong>: line prefix <span class="mod">!cmd</span> 가 shell 실행됨 (bash history-expansion 처럼).</div>
+    <div class="corr-row"><strong>실제</strong>: 두 패턴만 매칭. <span class="mod">``` !</span> (block form) 또는 <span class="mod">!`cmd`</span> (inline form). Plain <span class="mod">!cmd</span> at line start 는 literal text 로 통과.</div>
+    <div class="corr-row"><strong>의미</strong>: trace 에서 <em>"왜 git diff 출력이 안 나오지"</em> 디버깅의 첫 의심점.</div>
+  </div>
+
+  <div class="corr-card">
+    <span class="corr-label">CORRECTION 5</span>
+    <div class="corr-title"><span class="mod">@include</span> 는 *additive*, not *transformational* (6편)</div>
+    <div class="corr-row"><strong>가설</strong>: <span class="mod">@include</span> directive 가 included 파일의 본문으로 *치환* 된다.</div>
+    <div class="corr-row"><strong>실제</strong>: directive 는 host 본문에 *그대로 살아있고*, included 파일은 별도 <span class="mod">Contents of</span> 엔트리로 *추가*. 둘 다 모델에 도달.</div>
+    <div class="corr-row"><strong>의미</strong>: token 비용은 작지만 (5-10 토큰) 깊은 chain (max depth 5) 에서 누적. 모델은 같은 reference 를 두 번 봄.</div>
+  </div>
+
+  <div class="corr-card">
+    <span class="corr-label">CORRECTION 6</span>
+    <div class="corr-title">OpenAI shim 이 consecutive user messages 를 coalesce (6·7·9편)</div>
+    <div class="corr-row"><strong>가설</strong>: prepended reminder, skill_listing attachment, 사용자 prompt 가 *별도의 3 user messages*.</div>
+    <div class="corr-row"><strong>실제</strong>: OpenAI shim mode 에선 strict user/assistant alternation 을 위해 *통째로 한 user message* 로 merge. <span class="mod">\n\n</span> 로 구분되어 있음. Anthropic-direct mode 에선 분리 유지.</div>
+    <div class="corr-row"><strong>의미</strong>: trace 에서 user message 개수를 세거나 index <span class="mod">[0]</span> 의 정확한 모양을 비교할 때 mode 영향을 인지해야 함.</div>
+  </div>
+
+  <div class="corr-card">
+    <span class="corr-label">CORRECTION 7</span>
+    <div class="corr-title"><span class="mod">outputStyle</span> 은 *4 효과* (4편 — Settings 와 MCP)</div>
+    <div class="corr-row"><strong>가설</strong>: <span class="mod">outputStyle</span> 이 system prompt 의 한 자리 (<span class="k">#&nbsp;Output&nbsp;Style</span>) 만 추가.</div>
+    <div class="corr-row"><strong>실제</strong>: 네 자리를 동시에 수정. (1) intro 다시 쓰기, (2) <span class="k">#&nbsp;Doing&nbsp;tasks</span> 통째 제거 (<span class="mod">keepCodingInstructions</span> false), (3) <span class="k">#&nbsp;Output&nbsp;Style:&nbsp;&lt;name&gt;</span> 헤더 + body, (4) Insights 같은 sub-block.</div>
+    <div class="corr-row"><strong>의미</strong>: cache 비대칭의 핵심. <span class="mod">outputStyle</span> 토글이 정적 부분까지 깸. <span class="mod">language</span> 와의 cost 격차가 크게 벌어짐.</div>
+  </div>
+
+
+</div>
+
+## 작은 발견들 — *trace 디버깅에서 자주 만나는 한 줄들*
+
+위 8 개가 *큰* correction 이라면, 그 외 *작은 발견* 도 의외로 많아요. 일관된 telemetry pattern 을 만드는 자리들 위주로 정리.
+
+### `system_reminders` 는 *omit*, not *empty*
+
+새 reminder 가 없는 turn 에선 attribute 자체가 사라져요. 빈 string 이 아니라 *키가 metadata 에 없음*. *"reminder 가 들어갔나"* 의 빠른 검사:
+
+| `system_reminders` 상태 | 의미 |
+|---|---|
+| 있고 + 텍스트 | 새 reminder 가 들어간 turn |
+| 없음 (key 자체) | 이 turn 엔 새 reminder 없음 |
+
+같은 패턴이 `# claudeMd` 의 disable 검사에도 적용됨 (6편).
+
+### subagent 의 `tool_result` 안에 *agentId + SendMessage hint + &lt;usage&gt;* 다 있음
+
+8편에서 본 디테일. 부모 LLM 이 *텍스트로* 받는 정보:
+
+```
+agentId: aa20a239aca893577
+(use SendMessage with to: 'aa20a239aca893577' to continue this agent)
+<usage>total_tokens: 6127, tool_uses: 1, duration_ms: 5449</usage>
+```
+
+multi-agent 흐름이 *prompt instruction* 으로 wired (rigid API affordance 가 아님). cost 정보가 모델에 도달해 budget-aware 한 다음 결정 가능.
+
+### compactor 는 *main-thread system prompt 를 그대로 쓰고* + 9-section template 을 final user message 로
+
+9편의 compactor mechanism. specialized system prompt 가 아니라, *main-thread 와 같은 prompt + 한 user message 안에 9-section extraction template* 이 들어감. anti-tool-use 가드까지 prepend (`Respond with TEXT ONLY. Do NOT call any tools. Tool calls will be REJECTED...`).
+
+### post-compact 시 *transcript pointer escape hatch*
+
+absolute path 가 prompt 에 들어감:
+
+```
+If you need specific details from before compaction, read the full
+transcript at: /home/jet/.claude/projects/.../38ef7c82-...jsonl
+```
+
+소프트 compaction (요약), 하드 retrieval (원본) 의 escape hatch 가 같이 제공. 같은 패턴 (작은 hint + 모델이 직접 fetch) 이 5편의 gitStatus truncation marker 에서도 보임 (`If you need more information, run "git status" using BashTool`).
+
+### hook 의 auto-generated name 은 `:matcher` suffix 포함
+
+10편의 발견. `PreToolUse:Bash` 같은 형태로 prompt 에 들어감. trace grep 패턴에 영향. 이 디테일을 모르면 *"왜 hook 이 안 걸려"* 디버깅에 시간이 빠짐.
+
+### `cc_version` suffix 가 call type 마다 다름
+
+8편의 부수 발견. 같은 process, 같은 binary 인데 parent 호출과 subagent 호출이 서로 다른 cc_version suffix 를 갖음 (e.g., parent `dd8`, subagent `f17`). 의심: content hash 일 가능성.
+
+### dev mode 의 `summarize_tool_results` (slot 17) 은 *settings 로 못 끔*
+
+3·4편의 한 줄. *"When working with tool results, write down any important information you might need later in your response, as the original tool result may be cleared later."* 는 모든 trace 에 항상. self-summarization 의 always-on 메커니즘.
+
+## 시리즈가 보여준 *디자인 모티프* 셋
+
+8 편을 다 읽고 다시 종합하면, 몇 가지 디자인 모티프가 시리즈 전반에 반복돼요.
+
+### 1. *Thin advertise / Fat invoke* — 세 군데에서 반복
+
+- **Skills** (7편): 매 turn 옅은 한 줄 카탈로그, 호출 시 body 한 번 inline
+- **MCP tools** (4편): ToolSearch defer mode. 매 turn ToolSearch 하나만, 호출 시 schema lazy load
+- **Subagents** (8편): 부모는 agent 의 description / name 만 봄, body 는 별개 세션의 system prompt
+
+같은 lazy load 원칙. *advertise 는 cheap, invoke 는 expensive*.
+
+### 2. *Soft mechanism + Hard escape hatch* — 여러 군데에서 반복
+
+- **gitStatus** (5편): 2K cap + truncation marker + *"BashTool 로 직접 돌려"* 한 줄
+- **Compaction** (9편): summary inline + transcript pointer (.jsonl 의 absolute path)
+- **Scratchpad** (4편): dir 경로 한 줄만 prompt 에 + 안의 파일은 모델이 read 해야
+
+소프트한 첫 단계 + 모델이 필요시 직접 fetch 하는 명시 escape. *최소 비용으로 충분한 정보 + 필요하면 더 가져가*.
+
+### 3. *Per-turn delta vs Session-stable* — cache 전략의 단일 원칙
+
+- **Session-stable** (cacheable): static system prefix (sections 1-7), `# claudeMd` (content 가 같으면 prefix-stable), tool 정의
+- **Per-turn delta** (uncached): dynamic system blocks, latest user input, attachments, hook injected reminders
+
+cache prefix 의 절단점이 이 두 카테고리를 가르는 한 marker. 시리즈 전반의 cost 분석이 이 한 분류 위에서 다 정렬됨.
+
+## 시리즈를 마치며
+
+이 시리즈를 시작할 때 1편의 cliffhanger 는:
+
+> *"이 코드 분석해줘"* 같은 짧은 한 줄을 던졌는데 trace 를 열어 보면 12,000 토큰. 그 사이를 채운 토큰들은 어디서 왔을까요?
+
+답은 8 편에 걸쳐 지도 위에 다 그려졌어요. *14개의 source 가 3 top-level keys 의 각 자리에 위치합니다*. 각 source 는 *왜 거기에* 가는지 — *cache 효율*, *isolation*, *update 빈도*, *모델의 attention 위치* 등 — 설계의 선택이 있어요.
+
+진짜 가치는 그 다음에 있다고 봅니다 — 이론으로 그린 이 지도와 *실제 trace 의 모양* 이 어긋나는 자리들. Phase 2 의 40+ 발견 중 위 7 개의 큰 correction 이 그 어긋남의 elemental 리스트예요.
+
+<div class="surprise">
+<span class="label">⚡ 마지막 한 줄</span> 시리즈가 끝나도 trace 디버깅의 모서리는 계속 남아요. 가이드의 *다음 phase* 는 <em>verification 자체를 telemetry 개선으로 잇는 것</em> — per-attachment token count, cache-buster identification, subagent ↔ parent trace linkage 같은 *구체적인 개선 작업들* 입니다. 이 시리즈는 *지도* 까지만 — 그 위에서의 항해는 trace 마다 새로 시작됩니다.
+</div>
+
+## Take-home
+
+이 시리즈의 정리:
+
+<blockquote>
+Claude Code 가 LLM 에 보내는 한 번의 입력. 그 안에 14 개의 context source 가 4 가지 자리 (시스템 프롬프트 정적/동적 부분, tools 블록, user-message slot 0 의 합성 reminder, 사용자 명시 호출/hook injection 의 latest user message) 에 분산돼 위치합니다.
+<br/><br/>
+같은 디자인 모티프가 여러 source 에서 반복돼요 — <span class="key">thin advertise / fat invoke</span> (Skills · MCP · Subagents), <span class="key">soft mechanism + hard escape hatch</span> (gitStatus · compaction · scratchpad), <span class="key">per-turn delta vs session-stable</span> 의 cache 절단점.
+<br/><br/>
+이론으로 그린 지도와 실제 trace 가 어긋나는 7 개의 자리가 있습니다 — resume 시 옛 reminder 사라짐, post-compact 의 messy wire format, slash 의 XML 메타 헤더, line-prefix <span class="mod">!cmd</span> 의 침묵, <span class="mod">@include</span> additive, OpenAI shim coalesce, <span class="mod">outputStyle</span> 의 4 효과. 이 7 개가 trace 디버깅에서 가장 자주 만나는 *모서리들*.
+<br/><br/>
+시리즈가 *지도* 였다면, 그 위에서의 항해는 다음 phase. 더 자세한 telemetry, 더 정밀한 cost attribution, 더 명료한 cross-trace linkage. <span class="key">verification 의 끝이 아니라 telemetry 개선의 시작</span>.
+</blockquote>
+
+여기까지 와 주신 분, 고맙습니다. 시리즈를 따라 trace 를 같이 들여다보면서 *"아 그래서 이게 여기 있는 거구나"* 의 작은 순간이 한두 번이라도 있었다면, 이 글들의 목적은 충분히 달성됐어요.
+
+다음 시리즈는 *telemetry 개선 작업* 자체를 다룹니다. 발견한 8 개의 telemetry gap 을 Claude Code 코드에 어떻게 wire 하는지의 실전. 곁에 두는 도구가 아니라 *만지는 도구* 로의 한 걸음 더.
+
+## References
+
+- 시리즈 전반의 Claude Code 코드 — `claude-code internal docs/context-engineering/` 의 14 개 가이드 + 99-consolidation
+- Phase 2 검증 trace registry — 같은 디렉토리의 `00-plan.md`, 40 traces (2026-05-04 ~ 2026-05-06)
+- 시리즈 1편: <a href="../harness-vs-context-engineering/">Harness Engineering 과 Context Engineering</a>
+- 시리즈 2편: <a href="../claude-code-context-architecture/">Claude Code 의 Context Architecture</a>
+- 시리즈 3-10편: 이번 글의 master table 안에 다 인용됐습니다

@@ -1,0 +1,350 @@
+---
+title: '세션의 기억 — transcript replay 와 background 보강'
+description: '한 session 안에서 정보를 보존하는 두 메커니즘. transcript 는 영구 기록 후 --resume 시 messages 로 replay (단 isMeta 는 filter), session memory 는 background 로 축적되어 compaction 시점에만 도달.'
+pubDate: 'Jun 21 2026'
+category: harness-engineering
+heroImage: '../../../../assets/heroes/hero-harness-engineering.png'
+series: 'context-engineering-of-claude-code'
+seriesOrder: 9
+---
+
+<style>{`
+  .series-banner {
+    color: rgb(31, 71, 135);
+    font-size: 0.92em;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border-left: 3px solid var(--accent);
+    margin: 0 0 1.6em;
+    line-height: 1.55;
+  }
+  .k {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    color: #1f4787;
+    font-size: 0.94em;
+  }
+  .note-flag {
+    background: rgba(96, 115, 159, 0.22);
+    display: inline-block;
+    color: rgb(60, 70, 90);
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 9px;
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+  .surprise {
+    border-left: 4px solid var(--claude);
+    padding: 0.95em 1.2em;
+    margin: 1.6em 0;
+    border-radius: 0 8px 8px 0;
+    line-height: 1.65;
+  }
+  .surprise .label {
+    background: var(--claude);
+    display: inline-block;
+    color: white;
+    font-size: 0.7em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 9px;
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+
+  .duo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 2em 0;
+  }
+  @media (max-width: 600px) { .duo { grid-template-columns: 1fr; } }
+  .duo-card {
+    background: white;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid rgba(96, 115, 159, 0.25);
+  }
+  .duo-card .dc-tag {
+    background: rgba(35, 55, 255, 0.12);
+    display: inline-block;
+    font-size: 0.7em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 3px 9px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    color: var(--accent);
+  }
+  .duo-card .dc-name { font-weight: 700; margin-bottom: 4px; font-size: 1.02em; }
+  .duo-card .dc-when { font-size: 0.82em; color: var(--claude-dark); font-weight: 600; margin-bottom: 6px; }
+  .duo-card .dc-desc { font-size: 0.86em; color: rgb(var(--gray-dark)); line-height: 1.5; }
+
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.4em 0;
+    font-size: 0.93em;
+    line-height: 1.55;
+  }
+  .compare-table th, .compare-table td {
+    padding: 0.55em 0.8em;
+    border-bottom: 1px solid rgb(var(--gray-light));
+    text-align: left;
+    vertical-align: top;
+  }
+  .compare-table th { font-weight: 700; }
+    background: rgba(96, 115, 159, 0.12);
+
+  .timeline {
+    background: linear-gradient(135deg, rgba(31, 71, 135, 0.04), rgba(204, 120, 92, 0.04));
+    margin: 2em 0;
+    padding: 16px 18px;
+    border-radius: 10px;
+    border: 1px solid rgba(96, 115, 159, 0.18);
+    font-family: ui-monospace, monospace;
+    font-size: 0.85em;
+    line-height: 1.7;
+    color: rgb(var(--gray-dark));
+    overflow-x: auto;
+  }
+  .timeline .t-event { color: var(--accent); font-weight: 700; }
+  .timeline .t-action { color: var(--claude-dark); }
+  .timeline .t-arrow { color: rgb(var(--gray)); }
+`}</style>
+
+<div class="series-banner">
+📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 아홉 번째 글입니다. 지난 <a href="../subagents/">8편</a> 까지가 *공간 축* (어떤 source 가 어디로 가는가) 이었다면, 이번 편은 <em>시간 축</em>. 한 session 안에서 정보가 어떻게 보존되는가.
+</div>
+
+## 같은 session, 두 가지 보존 메커니즘
+
+지금까지 본 자산들은 대부분 *시간 축이 짧았어요*. 한 입력 안에서 어떤 자리에 박히는가. 이번 글은 *session 의 길이* 라는 더 긴 시간 축을 다룹니다. 한 session 이 50 차례로 길어지면, 그 사이의 정보는 어디에 어떻게 보존될까.
+
+이 글에서는 두 가지를 봅니다. 그리고 한 가지는 이미 4편에서 다룬 *scratchpad* 인데, *시간 축의 보존* 이라는 framing 으로 보면 사실 함께 묶을 만한 세 번째 메커니즘이에요. 끝에 짧게 reference.
+
+<div class="duo">
+  <div class="duo-card">
+    <span class="dc-tag">Mechanism 1</span>
+    <div class="dc-name">Transcript</div>
+    <div class="dc-when">매 turn → JSONL 에 즉시 기록</div>
+    <div class="dc-desc">대화의 정식 기록. <span class="mod">--resume</span> 시 messages 배열로 replay 되어 새 session 의 prompt 에 들어가요.</div>
+  </div>
+  <div class="duo-card">
+    <span class="dc-tag">Mechanism 2</span>
+    <div class="dc-name">Session memory</div>
+    <div class="dc-when">background 로 주기적 축적</div>
+    <div class="dc-desc">매 turn 후 background subagent 가 <span class="mod">summary.md</span> 를 갱신. 단 *compaction 시점에만* LLM 에 도달.</div>
+  </div>
+</div>
+
+두 메커니즘이 다루는 건 모두 "어떻게 정보가 살아남는가" 인데, 보존되는 *형태* 와 LLM 에 *도달하는 시점* 이 달라요. 그래서 각각의 cost 와 trace 모양도 다릅니다.
+
+## Mechanism 1 — Transcript: 모든 conversation 의 정식 기록
+
+매 turn 의 user message · assistant message · tool result 가 즉시 JSONL 파일로 기록됩니다.
+
+```
+~/.claude/projects/<sanitized-cwd>/<sessionId>.jsonl
+```
+
+session 이 끝날 때까지 append-only. 한 줄당 한 record (user / assistant / system / summary).
+
+### `--resume` 가 하는 일
+
+`claude --resume` 로 띄우면 다음 흐름이 일어납니다:
+
+<div class="timeline">
+<span class="t-event">1.</span> picker 에서 session 선택 <span class="t-arrow">→</span><br/>
+<span class="t-event">2.</span> <span class="t-action">loadSessionFile</span>(sessionId) — JSONL 읽음 <span class="t-arrow">→</span><br/>
+<span class="t-event">3.</span> <span class="t-action">buildConversationChain</span> — parentUuid 따라 대화 재구성 <span class="t-arrow">→</span><br/>
+<span class="t-event">4.</span> Anthropic API messages 형태로 reshape <span class="t-arrow">→</span><br/>
+<span class="t-event">5.</span> 그 배열이 새 session 의 <span class="mod">mutableMessages</span> 가 됨 <span class="t-arrow">→</span><br/>
+<span class="t-event">6.</span> 다음 turn 부터 <span class="t-action">prependUserContext</span> 가 그 위에 fresh <span class="k">&lt;system-reminder&gt;</span> 추가
+</div>
+
+LLM 입장에선 새 session 의 첫 turn 의 messages 배열이 이런 모양:
+
+```
+[
+  { synthetic <system-reminder> with claudeMd },     ← 매 turn fresh
+  { user msg slot 1 from prior session },                  ← .jsonl 에서 replay
+  { assistant msg slot 1 },                                 ← replay
+  { user msg slot 2 },
+  ...
+  { last assistant from prior },
+  { 새 turn 의 user input },
+]
+```
+
+이 한 가지가 Phase 2 trace 17 에서 의외로 발견된 사실인데...
+
+### 발견 — 옛날 `<system-reminder>` 는 *replay 안 됩니다*
+
+가이드의 초안은 이런 가설이었어요:
+
+<blockquote>
+prepended <span class="mod">&lt;system-reminder&gt;</span> 가 .jsonl 에 기록되니까, resume 시 그것도 같이 replay 돼서 *두 개의 reminder* 가 messages 배열에 있게 된다.
+</blockquote>
+
+실제 trace 17 을 봤더니 **reminder 는 한 개** 였어요. 새로 prepend 된 것 하나만.
+
+이유: `prependUserContext` 는 합성 메시지를 만들 때 `isMeta: true` flag 를 답니다. transcript recorder 는 meta 를 *건너뜀*:
+
+```ts
+// utils/sessionStorage.ts:1750
+if (msg.type !== 'user' || msg.isMeta) continue
+```
+
+그래서 합성 reminder 는 **애초에 disk 에 안 적힘**. resume 시 replay 할 게 없음. `prependUserContext` 가 fresh 한 reminder 를 새로 prepend 하는 것 뿐.
+
+<div class="surprise">
+<span class="label">⚡ SURPRISE</span> Resume 의 의미 있는 결과: <span class="key">CLAUDE.md 가 원본 session 작성 후 수정됐다면, resume session 은 *수정된* CLAUDE.md 만 봐요.</span> 원본 session 의 옛날 bundle 은 영원히 잃은 거예요. 마찬가지로 <span class="mod">currentDate</span> 도 *resume 시점의 날짜*. 5월 1일 session 을 5월 6일에 resume 하면 모델은 <em>"오늘은 5월 6일"</em> 이라는 한 줄을 봅니다. 시간 연속성은 모델 시점에선 없어요.
+</div>
+
+### Compaction — `/compact` 또는 token threshold 자동
+
+session 이 커져서 prompt 가 부담스러워지면 *compaction* 이 발동돼요. 두 종류:
+
+1. **Manual** — 사용자가 `/compact` 명령
+2. **Automatic** — token 이 threshold 넘었을 때
+
+두 가지 다 같은 메커니즘. *compactor* 라는 별도 utility LLM 호출이 *전체 conversation* 을 입력으로 받아서, 9-section template 의 `<summary>` 를 출력. 그 summary 가 옛날 turns 자리를 차지.
+
+post-compact 의 messages 배열 모양 (Phase 2 trace 29 에서 본 실제):
+
+```
+[
+  // 1. 합성 Read tool_use for ~/.claude/CLAUDE.md (재첨부)
+  { role: "user", content: "<system-reminder>Called the Read tool...</system-reminder>" },
+  // 2. 그 Read 의 result
+  { role: "user", content: "<system-reminder>Result of calling the Read tool...</system-reminder>" },
+  // 3. 한 덩어리로 coalesced
+  { role: "user", content:
+      "<system-reminder>...claudeMd...</system-reminder>\n\n" +
+      "This session is being continued from a previous conversation that ran out of context. ...\n" +
+      "<summary>...9 sections...</summary>\n\n" +
+      "If you need specific details from before compaction, read the full transcript at: <path>\n\n" +
+      "<command-name>/compact</command-name>\n" +
+      "<local-command-stdout>Compacted</local-command-stdout>\n\n" +
+      "<the new user prompt>"
+  }
+]
+```
+
+가이드 초안의 예측은 *"`compact_boundary` 라는 별도 message type 이 messages 배열에 있을 것"* 이었는데, 실제로는 그냥 **inline text** 였어요. `<summary>...</summary>` XML wrapper 가 in-text boundary marker 역할. disk 의 JSONL 에는 `compact_boundary` record 로 따로 저장되지만, *wire format* 으로 보낼 때는 다른 모양.
+
+### 의외의 디테일 — *transcript pointer* 라는 escape hatch
+
+post-compact prompt 안에 이 한 줄이 위치해 있어요:
+
+> If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: `/home/jet/.claude/projects/.../38ef7c82-...jsonl`
+
+**모델에게 원본 .jsonl 의 absolute path 를 알려줘요**. summary 가 부족하면 모델이 직접 `Read` tool 로 .jsonl 을 열어볼 수 있어요. Soft compaction (요약), hard retrieval (원본) 의 escape hatch 가 같이 제공되는 셈. 5편 (gitStatus) 의 truncation marker 와 같은 모티프.
+
+## Mechanism 2 — Session memory: background 의 보강
+
+`<projectDir>/<sessionId>/session-memory/summary.md` 라는 한 파일이 매 turn 후 background 로 갱신돼요.
+
+흐름:
+1. 매 main-thread turn 끝 → `postSamplingHook` 로 `extractSessionMemory` 호출
+2. 게이트 (`tengu_session_memory` GrowthBook flag) + threshold (token, tool count) 검사
+3. 통과 시 *별도 subagent* 가 spawn — current `summary.md` + 새 deltas 를 입력으로 받아서, `summary.md` 를 갱신
+4. main agent 는 영향 없음, 다음 turn 이 그대로 진행
+
+핵심: 이 summary 가 LLM 에 도달하는 건 **단 한 시점**. *session-memory 기반 compaction 이 발동될 때*. 그 외에는 main agent 가 summary.md 의 존재조차 모릅니다.
+
+<div class="callout-warm">
+<strong>사실상 inert</strong>
+
+<span class="mod">tengu_session_memory</span> flag 가 GrowthBook 으로 켜야 active 되는데, 보통 off 입니다. 그래서 <span class="mod">/compact</span> 를 쳐도 *legacy compactor* 로 fall back 돼요. 이게 위에서 본 *9-section template 으로 직접 summarize* 하는 흐름.
+
+이 한 가지 사실을 알면 trace 디버깅이 쉬워져요. <span class="mod">summary.md</span> 가 전혀 안 보여도 정상.
+</div>
+
+## Mechanism 3 (cross-reference) — Scratchpad 는 4편에서
+
+이 글에서는 *시간 축의 보존* 이라는 framing 인데, 4편에서 다룬 *scratchpad* 도 사실 같은 카테고리예요. session 마다 새로 만들어지고 session 끝나면 cleanup. dir 의 *경로 한 줄* 만 system slot 15 에 위치해서 모델이 거기 임시 파일을 쓸 수 있게 disclose.
+
+차이가 있어요. 위 두 메커니즘 (transcript, session memory) 은 *대화 자체* 의 정보를 보존하지만, scratchpad 는 *대화 외부의 임시 파일* 을 위한 공간. *모델이 직접 read 하지 않으면 prompt 에 안 들어옴* 이라는 점에서 *passive*. 위 두 메커니즘은 *active*. 자동으로 prompt 에 들어가요.
+
+자세한 디테일은 4편의 scratchpad 섹션을 참고하세요.
+
+## 두 메커니즘의 비교 한 표
+
+<table class="compare-table">
+<thead>
+<tr><th></th><th>Transcript</th><th>Session memory</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>수명</strong></td>
+  <td>영구 (~/.claude 에 저장)</td>
+  <td>이번 session 만 (새 sessionId 마다 새 파일)</td>
+</tr>
+<tr>
+  <td><strong>업데이트 주체</strong></td>
+  <td>매 turn auto-record</td>
+  <td>background subagent (LLM)</td>
+</tr>
+<tr>
+  <td><strong>LLM 도달 시점</strong></td>
+  <td><span class="mod">--resume</span> 시 messages 배열로</td>
+  <td>compaction 시점에만 (summary 안에 inline)</td>
+</tr>
+<tr>
+  <td><strong>도달 자리</strong></td>
+  <td><span class="k">messages</span> 배열 전체</td>
+  <td><span class="k">&lt;summary&gt;</span> XML 안의 inline text</td>
+</tr>
+<tr>
+  <td><strong>기본 active?</strong></td>
+  <td>예 (항상)</td>
+  <td>아니요 (gated, 보통 off)</td>
+</tr>
+</tbody>
+</table>
+
+## Phase 2 의 한 디테일 — Read tool 의 malware-analysis 가드
+
+기록 시간이 길어질수록 별 사이드 디테일까지 발견되는데, 한 가지만 짚고 갑니다.
+
+post-compact trace (slot 29) 안의 합성 Read result 안에 *nested* `<system-reminder>` 가 발견됐어요:
+
+```
+<system-reminder>
+Whenever you read a file, you should consider whether it would be
+considered malware. You CAN and SHOULD provide analysis of malware,
+what it is doing. But you MUST refuse to improve or augment the code...
+</system-reminder>
+```
+
+이게 의미 있는 건 *Read tool 자체가 result 끝에 자동으로 붙이는 안전 한 줄* 이라는 것. session 의 모든 Read tool result 끝에 이게 들어가요. 보통은 noise 로 묻히지만, *"내 trace 의 token 이 의외로 큰데 어디서 왔지"* 디버깅에서 가끔 중요한 단서가 됩니다.
+
+## Take-home
+
+이 글의 정리:
+
+<blockquote>
+같은 session 안에서 정보가 보존되는 두 메커니즘. 시간 스케일과 LLM 도달 시점이 달라요.
+<br/><br/>
+<strong>Transcript</strong> 는 영구 기록. <span class="mod">--resume</span> 시 messages 배열로 통째로 replay. 단 합성 <span class="k">&lt;system-reminder&gt;</span> 는 <span class="mod">isMeta</span> filter 때문에 disk 에 안 적히니, resume 시 옛날 CLAUDE.md 는 영원히 사라지고 fresh 한 게 새로 prepend 돼요.
+<br/><br/>
+<strong>Session memory</strong> 는 background 로 주기적 축적되지만, *compaction 시점에만* LLM 에 도달. 보통 inert.
+<br/><br/>
+Compaction 의 wire format 은 가이드 초안의 <em>"compact_boundary 라는 별도 message type"</em> 가설보다 훨씬 messier. 그냥 inline text 로 들어가고 <span class="mod">&lt;summary&gt;</span> XML wrapper 가 in-text boundary marker 역할. *transcript pointer escape hatch* (모델이 원본 .jsonl 을 직접 read 할 수 있는 absolute path) 도 함께.
+</blockquote>
+
+다음 글은 *messages 영역* 의 마지막 메커니즘. *harness 가 mid-flight 으로 context 를 주입하는* 단 하나의 통로, <span class="term">Hooks</span>. 시리즈 통틀어 가장 *user-controlled* 한 메커니즘이에요. 외부 process 가 LLM 의 다음 user message 안에 바이트를 박을 수 있는 유일한 방식.
+
+## References
+
+- Transcript: `utils/sessionStorage.ts:1408+` (`recordTranscript`), `:3818` (`loadSessionFile`), `:1750` (isMeta filter), `:1839` (`applyPreservedSegmentRelinks`)
+- Compaction: `services/compact/compact.ts` (legacy), `services/compact/sessionMemoryCompact.ts:514` (`trySessionMemoryCompaction`), `utils/messages.ts:4536` (`createCompactBoundaryMessage`)
+- Session memory: `services/SessionMemory/sessionMemory.ts:357` (`initSessionMemory`), `services/SessionMemory/prompts.ts:86` (template), `:111` (extraction prompt)
+- Phase 2 검증: traces 16-17 (resume + isMeta filter 발견), traces 26-29 (compactor mechanism + transcript pointer escape hatch + Read malware guard 발견)
