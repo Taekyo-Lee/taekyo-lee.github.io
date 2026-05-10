@@ -1,5 +1,5 @@
 ---
-title: 'Skills 와 Slash Commands — *thin advertise / fat invoke* 의 두 사례'
+title: 'Skills 와 Slash Commands. *thin advertise / fat invoke* 의 두 사례'
 description: '같은 Command 객체이지만 advertise 되는 모양이 다른 두 자산. 매 turn 옅은 카탈로그 한 줄로 모델에게 알리고, 명시 호출 시에만 body 가 user message 로 inline. 4편의 ToolSearch 와 8편의 Subagents 가 같은 골격을 공유.'
 pubDate: 'Jun 07 2026'
 category: harness-engineering
@@ -115,30 +115,30 @@ seriesOrder: 7
 
 ## 같은 Command 객체, 다른 advertise 방식
 
-코드 안쪽에서 보면 Slash command 와 Skill 은 *같은 `Command` 객체* 예요. 어느 디렉토리에 있느냐만 달라요.
+코드 안쪽에서 보면 Slash command 와 Skill 은 *같은 <span class="k">Command</span> 객체* 예요. 어느 디렉토리에 있느냐만 달라요.
 
-| 디렉토리 | `loadedFrom` | 모델에 advertise? |
+| 디렉토리 | <span class="k">loadedFrom</span> | 모델에 advertise? |
 |---|---|---|
-| `~/.claude/commands/` (user) | `commands_DEPRECATED` | description 있을 때만 |
-| `<repo>/.claude/commands/` (project) | `commands_DEPRECATED` | description 있을 때만 |
-| `~/.claude/skills/<name>/SKILL.md` | `skills` | 항상 |
-| `<repo>/.claude/skills/<name>/SKILL.md` | `skills` | 항상 |
-| Plugin-bundled | `plugin` | 항상 |
-| Built into the binary | `bundled` | 항상 |
+| <span class="mod">~/.claude/commands/</span> (user) | <span class="k">commands_DEPRECATED</span> | description 있을 때만 |
+| <span class="mod">&lt;repo&gt;/.claude/commands/</span> (project) | <span class="k">commands_DEPRECATED</span> | description 있을 때만 |
+| <span class="mod">~/.claude/skills/&lt;name&gt;/SKILL.md</span> | <span class="k">skills</span> | 항상 |
+| <span class="mod">&lt;repo&gt;/.claude/skills/&lt;name&gt;/SKILL.md</span> | <span class="k">skills</span> | 항상 |
+| Plugin-bundled | <span class="k">plugin</span> | 항상 |
+| Built into the binary | <span class="k">bundled</span> | 항상 |
 
 같은 frontmatter parser, 같은 body 처리 (argument substitution + shell execution), 같은 invocation flow. 모든 게 공유.
 
-그런데 *모델에 도달하는 모양* 이 두 단계로 분리돼요. Stage 1 *advertise*, Stage 2 *invoke*. 시리즈 전반의 디자인 모티프 — *thin advertise, fat invoke*.
+그런데 *모델에 도달하는 모양* 이 두 단계로 분리돼요. Stage 1 *advertise*, Stage 2 *invoke*. 시리즈 전반의 디자인 모티프. *thin advertise, fat invoke*.
 
 <div class="twostage">
   <div class="ts-card ts-thin">
-    <span class="ts-stage">Stage 1 — Advertise</span>
+    <span class="ts-stage">Stage 1. Advertise</span>
     <div class="ts-name">매 turn, 한 줄 카탈로그</div>
     <div class="ts-desc">user message 안의 <span class="k">&lt;system-reminder&gt;</span> 한 블록에 *이름 + 짧은 description* 만. 8000 chars budget 안에서.</div>
     <div class="ts-code">- pdf: PDF 파일 작업...<br/>- batch: 여러 작업 병렬...<br/>- /commit: git commit 메시지...</div>
   </div>
   <div class="ts-card ts-fat">
-    <span class="ts-stage">Stage 2 — Invoke</span>
+    <span class="ts-stage">Stage 2. Invoke</span>
     <div class="ts-name">호출 시에만, body 한 번</div>
     <div class="ts-desc">사용자가 <span class="mod">/&lt;name&gt;</span> 을 치거나 모델이 Skill tool 로 호출하면, body 가 argument substitution + shell execution 후 *그 turn 의 user message* 로 inline.</div>
     <div class="ts-code">/commit "fix: handle null"  →<br/>SKILL.md body 가 이 turn 의 user msg</div>
@@ -147,9 +147,9 @@ seriesOrder: 7
 
 이 한 분리가 *수십 개의 skill 을 가지고 있어도 평소 비용은 8000 chars 에 묶임* 이라는 효율을 만들어요. 호출하는 한두 개만 그 turn 에 fat 비용. 호출 안 하면 0.
 
-## Stage 1 — `Skill` 도구 + `skill_listing` attachment
+## Stage 1. <span class="k">Skill</span> 도구 + <span class="k">skill_listing</span> attachment
 
-매 turn 보내는 `tools` 배열에 항상 `Skill` 이라는 도구 하나가 정의되어 있어요. 그 도구의 description 안에 *"사용 가능한 skill 들은 system-reminder 메시지에 나열됩니다"* 한 줄. 실제 list 는 거기 안 있고, **별도 attachment** 로 매 turn 0 마다 user message 안에 흘러 들어와요.
+매 turn 보내는 <span class="k">tools</span> 배열에 항상 <span class="k">Skill</span> 이라는 도구 하나가 정의되어 있어요. 그 도구의 description 안에 *"사용 가능한 skill 들은 system-reminder 메시지에 나열됩니다"* 한 줄. 실제 list 는 거기 안 있고, **별도 attachment** 로 매 turn 0 마다 user message 안에 흘러 들어와요.
 
 trace 의 첫 user-message 안에 이런 블록이 잡힙니다:
 
@@ -170,32 +170,32 @@ The following skills are available for use with the Skill tool:
 각 entry 가 한 줄 description (250 chars 제한). 수십 개 skill 이 있어도 매 turn 8000 chars 안에 다 들어가야 함 (<span class="mod">SLASH_COMMAND_TOOL_CHAR_BUDGET</span> 또는 context window 의 약 1%). 안 들어가면 <span class="mod">formatCommandsWithinBudget</span> 가 trim 또는 names-only fallback.
 </div>
 
-### turn 0 only — `skill_listing` 의 delta 의미
+### turn 0 only. <span class="k">skill_listing</span> 의 delta 의미
 
-이 attachment 는 *turn 0 에만 풀로* 보내고, 이후엔 새 skill 이 mid-session 으로 들어왔을 때만 delta 로. trace 에선 turn 0 의 `attributes.system_reminders` 에 skill_listing 이 있고, turn 1 부터 그 attribute 자체가 사라져요 (omit, not empty).
+이 attachment 는 *turn 0 에만 풀로* 보내고, 이후엔 새 skill 이 mid-session 으로 들어왔을 때만 delta 로. trace 에선 turn 0 의 <span class="k">attributes.system_reminders</span> 에 skill_listing 이 있고, turn 1 부터 그 attribute 자체가 사라져요 (omit, not empty).
 
 이 *omit, not empty* 가 trace 패턴 한 줄:
 
-| `system_reminders` 상태 | 의미 |
+| <span class="k">system_reminders</span> 상태 | 의미 |
 |---|---|
 | 있고 + 텍스트 | 이 turn 에 새 reminder 가 들어감 |
 | 키 자체 부재 | 이 turn 엔 새 reminder 없음 |
 
-같은 패턴이 6편의 `# claudeMd` 검사에서도, 10편의 hook 발동 검사에서도 반복.
+같은 패턴이 6편의 <span class="k">#&nbsp;claudeMd</span> 검사에서도, 10편의 hook 발동 검사에서도 반복.
 
 ### Stage 1 의 몇 가지 필터링 규칙
 
-`getSkillToolCommands` 가 *모델에 보일 set* 으로 필터링:
+<span class="k">getSkillToolCommands</span> 가 *모델에 보일 set* 으로 필터링:
 
-- `disableModelInvocation: true` 인 skill 은 advertise 에서 제외 — *user-only*
-- `cmd.source === 'builtin'` 인 CLI 명령 (`/help`, `/clear` 등) 도 제외 — UI 명령
-- `.claude/commands/<name>.md` 파일이 *description 없음* 이면 model 에 보일 listing 에서 빠짐. *user 만 직접 칠 수 있음*
+- <span class="mod">disableModelInvocation: true</span> 인 skill 은 advertise 에서 제외. *user-only*
+- <span class="mod">cmd.source === 'builtin'</span> 인 CLI 명령 (<span class="mod">/help</span>, <span class="mod">/clear</span> 등) 도 제외. UI 명령
+- <span class="mod">.claude/commands/&lt;name&gt;.md</span> 파일이 *description 없음* 이면 model 에 보일 listing 에서 빠짐. *user 만 직접 칠 수 있음*
 
-이게 *legacy* `.claude/commands/` 와 *modern* `.claude/skills/` 의 차이 중 하나. skill 은 *frontmatter description* 이 일종의 schema. 없으면 model 에 안 보임.
+이게 *legacy* <span class="mod">.claude/commands/</span> 와 *modern* <span class="mod">.claude/skills/</span> 의 차이 중 하나. skill 은 *frontmatter description* 이 일종의 schema. 없으면 model 에 안 보임.
 
-## Stage 2 — Invoke 시 body 가 user message 로
+## Stage 2. Invoke 시 body 가 user message 로
 
-`/commit "fix: ..."` 를 친 순간 일어나는 일을 단계별로:
+<span class="mod">/commit "fix: ..."</span> 를 친 순간 일어나는 일을 단계별로:
 
 ```
 1. parser: "/commit \"fix: ...\"" → name="commit", args="\"fix: ...\""
@@ -209,7 +209,7 @@ The following skills are available for use with the Skill tool:
 
 호출 안 하면 *0 토큰*. 호출하면 *body 한 번* user message 비용으로 끝남. 시리즈 통틀어 가장 깔끔한 lazy load.
 
-### shell execution 의 두 패턴 — 의외의 함정
+### shell execution 의 두 패턴. 의외의 함정
 
 body 안에 shell 명령을 박아두고 실행 결과를 prompt 안에 넣을 수 있어요. 두 패턴이 있습니다:
 
@@ -226,13 +226,13 @@ Diff: !`git diff --cached`
 
 (*위 backtick 들은 실제로 인접해 있어요. 가독성 위해 띄움.*)
 
-이 두 패턴만 인식돼요. *line prefix `!cmd`* 는 안 됨.
+이 두 패턴만 인식돼요. *line prefix <span class="mod">!cmd</span>* 는 안 됨.
 
 <div class="surprise">
-<span class="label">⚡ SURPRISE</span> Phase 2 trace 15 에서 확인한 의외의 사실. <span class="key">line prefix `!git status`</span> 는 shell 실행이 <strong>안</strong> 됩니다. 그냥 literal text 로 LLM 에 도달해요. bash/sh 의 history-expansion 을 떠올리면 자연스럽지만, 이 harness 의 patterns 는 <span class="mod">``` !</span> (block) 또는 <span class="mod">!`</span> (inline) 둘만 매칭함. 한 번 헷갈리면 *"왜 내 git diff 가 안 나오지"* 디버깅에 시간이 갑니다.
+<span class="label">⚡ SURPRISE</span> Phase 2 trace 15 에서 확인한 의외의 사실. <span class="key">line prefix <span class="mod">!git status</span></span> 는 shell 실행이 <strong>안</strong> 됩니다. 그냥 literal text 로 LLM 에 도달해요. bash/sh 의 history-expansion 을 떠올리면 자연스럽지만, 이 harness 의 patterns 는 <span class="mod">``` !</span> (block) 또는 <span class="mod">!`</span> (inline) 둘만 매칭함. 한 번 헷갈리면 *"왜 내 git diff 가 안 나오지"* 디버깅에 시간이 갑니다.
 </div>
 
-### metadata 헤더 — 모델에게 *"이건 슬래시였어"* 알려주기
+### metadata 헤더. 모델에게 *"이건 슬래시였어"* 알려주기
 
 호출된 turn 의 user message 첫 부분에 이런 태그가 붙어요:
 
@@ -266,16 +266,16 @@ Diff: !`git diff --cached`
 
 | | Skills (이 글) | MCP tools (4편) |
 |---|---|---|
-| advertise 방식 | `<system-reminder>` skill_listing | `<system-reminder>` deferred_tools_delta |
+| advertise 방식 | <span class="k">&lt;system-reminder&gt;</span> skill_listing | <span class="k">&lt;system-reminder&gt;</span> deferred_tools_delta |
 | advertise 위치 | turn 0 의 user message | 매 turn 의 user message attachment |
-| invoke trigger | `/<name>` 또는 Skill tool 호출 | ToolSearch 도구 호출 |
+| invoke trigger | <span class="mod">/&lt;name&gt;</span> 또는 Skill tool 호출 | ToolSearch 도구 호출 |
 | 호출 시 도달 | body 가 user message 로 | tool schema 가 그 turn inline 으로 |
 
-같은 *meta-tool + delta-attachment* 패턴. *Skill* 이 *ToolSearch* 보다 한 단계 위 추상화 — Skill 은 *prompt body* 를 들고, ToolSearch 는 *tool schema* 를 들고 옴.
+같은 *meta-tool + delta-attachment* 패턴. *Skill* 이 *ToolSearch* 보다 한 단계 위 추상화. Skill 은 *prompt body* 를 들고, ToolSearch 는 *tool schema* 를 들고 옴.
 
-## Phase 2 의 한 디테일 — gpt-4o-mini 의 instruction-following
+## Phase 2 의 한 디테일. gpt-4o-mini 의 instruction-following
 
-기록한 사실 한 가지. Phase 2 trace 18-23 에서 user prompt 가 *"Use the Explore subagent to find ..."* 였는데, 모델 (gpt-4o-mini) 이 dispatch 한 건 `general-purpose` agent 였어요. *"Explore"* 를 *동사 hint* 로 해석. 명시적인 *type 이름* 을 받아 쓰지 못함.
+기록한 사실 한 가지. Phase 2 trace 18-23 에서 user prompt 가 *"Use the Explore subagent to find ..."* 였는데, 모델 (gpt-4o-mini) 이 dispatch 한 건 <span class="k">general-purpose</span> agent 였어요. *"Explore"* 를 *동사 hint* 로 해석. 명시적인 *type 이름* 을 받아 쓰지 못함.
 
 이게 왜 의미 있는가. 같은 harness 라도 *모델 quality 가 instrumentation 의 정확도에 영향*. trace 디버깅에서 *"왜 Explore 가 안 잡혔지"* → *"모델이 그냥 general 로 보냈구나"* 의 패턴이 의외로 자주.
 
@@ -286,20 +286,17 @@ Diff: !`git diff --cached`
 이 글의 정리:
 
 <blockquote>
-Skills 와 Slash Commands 는 *같은 Command 객체*, 어느 디렉토리에 있느냐만 다름. 모델에 도달하는 모양은 *두 단계로 분리* 되어 — <span class="key">Stage 1 advertise (thin)</span> + <span class="key">Stage 2 invoke (fat)</span>.
-<br/><br/>
-Stage 1 의 자리는 *user message 의 <span class="k">&lt;system-reminder&gt;</span>* 안의 한 줄 카탈로그. turn 0 에만 풀로, 이후 delta. <span class="key">attribute 자체가 *없다* 가 *비었다* 보다 강한 신호</span>.
-<br/><br/>
-Stage 2 의 자리는 *호출된 그 turn 의 user message*. body 가 argument 치환 + shell 실행 후 inline. shell 패턴은 <span class="mod">``` !</span> block 또는 <span class="mod">!`cmd`</span> inline 둘만. line prefix <span class="mod">!cmd</span> 는 literal text 로 통과.
-<br/><br/>
-같은 *thin/fat* 패턴이 4편의 ToolSearch (MCP tools) 와 8편의 Subagents 에서 반복. <em>advertise 는 cheap, invoke 는 expensive</em> 가 시리즈 전반의 디자인 모티프.
+<p>Skills 와 Slash Commands 는 <em>같은 Command 객체</em>, 어느 디렉토리에 있느냐만 다름. 모델에 도달하는 모양은 <em>두 단계로 분리</em> 되어. <span class="key">Stage 1 advertise (thin)</span> + <span class="key">Stage 2 invoke (fat)</span>.</p>
+<p>Stage 1 의 자리는 <em>user message 의 <span class="k">&lt;system-reminder&gt;</span></em> 안의 한 줄 카탈로그. turn 0 에만 풀로, 이후 delta. <span class="key">attribute 자체가 <em>없다</em> 가 <em>비었다</em> 보다 강한 신호</span>.</p>
+<p>Stage 2 의 자리는 <em>호출된 그 turn 의 user message</em>. body 가 argument 치환 + shell 실행 후 inline. shell 패턴은 <span class="mod">``` !</span> block 또는 <span class="mod">!`cmd`</span> inline 둘만. line prefix <span class="mod">!cmd</span> 는 literal text 로 통과.</p>
+<p>같은 <em>thin/fat</em> 패턴이 4편의 ToolSearch (MCP tools) 와 8편의 Subagents 에서 반복. <em>advertise 는 cheap, invoke 는 expensive</em> 가 시리즈 전반의 디자인 모티프.</p>
 </blockquote>
 
 다음 글은 같은 *명시 호출* 자산이지만 격리 정도가 훨씬 큰 자산. <span class="term">Subagents</span>. 같은 markdown body 인데 이번엔 *부모의 messages* 가 아닌 *별개 LLM 세션의 system prompt* 가 됩니다.
 
 ## References
 
-- Skill 의 두 site: `tools/SkillTool/prompt.ts:174` (Skill tool description), `:31-41` (`getCharBudget`), `utils/attachments.ts:2661` (`getSkillListingAttachments`), `commands.ts:563` (`getSkillToolCommands` 필터)
-- Slash 처리: `utils/processUserInput/processSlashCommand.tsx:827-940` (`getMessagesForPromptSlashCommand`), `utils/argumentSubstitution.ts:94`, `utils/promptShellExecution.ts:85-90` (shell pattern)
-- metadata 헤더: `tools/SkillTool/prompt.ts:194` (`<command-name>` 인지), `constants/xml.ts` (`COMMAND_NAME_TAG`)
+- Skill 의 두 site: tools/SkillTool/prompt.ts:174 (Skill tool description), :31-41 (<span class="k">getCharBudget</span>), utils/attachments.ts:2661 (<span class="k">getSkillListingAttachments</span>), commands.ts:563 (<span class="k">getSkillToolCommands</span> 필터)
+- Slash 처리: utils/processUserInput/processSlashCommand.tsx:827-940 (<span class="k">getMessagesForPromptSlashCommand</span>), utils/argumentSubstitution.ts:94, utils/promptShellExecution.ts:85-90 (shell pattern)
+- metadata 헤더: tools/SkillTool/prompt.ts:194 (<span class="k">&lt;command-name&gt;</span> 인지), constants/xml.ts (<span class="k">COMMAND_NAME_TAG</span>)
 - Phase 2 검증: trace 13-14 (turn-0-only 확인), trace 15 (slash command body inline + shell pattern + metadata XML 발견)
