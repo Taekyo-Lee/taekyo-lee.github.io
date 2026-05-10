@@ -191,7 +191,7 @@ You are a focused, read-only search assistant. ...
 
 ### 핵심. subagent 의 system prompt 는 *stripped*
 
-부모 세션의 system prompt 가 ~12K 토큰이라면, subagent 의 system prompt 는 *agent 파일의 body 만*. 보통 1K 미만이에요. 부모의 *intro*, *# Doing tasks*, *# Tone and style*, *# Session-specific guidance* 같은 sections 가 전혀 없어요. [*system message block*](../system-prompt-assembly/) 에서 본 어셈블리가 *통째로 안 적용*.
+부모 세션의 system prompt 가 ~12K 토큰이라면, subagent 의 system prompt 는 *agent 파일의 body 만*. 보통 1K 미만이에요. 부모의 *intro*, *# Doing tasks*, *# Tone and style*, *# Session-specific guidance* 같은 sections 가 전혀 없어요. [*System Block*](../system-prompt-assembly/) 에서 본 어셈블리가 *통째로 안 적용*.
 
 이게 왜 의미있나. *각 subagent 가 자기만의 좁은 prompt 로 동작* 하도록 하는 isolation. *parent 의 무거운 sytem prompt 를 모든 subagent 가 다시 실어 나르지 않게* 하는 비용 절약. 그리고 *subagent 가 부모의 noise 와 격리* 되도록 하는 context hygiene.
 
@@ -305,7 +305,7 @@ usage.output_tokens: 72
 <p>Explore / Plan 같은 read-only agent 는 <em>부모의 claudeMd 와 gitStatus 도 stripped</em>. <em>"34M+ spawns × 5-15 Gtok 절약"</em> 의 결정. fleet-scale 에서 의미 있는 비용 차이.</p>
 </blockquote>
 
-다음 글은 *messages 영역* 의 또 다른 자리. *시간 축* 으로 가는 메커니즘들. *transcript replay* (resume) 와 *session memory* (background 보강). 한 session 의 정보가 어떻게 보존되는가의 두 메커니즘.
+다음 글은 *Messages Block* 의 또 다른 자리. *시간 축* 으로 가는 메커니즘들. *transcript replay* (resume) 와 *session memory* (background 보강). 한 session 의 정보가 어떻게 보존되는가의 두 메커니즘.
 
 ## References
 
