@@ -850,8 +850,6 @@ import weatherChat from './weather-chat.png';
     --af-tools-bg: rgba(5, 150, 105, 0.04);
     --af-messages: #d97706;
     --af-messages-bg: rgba(217, 119, 6, 0.04);
-    --af-fork: #7c3aed;
-    --af-fork-bg: rgba(124, 58, 237, 0.05);
     --af-shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
     --af-mono: ui-monospace, "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
     width: min(calc(100vw - 32px), 880px);
@@ -1105,7 +1103,6 @@ import weatherChat from './weather-chat.png';
     border-left: 3px solid #d1d5db;
   }
   .api-figure .af-note.af-layout-note { border-left-color: var(--af-system); background: var(--af-system-bg); }
-  .api-figure .af-note.af-fork-note   { border-left-color: var(--af-fork);   background: var(--af-fork-bg); }
   .api-figure .af-note .af-note-label {
     display: inline-block;
     font-weight: 700;
@@ -1119,7 +1116,6 @@ import weatherChat from './weather-chat.png';
     border-radius: 4px;
   }
   .api-figure .af-note.af-layout-note .af-note-label { color: var(--af-system); background: rgba(37, 99, 235, 0.10); }
-  .api-figure .af-note.af-fork-note   .af-note-label { color: var(--af-fork);   background: rgba(124, 58, 237, 0.10); }
   .api-figure .af-note code {
     font-family: var(--af-mono);
     font-size: 12.5px;
@@ -1736,13 +1732,6 @@ Claude Code 는 baseline 으로 본 ReAct agent 의 <span class="key">**확장**
         </div>
       </li>
     </ol>
-  </div>
-
-  <div class="af-notes">
-    <div class="af-note af-fork-note">
-      <span class="af-note-label">Note</span>
-      연속된 <code>role: "user"</code> 메시지는 LLM 에 전달되기 전 하나로 병합됨. callout <strong>4</strong> (synthetic reminder), <strong>5</strong> 안의 user 메시지들, <strong>6</strong> (latest prompt) 이 인접해 있으면 와이어 상에서는 한 메시지로 합쳐져요.
-    </div>
   </div>
 
 </div>

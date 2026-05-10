@@ -335,6 +335,23 @@ Langfuse 가 tracing 하는 정보는 세 카테고리로 분류됩니다 (<span
 
 <p class="section-lead">upstream 이 의도한 "지난 turn 이후 새로 들어온 것" 의미입니다. 전체 conversation 이 아닙니다. 전체 conversation 은 섹션 3.1 의 <span class="k">langfuse.observation.input</span> 에 있습니다.</p>
 
+<div class="callout-warm">
+
+**`new_context` 는 messages array 와 *다른 채널* 입니다**
+
+`langfuse.observation.input` (full messages array) 에 분명히 없는데 `new_context` 에는 있는 콘텐츠가 있을 수 있어요. 의도된 동작입니다.
+
+Claude Code 는 *지난 turn 이후 새로 들어온 user-side 정보* (예: <span class="k">&lt;available-deferred-tools&gt;</span> ToolSearch defer 의 tool list, MCP instructions delta, changed files 등) 를 **attachment 라는 별도 채널** 로 LLM 에 전달해요. 이 attachment 들은 messages array 의 plain text content 가 아니라 *persist 되는 별도 metadata 흐름* 이라, `langfuse.observation.input` 의 messages text 엔 안 잡힐 수 있어요.
+
+`new_context` 는 그 *attachment 채널의 이번 turn 신규분* 을 surface 한 attribute. 즉:
+
+- `langfuse.observation.input` = **messages array** 의 textual view
+- `new_context` = **attachment 채널** 의 per-turn delta
+
+같은 turn 의 *서로 다른 데이터 흐름 두 개* 를 본다고 생각하시면 됩니다.
+
+</div>
+
 | Key | Provenance | Description |
 | --- | --- | --- |
 | attributes.new_context | <span class="tag tag-upstream">Upstream</span> | 같은 query_source 안에서 **이전 reported span 이후 추가된** user 측 메시지를 concat. assistant 메시지·system reminder 제외. 60KB truncation. format 세 갈래는 §3.4.1 참고. |
