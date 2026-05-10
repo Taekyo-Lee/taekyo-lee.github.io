@@ -4,6 +4,39 @@
 
 ---
 
+## 0. Source of truth
+
+이 시리즈의 콘텐츠는 `~/workspace/claude-code-fork/docs/context-engineering/` 의 markdown 파일들을 **source of truth** 로 합니다. 각 .md 가 한 토픽을 깊이 정리해 둔 reference 이고, 시리즈의 각 글은 거기서 출발해 블로그 voice 로 재작성됩니다.
+
+**파일 ↔ 시리즈 글 매핑**:
+
+| docs 파일 | 시리즈 글 |
+|---|---|
+| `00-plan.md` | 시리즈 전체 plan |
+| `01-claude-md.md` · `02-memory-md.md` · `03-team-memory.md` | 6편 *영구 기억의 다섯 갈래* |
+| `04-skills.md` · `05-slash-commands.md` | 7편 *Skills 와 Slash Commands* |
+| `06-subagents.md` | 8편 *Subagents* |
+| `07-output-styles.md` · `08-settings-keys.md` · `09-mcp-config.md` | 4편 *Settings 와 MCP* |
+| `10-session-transcripts.md` · `11-session-memory.md` · `12-scratchpad.md` | 9편 *세션의 기억* |
+| `13-git-context.md` | 5편 *gitStatus* |
+| `14-hooks.md` | 10편 *Hooks* |
+| `99-consolidation.md` | 11편 *Master map* (종합) |
+
+**How to apply**:
+- 새 글 작성: 해당 .md 를 먼저 읽고 출발점으로
+- 기존 글 review: .md 의 최신 fact 와 어긋난 부분 있는지 비교
+- 단, §1 의 fork 주의 (`[FORK]` 표기 단락은 시리즈에 옮기지 않음) 와 §3 의 코드 grep 검증 (.md 자체도 outdated 일 수 있음) 은 같이 적용
+
+**양방향 동기화 (중요)**: 블로그 작성·review 중에 *.md 에 없는 새 fact* 또는 *.md 의 정정거리* 를 발견하면, 해당 변경을 **source of truth 인 .md 에도 반영** 합니다.
+
+- 새 fact (예: 새로운 trace 관측, 추가 함수 경로) → 해당 .md 에 추가
+- .md 의 오류 (예: outdated 함수명, 잘못된 라인 번호, 잘못된 fact) → .md 를 정정
+- 블로그 쪽만 고치고 .md 를 그대로 두면 source of truth 가 *블로그보다 stale* 한 모순 상태가 되므로, 다음 글 작성·review 시 잘못된 출발점이 됩니다
+
+**Why**: source of truth 가 한 곳이어야 일관성이 유지됩니다. 블로그는 source 의 *재작성* 이지 *fork* 가 아닙니다. 두 곳이 fact 차원에서 갈라지면 어느 쪽이 맞는지 매번 판단해야 하고, 시리즈가 진행될수록 drift 가 누적됨.
+
+---
+
 ## 1. Fork 언급 일체 금지
 
 이 시리즈는 **upstream Claude Code** 만 다룹니다. claude-code-fork 의 fork-specific 동작은 아예 언급하지 않아요.
