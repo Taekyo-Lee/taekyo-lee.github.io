@@ -471,7 +471,7 @@ $ cat .claude/settings.json
 }
 ```
 
-filename 은 *strict-reviewer* (kebab-case), frontmatter 의 name 은 *Strict Reviewer* (공백 + 대문자) — 다르게 잡았어요. 세션 시작 후 trace 의 system_instructions 에서 slot 13 영역 발췌:
+filename 은 *strict-reviewer* (kebab-case), frontmatter 의 name 은 *Strict Reviewer* (공백 + 대문자). 다르게 잡았어요. 세션 시작 후 trace 의 system_instructions 에서 slot 13 영역 발췌:
 
 ````text
 # Output Style: Strict Reviewer
@@ -500,7 +500,7 @@ instead of `/tmp` or other system temp directories:
 
 내용은 단순해요. *세션마다 만들어지는 전용 임시 디렉토리의 경로* 와 *"임시 파일은 여기에 쓰세요"* 라는 지시. 그 디렉토리는 세션이 끝나면 자동으로 삭제되고, 다른 사용자는 접근 못 하게 권한이 잠겨 있어요.
 
-다만 **이 기능은 Anthropic 내부에서 시험 중인 단계라 일반 사용자 환경에선 꺼져 있어요**. 그래서 trace 에 slot 15 가 안 보이는 게 정상. 평소엔 모델이 임시 파일을 만들 일이 있으면 그냥 시스템 기본 임시 디렉토리 (`/tmp` 같은 곳) 에 쓰게 됩니다 (사용자가 직접 보긴 어렵고, trace 에서나 확인 가능).
+다만 **이 기능은 Anthropic 내부에서 시험 중인 단계라 일반 사용자 환경에선 꺼져 있어요**. 그래서 trace 에 slot 15 가 안 보이는 게 정상. 평소엔 모델이 임시 파일을 만들 일이 있으면 그냥 시스템 기본 임시 디렉토리 (/tmp 같은 곳) 에 쓰게 됩니다 (사용자가 직접 보긴 어렵고, trace 에서나 확인 가능).
 
 한 가지 짚을 점은, <span class="key">**이 슬롯이 알리는 건 디렉토리의 경로 한 줄 뿐**</span> 이라는 거예요. 그 안에 어떤 파일이 들어 있는지는 system prompt 에 안 들어옵니다. 모델이 궁금하면 Read 도구로 직접 들여다봐야 해요.
 
@@ -552,9 +552,9 @@ instead of `/tmp` or other system temp directories:
 
 **직접 한 번 돌려보기**
 
-`@modelcontextprotocol/server-everything` 서버 (15 개 tool 노출) 를 등록하고 trace 캡처:
+<span class="mod">@modelcontextprotocol/server-everything</span> 서버 (15 개 tool 노출) 를 등록하고 trace 캡처:
 
-`gen_ai.tool.definitions` (tools panel) 에는 **9 개**만 들어 있어요. ToolSearch + Bash · Read · Edit · Write · Glob · Grep · Skill · Agent. **<span class="mod">mcp__everything__*</span> 가 하나도 없음**.
+<span class="k">gen_ai.tool.definitions</span> (tools panel) 에는 **9 개**만 들어 있어요. ToolSearch + Bash · Read · Edit · Write · Glob · Grep · Skill · Agent. **<span class="mod">mcp__everything__&#42;</span> 가 하나도 없음**.
 
 대신 user message 의 <span class="mod">&lt;available-deferred-tools&gt;</span> attachment 안에 들어 있어요:
 
@@ -568,14 +568,14 @@ mcp__everything__get-env
 
 <span class="key">**MCP tool 들이 turn 0 의 schema 에 안 들어가고, 이름·짧은 description 만 advertise**</span>. defer 가 default 동작인 게 trace 차원에서 확인돼요.
 
-흥미로운 보너스 — deferred pool 에는 MCP 외에도 *Claude Code 자신의 자주 안 쓰일 만한 내부 tool* (NotebookEdit, WebFetch, WebSearch, EnterPlanMode 류, Task* 6 종 등) 도 같이 들어 있어요. *MCP 전용 메커니즘* 이 아니라 *cache 비용을 줄이기 위한 일반 패턴* 임을 보여줘요.
+흥미로운 보너스. deferred pool 에는 MCP 외에도 *Claude Code 자신의 자주 안 쓰일 만한 내부 tool* (NotebookEdit, WebFetch, WebSearch, EnterPlanMode 류, Task* 6 종 등) 도 같이 들어 있어요. *MCP 전용 메커니즘* 이 아니라 *cache 비용을 줄이기 위한 일반 패턴* 임을 보여줘요.
 
 </div>
 
 <div class="surprise">
 <span class="label">⚡ SURPRISE</span>
 
-위 evidence 의 deferred attachment 를 다시 보면 — *tool 이름 한 줄씩만* 들어가 있어요. **description 도 없고, parameter schema 도 없음**. 모델은 이름만 보고 *"이 tool 이 내가 지금 필요한 도구인가?"* 를 판단해야 합니다. 호출 가치 있다 싶으면 그제야 ToolSearch 로 schema 를 받아 와요.
+위 evidence 의 deferred attachment 를 다시 보면, *tool 이름 한 줄씩만* 들어가 있어요. **description 도 없고, parameter schema 도 없음**. 모델은 이름만 보고 *"이 tool 이 내가 지금 필요한 도구인가?"* 를 판단해야 합니다. 호출 가치 있다 싶으면 그제야 ToolSearch 로 schema 를 받아 와요.
 
 직관적으론 *"이름만 보고 어떻게 잘 골라?"* 싶지만, 두 가지가 받쳐 줍니다. 이름 자체가 정보를 담고 있고 (예: <span class="mod">mcp__github__create_pr</span>, <span class="mod">mcp__playwright__browser_navigate</span> 처럼 *서버명 + 동사구* 형태), ToolSearch 를 *keyword 검색* 처럼 써서 후보를 탐색할 수도 있어요 (<span class="mod">browser</span> 같은 키워드로 브라우저 관련 도구 추리기).
 
@@ -589,7 +589,7 @@ mcp__everything__get-env
 
 defer mode 의 호출 사이클은 두 단계로 나뉘어요:
 
-- **이름** = <span class="key">발견성</span>. `<available-deferred-tools>` 리스트엔 이름만 보이니까, 이름이 모호하면 모델이 *"이 tool 이 필요할 수도 있겠다"* 라는 의심조차 안 함 → 검색 시도 자체가 없음
+- **이름** = <span class="key">발견성</span>. <span class="k">&lt;available-deferred-tools&gt;</span> 리스트엔 이름만 보이니까, 이름이 모호하면 모델이 *"이 tool 이 필요할 수도 있겠다"* 라는 의심조차 안 함 → 검색 시도 자체가 없음
 - **description** = <span class="key">검색 적중</span>. 모델이 keyword 로 ToolSearch 를 호출하면 내부적으로 *name + description + searchHint* 모두에서 매칭. 이름이 약해도 description 에 좋은 keyword 가 있으면 잡힐 수 있음
 
 즉 두 가지 다 잘 짜야 *발견되고 + 호출되는* 사이클이 돌아가요.
