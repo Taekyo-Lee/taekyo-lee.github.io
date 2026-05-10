@@ -35,6 +35,21 @@
 
 **Why**: source of truth 가 한 곳이어야 일관성이 유지됩니다. 블로그는 source 의 *재작성* 이지 *fork* 가 아닙니다. 두 곳이 fact 차원에서 갈라지면 어느 쪽이 맞는지 매번 판단해야 하고, 시리즈가 진행될수록 drift 가 누적됨.
 
+**관련 경로 reference**:
+
+| 경로 | 용도 |
+|---|---|
+| `~/workspace/claude-code-fork/docs/context-engineering/` | Source of truth docs (위 매핑 표 참고) |
+| `~/workspace/claude-code-fork/` | Claude Code fork 소스 코드 (§3 코드 grep 검증에 사용) |
+| `~/workspace/claude-context-engineering/` | 테스트 sandbox (dummy project) |
+
+**테스트 가이드 (Claude Code fork 동작 검증 시)**:
+
+- 가능하면 sandbox `~/workspace/claude-context-engineering/` 에서 진행 (**기본 권장**)
+- fork 디렉토리 자체에서 반드시 해야 하는 경우 (예: bundle 빌드 결과 직접 검증) 만 `~/workspace/claude-code-fork/` 에서
+
+**Why**: fork 디렉토리에서 직접 테스트하면 그 디렉토리의 `.claude/`, `CLAUDE.md`, git state, node_modules 등이 변수로 끼어들어 깨끗한 관측이 어려워요. sandbox 는 *변수 통제* 용. 새 CLAUDE.md / settings 조합을 시험할 때 sandbox 가 default.
+
 ---
 
 ## 1. Fork 언급 일체 금지
