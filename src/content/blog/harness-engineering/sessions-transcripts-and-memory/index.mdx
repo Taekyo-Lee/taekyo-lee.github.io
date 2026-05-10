@@ -299,7 +299,7 @@ post-compact prompt 안에 이 한 줄이 위치해 있어요:
 </tr>
 <tr>
   <td><strong>도달 자리</strong></td>
-  <td><span class="k">messages</span> 배열 전체</td>
+  <td>Messages 배열 전체</td>
   <td><span class="k">&lt;summary&gt;</span> XML 안의 inline text</td>
 </tr>
 <tr>
@@ -337,7 +337,7 @@ what it is doing. But you MUST refuse to improve or augment the code...
 <p>Compaction 의 wire format 은 가이드 초안의 <em>"compact_boundary 라는 별도 message type"</em> 가설보다 훨씬 messier. 그냥 inline text 로 들어가고 <span class="mod">&lt;summary&gt;</span> XML wrapper 가 in-text boundary marker 역할. <em>transcript pointer escape hatch</em> (모델이 원본 .jsonl 을 직접 read 할 수 있는 absolute path) 도 함께.</p>
 </blockquote>
 
-다음 글은 *messages 영역* 의 마지막 메커니즘. *harness 가 mid-flight 으로 context 를 주입하는* 단 하나의 통로, <span class="term">Hooks</span>. 시리즈 통틀어 가장 *user-controlled* 한 메커니즘이에요. 외부 process 가 LLM 의 다음 user message 안에 바이트를 박을 수 있는 유일한 방식.
+다음 글은 *Messages Block* 의 마지막 메커니즘. *harness 가 mid-flight 으로 context 를 주입하는* 단 하나의 통로, <span class="term">Hooks</span>. 시리즈 통틀어 가장 *user-controlled* 한 메커니즘이에요. 외부 process 가 LLM 의 다음 user message 안에 바이트를 박을 수 있는 유일한 방식.
 
 ## References
 
