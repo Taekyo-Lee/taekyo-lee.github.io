@@ -1,5 +1,5 @@
 ---
-title: '영구 기억의 세 갈래. CLAUDE.md / MEMORY.md / Team Memory'
+title: '영구 기억의 다섯 갈래. 4 종의 CLAUDE.md 와 MEMORY.md'
 description: '6 영역 중 4번 (synthetic <system-reminder>) 안에 들어가는 다섯 종류의 memory 파일이 어떻게 한 채널로 합쳐져 LLM 에 도달하는지. 그리고 Phase 2 에서 발견된 의외의 분류 규칙들.'
 pubDate: 'May 31 2026'
 category: harness-engineering
@@ -155,7 +155,7 @@ seriesOrder: 6
 `}</style>
 
 <div class="series-banner">
-📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 여섯 번째 글입니다. 지난 <a href="../git-context/">5편 <em>gitStatus</em></a> 까지가 *system 영역* 이었어요. 이번 편부터 자리를 옮겨 *messages 영역* 으로 들어갑니다. 첫 주제는 *합성 <span class="k">&lt;system-reminder&gt;</span>* 안에 들어가는 영구 기억의 다섯 갈래.
+📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 여섯 번째 글입니다. 지난 <a href="../git-context/">5편 <em>작은 비밀 한 줄. gitStatus, system prompt 의 trailing block</em></a> 까지가 *system 영역* 이었어요. 이번 편부터 자리를 옮겨 *messages 영역* 으로 들어갑니다. 첫 주제는 *합성 <span class="k">&lt;system-reminder&gt;</span>* 안에 들어가는 영구 기억의 다섯 갈래.
 </div>
 
 ## 같은 채널, 다섯 종류의 파일
@@ -216,10 +216,6 @@ seriesOrder: 6
       <td><span class="term">AutoMem</span></td>
       <td><code>(user's auto-memory, persists across conversations)</code></td>
     </tr>
-    <tr>
-      <td>TeamMem (현재 dead code)</td>
-      <td><code>(shared team memory, synced across the organization)</code></td>
-    </tr>
   </tbody>
 </table>
 
@@ -252,7 +248,7 @@ Today's date is 2026-05-10.
 ```
 </div>
 
-## 발견 위로 걷는 walk. root → cwd
+## 위로 거슬러 올라가는 walk. cwd → root
 
 다섯 종류의 파일이 어디 있는지를 harness 가 어떻게 알아챌까요. <span class="k">getMemoryFiles()</span> 가 하는 일은 단순합니다. **현재 작업 디렉토리에서 시작해 파일시스템 root 까지 거슬러 올라가며**, 각 단계에서 CLAUDE.md, .claude/CLAUDE.md, <span class="mod">.claude/rules/&#42;.md</span>, CLAUDE.local.md 가 있는지 봅니다.
 
@@ -276,7 +272,7 @@ cwd:  /home/jet/repo/src/feature
 
 ## MEMORY.md 만 두 채널을 탑니다
 
-다섯 종류 중 <span class="term">AutoMem</span> 하나만 *두 채널* 을 동시에 탑니다. 다른 넷 (Managed/User/Project/Local) 은 모두 그 자체로 콘텐츠일 뿐이지만, MEMORY.md 는 콘텐츠 + 사용 가이드가 짝을 이뤄야 하기 때문이에요.
+다섯 종류 중 AutoMem 하나만 *두 채널* 을 동시에 탑니다. 다른 넷 (Managed/User/Project/Local) 은 모두 그 자체로 콘텐츠일 뿐이지만, MEMORY.md 는 콘텐츠 + 사용 가이드가 짝을 이뤄야 하기 때문이에요.
 
 <div class="callout">
 <strong>MEMORY.md 의 dual injection</strong>
@@ -289,9 +285,9 @@ cwd:  /home/jet/repo/src/feature
 
 이 분리가 잘 된 이유는 *역할이 다르기 때문* 이에요. 메모리에 무엇을 적었는지 (data) 와 메모리를 어떻게 다뤄야 하는지 (policy) 는 변하는 빈도가 달라요. data 는 자주 바뀌고, policy 는 거의 안 바뀜. 그래서 policy 는 cache 가 잘 되는 system 쪽에 두고, data 는 매 turn 새로 prepend 되는 user-message 쪽에 둔 겁니다.
 
-## Team Memory 는 기본 환경에서 dead code
+## 사실 수면 아래 한 갈래가 더 있어요. 그런데 dead code
 
-다섯 갈래라고 했지만 사실 한 갈래는 기본 환경에서 *작동하지 않아요*. <span class="term">TeamMem</span> 은 <span class="mod">feature('TEAMMEM')</span> 게이트로 둘러싸여 있는데, 이 함수가 *컴파일 타임에 항상 false* 로 치환됩니다 (scripts/build/build.ts:95).
+지금까지 다섯 갈래로 봤지만, 소스 안엔 여섯 번째 갈래가 더 자리잡고 있어요. <span class="term">TeamMem</span> 입니다. suffix 는 <code>(shared team memory, synced across the organization)</code>. 다만 기본 환경에선 *작동하지 않아요*. <span class="mod">feature('TEAMMEM')</span> 게이트로 둘러싸여 있는데, 이 함수가 *컴파일 타임에 항상 false* 로 치환되거든요 (scripts/build/build.ts:95).
 
 ```ts
 // utils/claudemd.ts 안의 분기
@@ -304,7 +300,7 @@ if (feature('TEAMMEM')) {           // ← bundle 빌드에서 false 상수
 
 ## Phase 2 에서 발견한 것들
 
-이론으론 깔끔하지만, 실제 trace 를 떠 보면 의외의 모서리들이 있어요. 세 가지만 짚고 갑니다.
+이론으론 깔끔하지만, 실제 trace 를 떠 보면 의외의 모서리들이 있어요. 두 가지만 짚고 갑니다.
 
 ### 1. <span class="k">#&nbsp;claudeMd</span> 가 비활성화되면 *비워지는 게 아니라 사라집니다*
 
@@ -380,4 +376,4 @@ token 비용 측면에서 directive 자체는 작아 (5~10 토큰) 거의 무시
 - MEMORY.md dual injection: memdir/memdir.ts:419 (<span class="k">loadMemoryPrompt</span>. Site A), utils/claudemd.ts:980-992 (Site B)
 - <span class="k">prependUserContext</span>: utils/api.ts:449-474
 - TEAMMEM compile-time stripping: scripts/build/build.ts:95
-- Phase 2 검증 trace 들 (Langfuse): slot 5 (CLAUDE.md), slot 6 (MEMORY.md), slot 13 (TEAMMEM dead code 확인)
+- Phase 2 검증 trace 들 (Langfuse, 내부 trace dump 색인): slot 5 (CLAUDE.md), slot 6 (MEMORY.md), slot 13 (TEAMMEM dead code 확인)
