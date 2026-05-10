@@ -65,7 +65,7 @@ import systemInstructionsAnatomy from './system-instructions-anatomy.png';
 `}</style>
 
 <div class="series-banner">
-📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 다섯 번째 글입니다. 짧고 단단한 한 편이에요. <a href="../system-prompt-assembly/">3편</a> 이 다룬 <strong>system block 21 slot 중 마지막 한 자리</strong> (slot 21, dynamic 부분의 끝에 붙는 <strong>trailer</strong>) 를 봅니다. 시리즈 통틀어 <strong>가장 작지만 가장 자주 마주치는</strong> gitStatus.
+📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 다섯 번째 글입니다. 짧고 단단한 한 편이에요. <a href="../system-prompt-assembly/">3편 <em>Claude Code 의 system message block</em></a> 이 다룬 <strong>system block 21 slot 중 마지막 한 자리</strong> (slot 21, dynamic 부분의 끝에 붙는 <strong>trailer</strong>) 를 봅니다. 시리즈 통틀어 <strong>가장 작지만 가장 자주 마주치는</strong> gitStatus.
 </div>
 
 ## 모든 trace 에 항상 있는 그 한 블록
@@ -90,9 +90,9 @@ system message block (<span class="k">gen_ai.system_instructions</span>) 을 열
 
 <Image src={systemInstructionsAnatomy} alt="Langfuse 의 system message block (gen_ai.system_instructions) 패널. 위에서부터 메타데이터, System prompt prefix, Custom system message, gitStatus slot 의 네 sub-block 으로 구분" />
 
-<p class="img-caption">실제 Langfuse trace 의 system message block (<span class="k">gen_ai.system_instructions</span>) 패널. 자세한 블록 구조는 <a href="../system-prompt-assembly/">3편 *Claude Code 의 system message block*</a> 포스트 참조.</p>
+<p class="img-caption">실제 Langfuse trace 의 system message block (<span class="k">gen_ai.system_instructions</span>) 패널. 자세한 블록 구조는 <a href="../system-prompt-assembly/"><em>Claude Code 의 system message block</em></a> 포스트 참조.</p>
 
-3편의 어셈블리 그림으로 보면 *slot 21 (trailer)* 자리. <span class="k">appendSystemContext</span> 가 dynamic blocks (slots 8-20) 다음에 통째로 붙입니다. 별 거 아닌 듯 짧지만 (git project 라면) <span class="key">모든 trace 에 항상</span> 보여요. **이번 글의 주인공**.
+[*system message block*](../system-prompt-assembly/) 의 어셈블리 그림으로 보면 *slot 21 (trailer)* 자리. <span class="k">appendSystemContext</span> 가 dynamic blocks (slots 8-20) 다음에 통째로 붙입니다. 별 거 아닌 듯 짧지만 (git project 라면) <span class="key">모든 trace 에 항상</span> 보여요. **이번 글의 주인공**.
 
 ## 다섯 줄. 어디서 왔나
 
@@ -128,7 +128,7 @@ gitStatus 는 *claude 프로세스 시작 시 한 번 capture* 되어 그 프로
 
 ## subagent 변형. *일부는 gitStatus 가 빠집니다*
 
-8편에서 자세히 보지만 미리 한 번 짚으면, *여러 가능한 subagent 중에서* built-in <span class="k">Explore</span> 와 <span class="k">Plan</span> subagent 는 *부모 세션* (subagent 를 spawn 한 main agent) 으로부터 systemContext 를 <span class="key">gitStatus 뺀 채로</span> 상속받아요.
+[*Subagents*](../subagents/) 에서 자세히 보지만 미리 한 번 짚으면, *여러 가능한 subagent 중에서* built-in <span class="k">Explore</span> 와 <span class="k">Plan</span> subagent 는 *부모 세션* (subagent 를 spawn 한 main agent) 으로부터 systemContext 를 <span class="key">gitStatus 뺀 채로</span> 상속받아요.
 
 이유는 <span class="k">runAgent.ts</span> 의 코드 주석에 또렷이 설명되어 있어요. Explore 와 Plan 은 **읽기 전용 검색 subagent** 라 git 상태 정보가 본인 일에 거의 안 쓰여요. 게다가 부모로부터 물려받을 gitStatus 는 *부모 프로세스 시작 시점의 snapshot* 이라 어차피 낡은 값. 정말 필요한 순간엔 subagent 가 직접 <span class="mod">git status</span> 한 번 돌려서 그 자리에서 신선한 값을 받으면 그만입니다. 이 작은 결정 하나로 <span class="key">Anthropic 전체 사용 단위에서 매주 상당량의 토큰</span> 이 절약된다는 게 주석의 마지막 줄.
 
@@ -136,7 +136,7 @@ Explore subagent 의 trace 에서 system prompt 끝에 <span class="k">gitStatus
 
 ## system message block 내 위치. *왜 trailer 인가*
 
-3편의 골격에서 gitStatus 가 *동적 부분의 마지막 trailer* 자리에 가는 이유가 또렷해져요.
+[*system message block*](../system-prompt-assembly/) 의 골격에서 gitStatus 가 *동적 부분의 마지막 trailer* 자리에 가는 이유가 또렷해져요.
 
 - **프로세스마다 fresh 함**. 같은 repo 라도 가끔 branch 가 바뀌니, session 간 cache 공유 어려움 → 정적 부분에는 못 들어감
 - **프로세스 안에선 stable**. 일단 들어가면 안 바뀜 → 한 번 넣어두면 그대로 둬도 됨
@@ -154,7 +154,7 @@ Explore subagent 의 trace 에서 system prompt 끝에 <span class="k">gitStatus
 
 | 찾을 것 | 의미 |
 |---|---|
-| <span class="k">gitStatus:</span> 블록 자체가 없음 | git project 폴더가 아니거나, 4편에서 본 <span class="k">includeGitInstructions</span> 같은 settings 로 git 정보를 제외했음 |
+| <span class="k">gitStatus:</span> 블록 자체가 없음 | git project 폴더가 아니거나, [*Settings 와 MCP*](../settings-and-mcp/) 에서 본 <span class="k">includeGitInstructions</span> 같은 settings 로 git 정보를 제외했음 |
 | <span class="k">gitStatus:</span> 블록은 있는데 <span class="k">Git user:</span> 줄 없음 | <span class="mod">git config user.name</span> 이 설정 안 되어 있음 |
 | <span class="k">Status:</span> 끝에 <span class="mod">… (truncated …)</span> marker | 작업 중인 파일이 2K 자 넘게 변경되어 잘림 (5 git 명령 표 참조) |
 | 같은 사용자 trace 인데 두 trace 의 <span class="k">Current branch:</span> 가 다름 | 두 프로세스 invocation. 보통 다른 session 이지만 <span class="mod">--resume</span> 으로 이어 받았다면 같은 session 일 수도 있음 |
@@ -167,6 +167,6 @@ Explore subagent 의 trace 에서 system prompt 끝에 <span class="k">gitStatus
 <blockquote>
 <p>gitStatus 는 system 영역의 <em>마지막 trailing block</em>. 5 git 명령이 동시에 돌아 한 snapshot 을 만들고, <span class="key">프로세스 시작 시 한 번 들어간 채로 그 프로세스 끝까지 가요</span>.</p>
 <p>위에서 본 <em>"snapshot 이니까 그대로 믿지 말고 정확한 정보가 필요하면 직접 git status 돌려"</em> 라는 한 줄이 핵심이에요. <span class="key">대략의 감은 snapshot 으로, 정확한 상태는 모델이 직접 가져오기</span>. 그리고 동적 영역 안에서도 <em>맨 끝 (trailer)</em> 에 가는 이유는, gitStatus 가 <em>사용자 작업 디렉토리 정보</em> 라 다른 동적 슬롯들 (memory · MCP 같은 harness 정보) 과 종류가 다르고, <em>한 번에 추가하는 게 가장 단순</em> 해서.</p>
-<p>같은 디자인 패턴 (<span class="key">작은 단서만 주고 정확한 정보는 모델이 직접 가져오기</span>) 이 시리즈 다른 글에서도 반복돼요. 4편의 scratchpad 디렉토리 경로, 9편에서 보게 될 compaction 후 transcript 파일 경로 도 같은 모양.</p>
+<p>같은 디자인 패턴 (<span class="key">작은 단서만 주고 정확한 정보는 모델이 직접 가져오기</span>) 이 시리즈 다른 글에서도 반복돼요. <a href="../settings-and-mcp/"><em>Settings 와 MCP</em></a> 의 scratchpad 디렉토리 경로, <a href="../sessions-transcripts-and-memory/"><em>세션의 기억</em></a> 에서 보게 될 compaction 후 transcript 파일 경로 도 같은 모양.</p>
 </blockquote>
 

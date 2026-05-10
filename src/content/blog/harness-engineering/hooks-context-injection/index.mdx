@@ -280,7 +280,7 @@ OpenAI shim 환경에선 모두 한 user message 로 coalesced 되어 이런 모
 
 ## hook 의 <span class="mod">isMeta: true</span>. transcript 에 안 적힘
 
-9편의 transcript 가이드와 connecting 되는 한 가지: hook 으로 inject 된 reminder 들도 *<span class="mod">isMeta: true</span>* flag 를 답니다. 결과:
+[*세션의 기억*](../sessions-transcripts-and-memory/) 의 transcript 가이드와 connecting 되는 한 가지: hook 으로 inject 된 reminder 들도 *<span class="mod">isMeta: true</span>* flag 를 답니다. 결과:
 
 - LLM 에는 user message 로 도달
 - on-disk transcript 에는 *기록 안 됨* (meta filter)

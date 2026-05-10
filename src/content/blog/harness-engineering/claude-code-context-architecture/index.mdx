@@ -1225,12 +1225,12 @@ import weatherChat from './weather-chat.png';
 `}</style>
 
 <div class="series-banner">
-📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 두 번째 글입니다. 1편 ([Harness Engineering 과 Context Engineering](../harness-vs-context-engineering/)) 이 시리즈의 framing 이었다면, 이번 글부터 본격적인 deep dive 가 시작돼요. 첫 주제는 *Claude Code 가 LLM 에 한 번 보내는 입력의 모양* 입니다 (시스템 프롬프트 · 도구 · conversation history · 이번 턴 입력 까지 한꺼번에).
+📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 두 번째 글입니다. <a href="../harness-vs-context-engineering/">1편 <em>Harness Engineering과 Context Engineering</em></a> 이 시리즈의 framing 이었다면, 이번 글부터 본격적인 deep dive 가 시작돼요. 첫 주제는 *Claude Code 가 LLM 에 한 번 보내는 입력의 모양* 입니다 (시스템 프롬프트 · 도구 · conversation history · 이번 턴 입력 까지 한꺼번에).
 </div>
 
 ## Payload 한 개를 펼쳐 봅니다
 
-1편의 cliffhanger:
+[*Harness Engineering과 Context Engineering*](../harness-vs-context-engineering/) 의 cliffhanger:
 
 > Claude Code 에 *"이 코드 분석해줘"* 같은 짧은 한 줄을 던졌다고 해 봅시다. 다섯 단어. 그런데 Langfuse trace 를 열어 보면 LLM 에게 도착한 prompt 는 12,000 토큰이 넘어요. 그 사이를 채운 토큰들은 어디서 왔을까요?
 
@@ -1240,7 +1240,7 @@ import weatherChat from './weather-chat.png';
 
 <p class="img-caption">한 줄짜리 입력 뒤에서 harness 가 모으는 것들 — 프로젝트 파일 · 문서 · 테스트 · 이전 대화. 이 모음 작업이 곧 *context engineering* 이고, 이 글이 그 안을 펼쳐 봅니다.</p>
 
-답은 **harness** 였죠 — 1편에서 풀었습니다. 이번 글에서는 그 harness 가 **한 번 LLM 을 호출할 때 무엇이 함께 실려 가는지** 펼쳐 봅니다. 글이 끝날 때 그 안의 구성이 머릿속에 그려지면 목표 달성이에요.
+답은 **harness** 였죠. [*Harness Engineering과 Context Engineering*](../harness-vs-context-engineering/) 에서 풀었습니다. 이번 글에서는 그 harness 가 **한 번 LLM 을 호출할 때 무엇이 함께 실려 가는지** 펼쳐 봅니다. 글이 끝날 때 그 안의 구성이 머릿속에 그려지면 목표 달성이에요.
 
 ## 어느 깊이에서 들여다볼까?
 

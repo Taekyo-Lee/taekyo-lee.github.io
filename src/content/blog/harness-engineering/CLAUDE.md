@@ -47,7 +47,13 @@ slot 번호 매핑, 키 cascade 순서, 함수 위치 같은 fact 를 단정 서
 
 - **21 slot framing**: *static 7 + dynamic 14 (slot 21 = gitStatus trailer)*. 3편이 정한 기준이고 후속 글들이 이 명명으로 cross-reference. 99-consolidation 의 *20 + trailer* 변형은 시리즈에 옮기지 않음
 - **4 서브 블록**: system 블록 안의 4 sub-block 구조 (*attribution header* / *system prompt prefix* / *static system blocks* / *dynamic system blocks*). 3편이 set 한 명명을 시리즈 전반에서 일관 유지
-- **forward-link 표기**: 미래 글 reference 는 *5편의 ...*, *7편의 ...* 식으로 (편 번호 + 주제 한 줄)
+- **cross-reference 표기 (title-link 룰)**: 다른 글 reference 는 *N편* 같은 편 번호 형태가 아니라 **title 자체 + link** 으로 표기. 정확한 형식은 컨텍스트에 따라 hybrid:
+  - **본문 inline 참조**: short identifier 사용. 예: `[*Subagents*](../subagents/) 에서 자세히 보지만`, `[*gitStatus*](../git-context/) 의 cache 분류`
+  - **시리즈 banner / Take-home blockquote / 이미지 caption / explicit citation**: full title 사용. 예: banner 안의 `<a href="../system-prompt-assembly/">3편 <em>Claude Code 의 system message block</em></a>`
+  - **link format**: `[*identifier*](../<slug>/)` (italic title inside link, 상대 경로). HTML form 도 OK: `<a href="../<slug>/"><em>identifier</em></a>` (특히 `<p>` 태그 안에서)
+  - **slug 매핑**: harness-vs-context-engineering / claude-code-context-architecture / system-prompt-assembly / settings-and-mcp / git-context / permanent-memory-three-channels / skills-and-slash-commands / subagents / sessions-transcripts-and-memory / hooks-context-injection / master-map-and-phase2-findings (1편~11편 순서)
+  - **self-reference**: 자기 자신을 가리키는 경우 link 없이 *이 글*, *이 편* 등으로 자연스럽게
+  - **References 블록**: 마지막 섹션의 `시리즈 N편: <link>` 형태는 그대로 OK (목록 자체가 explicit citation 형식)
 - **시리즈 뱃지**: 각 글 첫 자리에 `<div class="series-banner">📚 시리즈 ... 의 N 번째 글입니다 ...</div>` 한 단락
 
 ---

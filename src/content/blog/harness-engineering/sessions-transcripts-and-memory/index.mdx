@@ -119,14 +119,14 @@ seriesOrder: 9
 `}</style>
 
 <div class="series-banner">
-📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 아홉 번째 글입니다. 지난 <a href="../subagents/">8편</a> 까지가 *공간 축* (어떤 source 가 어디로 가는가) 이었다면, 이번 편은 <em>시간 축</em>. 한 session 안에서 정보가 어떻게 보존되는가.
+📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 아홉 번째 글입니다. 지난 <a href="../subagents/">8편 <em>Subagents. 부모의 messages 가 별개 세션의 system prompt 가 되는 자리</em></a> 까지가 *공간 축* (어떤 source 가 어디로 가는가) 이었다면, 이번 편은 <em>시간 축</em>. 한 session 안에서 정보가 어떻게 보존되는가.
 </div>
 
 ## 같은 session, 두 가지 보존 메커니즘
 
 지금까지 본 자산들은 대부분 *시간 축이 짧았어요*. 한 입력 안에서 어떤 자리에 들어가는가. 이번 글은 *session 의 길이* 라는 더 긴 시간 축을 다룹니다. 한 session 이 50 차례로 길어지면, 그 사이의 정보는 어디에 어떻게 보존될까.
 
-이 글에서는 두 가지를 봅니다. 그리고 한 가지는 이미 4편에서 다룬 *scratchpad* 인데, *시간 축의 보존* 이라는 framing 으로 보면 사실 함께 묶을 만한 세 번째 메커니즘이에요. 끝에 짧게 reference.
+이 글에서는 두 가지를 봅니다. 그리고 한 가지는 이미 [*Settings 와 MCP*](../settings-and-mcp/) 에서 다룬 *scratchpad* 인데, *시간 축의 보존* 이라는 framing 으로 보면 사실 함께 묶을 만한 세 번째 메커니즘이에요. 끝에 짧게 reference.
 
 <div class="duo">
   <div class="duo-card">
@@ -245,7 +245,7 @@ post-compact prompt 안에 이 한 줄이 위치해 있어요:
 
 > If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: <span class="mod">/home/jet/.claude/projects/.../38ef7c82-...jsonl</span>
 
-**모델에게 원본 .jsonl 의 absolute path 를 알려줘요**. summary 가 부족하면 모델이 직접 <span class="k">Read</span> tool 로 .jsonl 을 열어볼 수 있어요. Soft compaction (요약), hard retrieval (원본) 의 escape hatch 가 같이 제공되는 셈. 5편 (gitStatus) 의 truncation marker 와 같은 모티프.
+**모델에게 원본 .jsonl 의 absolute path 를 알려줘요**. summary 가 부족하면 모델이 직접 <span class="k">Read</span> tool 로 .jsonl 을 열어볼 수 있어요. Soft compaction (요약), hard retrieval (원본) 의 escape hatch 가 같이 제공되는 셈. [*gitStatus*](../git-context/) 의 truncation marker 와 같은 모티프.
 
 ## Mechanism 2. Session memory: background 의 보강
 
@@ -267,13 +267,13 @@ post-compact prompt 안에 이 한 줄이 위치해 있어요:
 이 한 가지 사실을 알면 trace 디버깅이 쉬워져요. <span class="mod">summary.md</span> 가 전혀 안 보여도 정상.
 </div>
 
-## Mechanism 3 (cross-reference). Scratchpad 는 4편에서
+## Mechanism 3 (cross-reference). Scratchpad 는 [*Settings 와 MCP*](../settings-and-mcp/) 에서
 
-이 글에서는 *시간 축의 보존* 이라는 framing 인데, 4편에서 다룬 *scratchpad* 도 사실 같은 카테고리예요. session 마다 새로 만들어지고 session 끝나면 cleanup. dir 의 *경로 한 줄* 만 system slot 15 에 위치해서 모델이 거기 임시 파일을 쓸 수 있게 disclose.
+이 글에서는 *시간 축의 보존* 이라는 framing 인데, [*Settings 와 MCP*](../settings-and-mcp/) 에서 다룬 *scratchpad* 도 사실 같은 카테고리예요. session 마다 새로 만들어지고 session 끝나면 cleanup. dir 의 *경로 한 줄* 만 system slot 15 에 위치해서 모델이 거기 임시 파일을 쓸 수 있게 disclose.
 
 차이가 있어요. 위 두 메커니즘 (transcript, session memory) 은 *대화 자체* 의 정보를 보존하지만, scratchpad 는 *대화 외부의 임시 파일* 을 위한 공간. *모델이 직접 read 하지 않으면 prompt 에 안 들어옴* 이라는 점에서 *passive*. 위 두 메커니즘은 *active*. 자동으로 prompt 에 들어가요.
 
-자세한 디테일은 4편의 scratchpad 섹션을 참고하세요.
+자세한 디테일은 [*Settings 와 MCP*](../settings-and-mcp/) 의 scratchpad 섹션을 참고하세요.
 
 ## 두 메커니즘의 비교 한 표
 
