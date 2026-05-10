@@ -93,8 +93,12 @@ slot 번호 매핑, 키 cascade 순서, 함수 위치 같은 fact 를 단정 서
 
 ## 4. 시리즈 내부 용어 통일
 
+- **3 top-level Block 의 canonical 명명**: 한 LLM 호출의 입력은 세 top-level key 로 나뉘는데, 시리즈에선 각각을 ***System Block*** / ***Tools Block*** / ***Messages Block*** 으로 부릅니다. 2편 (Context Architecture) 에서 정의되고 후속 글들이 이 명명으로 cross-reference.
+  - **Block 단어 없이 단독으로 쓸 때도 대문자 시작**: 다이어그램 label, *"System 배열 안에..."*, *"Tools 카테고리..."* 처럼 Block 의미로 단독 등장할 땐 항상 capitalize. 한국어 조사는 그대로 붙임 (*"System Block의"*, *"Messages 배열"*).
+  - **lowercase + `<span class="k">` 음영은 *literal API 식별자* 한정**: 진짜 JSON role 값 (*"role: 'system'"*), frontmatter YAML config key (*subagent 의 `tools` / `disallowedTools` 등*), 코드 함수명·상수처럼 *literal code identifier* 에만. *conceptual Block 참조엔 평문 capitalize* 가 default.
+  - **변형 표기 금지**: *system message block* (옛 명명), *system 영역* / *system 블록*, *messages 영역* / *messages 블록*, *세 블록* 같은 변형은 시리즈에서 쓰지 않음. 새 글 작성·기존 글 review 시 `grep -nE "(세 블록|system message block|system 블록|system 영역|messages 블록|messages 영역)"` 로 잔흔 확인
 - **21 slot framing**: *static 7 + dynamic 14 (slot 21 = gitStatus trailer)*. 3편이 정한 기준이고 후속 글들이 이 명명으로 cross-reference. 99-consolidation 의 *20 + trailer* 변형은 시리즈에 옮기지 않음
-- **4 서브 블록**: system 블록 안의 4 sub-block 구조 (*attribution header* / *system prompt prefix* / *static system blocks* / *dynamic system blocks*). 3편이 set 한 명명을 시리즈 전반에서 일관 유지
+- **4 서브 블록**: System Block 안의 4 sub-block 구조 (*attribution header* / *system prompt prefix* / *static system blocks* / *dynamic system blocks*). 3편이 set 한 명명을 시리즈 전반에서 일관 유지
 - **cross-reference 표기 (title-link 룰)**: 다른 글 reference 는 *N편* 같은 편 번호 형태가 아니라 **title 자체 + link** 으로 표기. 정확한 형식은 컨텍스트에 따라 hybrid:
   - **본문 inline 참조**: short identifier 사용. 예: `[*Subagents*](../subagents/) 에서 자세히 보지만`, `[*gitStatus*](../git-context/) 의 cache 분류`
   - **시리즈 banner / Take-home blockquote / 이미지 caption / explicit citation**: full title 사용. 예: banner 안의 `<a href="../system-prompt-assembly/">3편 <em>Claude Code 의 system message block</em></a>`
