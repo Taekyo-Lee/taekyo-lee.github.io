@@ -1,6 +1,6 @@
 ---
-title: '영구 기억의 다섯 갈래. 4 종의 CLAUDE.md 와 MEMORY.md'
-description: '6 영역 중 4번 (synthetic <system-reminder>) 안에 들어가는 다섯 종류의 memory 파일이 어떻게 한 채널로 합쳐져 LLM 에 도달하는지. 그리고 Phase 2 에서 발견된 의외의 분류 규칙들.'
+title: '영구 기억의 갈래들. CLAUDE.md 와 MEMORY.md'
+description: '6 영역 중 4번 (synthetic <system-reminder>) 안에 들어가는 여러 종류의 memory 파일이 어떻게 한 채널로 합쳐져 LLM 에 도달하는지. 그리고 Phase 2 에서 발견된 의외의 분류 규칙들.'
 pubDate: 'May 31 2026'
 category: harness-engineering
 heroImage: '../../../../assets/heroes/hero-harness-engineering.png'
@@ -155,42 +155,46 @@ seriesOrder: 6
 `}</style>
 
 <div class="series-banner">
-📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 여섯 번째 글입니다. 지난 <a href="../git-context/">5편 <em>작은 비밀 한 줄. gitStatus, system prompt 의 trailing block</em></a> 까지가 *System Block* 이었어요. 이번 편부터 자리를 옮겨 *Messages Block* 으로 들어갑니다. 첫 주제는 *합성 <span class="k">&lt;system-reminder&gt;</span>* 안에 들어가는 영구 기억의 다섯 갈래.
+📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 여섯 번째 글입니다. 지난 <a href="../git-context/">5편 <em>작은 비밀 한 줄. gitStatus, system prompt 의 trailing block</em></a> 까지가 *System Block* 이었어요. 이번 편부터 자리를 옮겨 *Messages Block* 으로 들어갑니다. 첫 주제는 *합성 <span class="k">&lt;system-reminder&gt;</span>* 안에 들어가는 영구 기억의 갈래들.
 </div>
 
-## 같은 채널, 다섯 종류의 파일
+## 같은 채널, 여러 갈래의 파일
 
 [*Context Architecture*](../claude-code-context-architecture/) 의 마지막에 가장 의외라고 한 부분, 기억 나시나요?
 
 <blockquote>
-<span class="key">CLAUDE.md · MEMORY.md · 오늘 날짜</span> 처럼 harness 가 끌어오는 컨텍스트는 system prompt 가 아니라, Messages 배열의 첫 번째 user message 에 합성으로 prepend 되는 <span class="k">&lt;system-reminder&gt;</span> 블록 안에 들어갑니다.
+<span class="key">CLAUDE.md · MEMORY.md · 오늘 날짜</span> 처럼 harness 가 끌어오는 컨텍스트는 System Block 이 아니라, <span class="k">&lt;system-reminder&gt;</span> slot 안에 들어갑니다.
 </blockquote>
 
-[*System Block*](../system-prompt-assembly/) 부터 [*gitStatus*](../git-context/) 까지 다 봤으니, 이번 편이 바로 *Messages Block* 으로 자리를 옮기는 첫 글이에요. 결론부터 말하면. **다섯 종류의 메모리 파일이 같은 채널을 타고 흘러 들어와요**. 이름은 "claudeMd" 인데, 실제 콘텐츠는 CLAUDE.md 만이 아닙니다.
+[*System Block*](../system-prompt-assembly/) 부터 [*gitStatus*](../git-context/) 까지 다 봤으니, 이번 편이 바로 *Messages Block* 으로 자리를 옮기는 첫 글이에요. 결론부터 말하면. **여러 종류의 메모리 파일이 Messages Block 의 <span class="k">&lt;system-reminder&gt;</span> slot 으로 흘러 들어와요**. 이름은 "claudeMd" 인데, 실제 콘텐츠는 CLAUDE.md 만이 아닙니다.
+
+<div class="note-box">
+<span class="note-flag">📝 NOTE</span> 이 글에서 "다섯 갈래" 라고 정리하는 건 <strong>제가 살펴본 빌드 (v.2.1.88) 기준</strong>이에요. Claude Code 가 빠르게 업데이트되면서 새 채널이 추가될 수 있고, 제가 놓친 갈래가 있을 가능성도 있어요. 숫자 자체보다 <em>한 채널 안에 여러 갈래가 합쳐 들어온다</em> 는 구조에 무게를 두고 읽어 주세요.
+</div>
 
 <div class="memchan">
-  <div class="memchan-title">하나의 채널, 다섯 갈래의 파일</div>
+  <div class="memchan-title">하나의 채널, 여러 갈래의 파일</div>
   <div class="memchan-files">
     <div class="memchan-file"><span class="mc-type">Managed</span>/etc/claude-code/<br/>CLAUDE.md</div>
     <div class="memchan-file"><span class="mc-type">User</span>&#126;/.claude/<br/>CLAUDE.md</div>
     <div class="memchan-file"><span class="mc-type">Project</span>&lt;repo&gt;/<br/>CLAUDE.md</div>
     <div class="memchan-file"><span class="mc-type">Local</span>&lt;repo&gt;/<br/>CLAUDE.local.md</div>
-    <div class="memchan-file"><span class="mc-type">AutoMem</span>&#126;/.claude/<br/>memory/MEMORY.md</div>
+    <div class="memchan-file"><span class="mc-type">AutoMem</span>&#126;/.claude/projects/<br/>&lt;slug&gt;/memory/MEMORY.md</div>
   </div>
   <div class="memchan-arrow">↓</div>
   <div class="memchan-channel">
     <div class="memchan-channel-name">&lt;system-reminder&gt; # claudeMd</div>
-    <div class="memchan-channel-desc">합성 user message 의 한 블록에 모두 합쳐져 LLM 에 도달</div>
+    <div class="memchan-channel-desc">합성 user message 의 한 slot 에 모두 합쳐져 LLM 에 도달</div>
   </div>
 </div>
 
-다섯 종류는 각각 누가, 어떤 의도로 쓰느냐가 다릅니다. <span class="term">Managed</span> 는 조직 정책 (관리자가 배포), <span class="term">User</span> 는 내 노트북 전체에 적용되는 내 설정, <span class="term">Project</span> 는 이 레포에 체크인된 팀 공유 규칙, <span class="term">Local</span> 은 이 레포에 한정된 내 비공개 메모, <span class="term">AutoMem</span> 은 모델이 직접 관리하는 자기 노트.
+이 갈래들은 각각 누가, 어떤 의도로 쓰느냐가 다릅니다. <span class="term">Managed</span> 는 조직 정책 (관리자가 배포), <span class="term">User</span> 는 내 노트북 전체에 적용되는 내 설정, <span class="term">Project</span> 는 이 레포에 체크인된 팀 공유 규칙, <span class="term">Local</span> 은 이 레포에 한정된 내 비공개 메모, <span class="term">AutoMem</span> 은 모델이 직접 관리하는 자기 노트.
 
-다섯이 같은 블록 안에 모이지만, 어떤 종류인지를 알려주는 단서가 한 줄씩 붙어요. 모델이 *"이 바이트는 누가 쓴 거지?"* 를 구분할 수 있게 하는 장치입니다.
+이 갈래들이 같은 slot 안에 모이지만, 어떤 종류인지를 알려주는 단서가 한 줄씩 붙어요. 모델이 *"이 내용은 누가 쓴 거지?"* 를 구분할 수 있게 하는 장치입니다.
 
-## description suffix. 다섯 종류를 가르는 한 줄
+## description suffix. 갈래를 가르는 한 줄
 
-<span class="k">getClaudeMds()</span> 가 다섯 파일을 한 string 으로 합칠 때, 각 파일은 다음과 같은 머리말을 갖습니다.
+소스 코드를 살펴보면, <span class="k">getClaudeMds()</span> 가 이 파일들을 한 string 으로 합칠 때 각 파일에 다음과 같은 머리말을 붙입니다.
 
 <table class="suffix-table">
   <thead>
@@ -239,7 +243,7 @@ Contents of /home/jet/repo/CLAUDE.md (project instructions, checked into the cod
 Contents of /home/jet/repo/CLAUDE.local.md (user's private project instructions, not checked in):
 <...본문...>
 
-Contents of /home/jet/.claude/memory/MEMORY.md (user's auto-memory, persists across conversations):
+Contents of /home/jet/.claude/projects/-home-jet-repo/memory/MEMORY.md (user's auto-memory, persists across conversations):
 <...본문...>
 
 # currentDate
@@ -250,7 +254,7 @@ Today's date is 2026-05-10.
 
 ## 위로 거슬러 올라가는 walk. cwd → root
 
-다섯 종류의 파일이 어디 있는지를 harness 가 어떻게 알아챌까요. <span class="k">getMemoryFiles()</span> 가 하는 일은 단순합니다. **현재 작업 디렉토리에서 시작해 파일시스템 root 까지 거슬러 올라가며**, 각 단계에서 CLAUDE.md, .claude/CLAUDE.md, <span class="mod">.claude/rules/&#42;.md</span>, CLAUDE.local.md 가 있는지 봅니다.
+이 파일들이 어디 있는지를 harness 가 어떻게 알아챌까요. <span class="k">getMemoryFiles()</span> 가 하는 일은 단순합니다. **현재 작업 디렉토리에서 시작해 파일시스템 root 까지 거슬러 올라가며**, 각 단계에서 CLAUDE.md, .claude/CLAUDE.md, <span class="mod">.claude/rules/&#42;.md</span>, CLAUDE.local.md 가 있는지 봅니다.
 
 ```
 cwd:  /home/jet/repo/src/feature
@@ -272,22 +276,22 @@ cwd:  /home/jet/repo/src/feature
 
 ## MEMORY.md 만 두 채널을 탑니다
 
-다섯 종류 중 AutoMem 하나만 *두 채널* 을 동시에 탑니다. 다른 넷 (Managed/User/Project/Local) 은 모두 그 자체로 콘텐츠일 뿐이지만, MEMORY.md 는 콘텐츠 + 사용 가이드가 짝을 이뤄야 하기 때문이에요.
+이 갈래들 중 AutoMem 하나만 *두 채널* 을 동시에 탑니다. 나머지 (Managed/User/Project/Local) 는 모두 그 자체로 콘텐츠일 뿐이지만, MEMORY.md 는 콘텐츠 + 사용 가이드가 짝을 이뤄야 하기 때문이에요.
 
 <div class="callout">
 <strong>MEMORY.md 의 dual injection</strong>
 
 | 무엇을 | 어디로 | 왜 거기로 |
 |---|---|---|
-| MEMORY.md 의 **본문** | <span class="k">&lt;system-reminder&gt;</span> 의 <span class="k">#&nbsp;claudeMd</span> 안 (다른 4 종류와 같은 채널) | 모델이 자기 노트의 *내용* 을 읽어야 함 |
-| MEMORY.md 를 *어떻게 쓸지* 의 절차 (auto memory 사용 가이드. 어떤 종류를 언제 어떻게 저장할지) | system prompt 의 <span class="k">#&nbsp;auto memory</span> 슬롯 | 절차는 모든 turn 동일하니 cache 가능한 system 쪽이 효율적 |
+| MEMORY.md 의 **본문** | <span class="k">&lt;system-reminder&gt;</span> 의 <span class="k">#&nbsp;claudeMd</span> 안 (나머지와 같은 채널) | 모델이 자기 노트의 *내용* 을 읽어야 함 |
+| MEMORY.md 를 *어떻게 쓸지* 의 절차 (auto memory 사용 가이드. 어떤 종류를 언제 어떻게 저장할지) | System Block 의 <span class="k">#&nbsp;auto memory</span> 슬롯 | 절차는 모든 turn 동일하니 cache 가능한 System Block 쪽이 효율적 |
 </div>
 
-이 분리가 잘 된 이유는 *역할이 다르기 때문* 이에요. 메모리에 무엇을 적었는지 (data) 와 메모리를 어떻게 다뤄야 하는지 (policy) 는 변하는 빈도가 달라요. data 는 자주 바뀌고, policy 는 거의 안 바뀜. 그래서 policy 는 cache 가 잘 되는 system 쪽에 두고, data 는 매 turn 새로 prepend 되는 user-message 쪽에 둔 겁니다.
+이 분리가 잘 된 이유는 *역할이 다르기 때문* 이에요. 메모리에 무엇을 적었는지 (data) 와 메모리를 어떻게 다뤄야 하는지 (policy) 는 변하는 빈도가 달라요. data 는 자주 바뀌고, policy 는 거의 안 바뀜. 그래서 policy 는 cache 가 잘 되는 System Block 쪽에 두고, data 는 매 turn 새로 prepend 되는 Messages Block 쪽에 둔 겁니다.
 
 ## 사실 수면 아래 한 갈래가 더 있어요. 그런데 dead code
 
-지금까지 다섯 갈래로 봤지만, 소스 안엔 여섯 번째 갈래가 더 자리잡고 있어요. <span class="term">TeamMem</span> 입니다. suffix 는 <code>(shared team memory, synced across the organization)</code>. 다만 기본 환경에선 *작동하지 않아요*. <span class="mod">feature('TEAMMEM')</span> 게이트로 둘러싸여 있는데, 이 함수가 *컴파일 타임에 항상 false* 로 치환되거든요 (scripts/build/build.ts:95).
+지금까지 본 갈래들 외에, 소스 안엔 또 한 갈래가 더 자리잡고 있어요. <span class="term">TeamMem</span> 입니다. suffix 는 <code>(shared team memory, synced across the organization)</code>. 다만 기본 환경에선 *작동하지 않아요*. <span class="mod">feature('TEAMMEM')</span> 게이트로 둘러싸여 있는데, 이 함수가 *컴파일 타임에 항상 false* 로 치환되거든요 (scripts/build/build.ts:95).
 
 ```ts
 // utils/claudemd.ts 안의 분기
@@ -363,8 +367,8 @@ token 비용 측면에서 directive 자체는 작아 (5~10 토큰) 거의 무시
 이 글의 정리:
 
 <blockquote>
-<p><span class="k">#&nbsp;claudeMd</span> 라는 한 채널 안에 다섯 종류의 영구 기억 (Managed · User · Project · Local · AutoMem) 이 같은 모양으로 합쳐져 들어옵니다. 다른 건 description suffix 한 줄.</p>
-<p>MEMORY.md 만 <em>content</em> 와 <em>policy</em> 가 분리되어 두 채널을 탑니다. content 는 다른 넷과 같은 user-message 쪽, policy 는 cache 잘 되는 system prompt 쪽.</p>
+<p><span class="k">#&nbsp;claudeMd</span> 라는 한 채널 안에 여러 갈래의 영구 기억 (제가 본 빌드 v.2.1.88 기준 Managed · User · Project · Local · AutoMem) 이 같은 모양으로 합쳐져 들어옵니다. 다른 건 description suffix 한 줄.</p>
+<p>MEMORY.md 만 <em>content</em> 와 <em>policy</em> 가 분리되어 두 채널을 탑니다. content 는 다른 갈래들과 같은 Messages Block 쪽, policy 는 cache 잘 되는 System Block 쪽.</p>
 <p>trace 를 디버깅할 땐 description suffix 를 grep 의 첫 단서로 써 보세요. 어떤 파일이 어떤 타입으로 분류됐는지가 거기서 다 드러나요.</p>
 </blockquote>
 
