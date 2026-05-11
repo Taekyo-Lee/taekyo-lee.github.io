@@ -1,0 +1,1075 @@
+---
+title: 'Long-term Memory 의 자리. 팀/파트/개인 사이에서 CLAUDE.md 와 MEMORY.md 를 어디에 둘까'
+description: '지난 편에서 본 long-term memory 의 source 들을 조직의 관점으로 다시 봅니다. 실/팀/파트/개인 사이에서 CLAUDE.md 와 MEMORY.md 를 어디에 두면 좋을지, 결정 framework 까지.'
+pubDate: 'Jun 7 2026'
+category: harness-engineering
+heroImage: '../../../../assets/heroes/hero-harness-engineering.png'
+series: 'context-engineering-of-claude-code'
+seriesOrder: 7
+---
+
+<style>{`
+  .series-banner {
+    color: rgb(31, 71, 135);
+    font-size: 0.92em;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border-left: 3px solid var(--accent);
+    margin: 0 0 1.6em;
+    line-height: 1.55;
+  }
+  .series-banner strong { font-weight: 700; }
+
+  .k {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    color: #1f4787;
+    font-size: 0.94em;
+  }
+
+  /* 조직 layer stack */
+  .org-stack {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin: 1.6em 0;
+    padding: 18px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(96, 115, 159, 0.18);
+    background: rgba(96, 115, 159, 0.03);
+  }
+  .org-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 180px;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: white;
+    border-left: 4px solid;
+  }
+  .org-row .org-name {
+    font-weight: 700;
+    font-size: 1em;
+    color: rgb(var(--gray-dark));
+  }
+  .org-row .org-desc {
+    font-size: 0.88em;
+    color: rgb(var(--gray-dark));
+    line-height: 1.5;
+  }
+  .org-row .org-card {
+    font-size: 0.78em;
+    color: rgb(var(--gray-dark));
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    text-align: right;
+  }
+  .org-div   { border-left-color: #6b7280; background: rgba(107, 114, 128, 0.05); }
+  .org-team  { border-left-color: var(--accent); background: rgba(31, 71, 135, 0.04); }
+  .org-squad { border-left-color: #059669; background: rgba(5, 150, 105, 0.04); }
+  .org-indiv { border-left-color: var(--claude-dark); background: rgba(204, 120, 92, 0.05); }
+
+  /* Mapping table */
+  .map-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.4em 0;
+    font-size: 0.92em;
+    line-height: 1.55;
+  }
+  .map-table th, .map-table td {
+    padding: 0.6em 0.8em;
+    border-bottom: 1px solid rgb(var(--gray-light));
+    text-align: left;
+    vertical-align: top;
+  }
+  .map-table th {
+    background: rgba(96, 115, 159, 0.12);
+    font-weight: 700;
+  }
+  .map-table .layer-cell {
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .map-table .layer-div   { color: #6b7280; }
+  .map-table .layer-team  { color: var(--accent); }
+  .map-table .layer-squad { color: #059669; }
+  .map-table .layer-indiv { color: var(--claude-dark); }
+
+  /* Comparison table for "5 places" section */
+  .five-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.4em 0;
+    font-size: 0.9em;
+    line-height: 1.5;
+  }
+  .five-table th, .five-table td {
+    padding: 0.55em 0.7em;
+    border-bottom: 1px solid rgb(var(--gray-light));
+    text-align: left;
+    vertical-align: top;
+  }
+  .five-table th {
+    background: rgba(96, 115, 159, 0.12);
+    font-weight: 700;
+    font-size: 0.88em;
+  }
+  .five-table .yes { color: #059669; font-weight: 700; }
+  .five-table .no { color: #dc2626; font-weight: 700; }
+
+  /* Decision flow */
+  .decision-flow {
+    margin: 1.6em 0;
+    padding: 18px 18px;
+    border-radius: 12px;
+    border: 1px solid rgba(96, 115, 159, 0.18);
+    background: linear-gradient(135deg, rgba(31, 71, 135, 0.03), rgba(204, 120, 92, 0.03));
+  }
+  .decision-q {
+    margin-bottom: 14px;
+    padding: 10px 14px;
+    background: white;
+    border-radius: 8px;
+    border-left: 3px solid var(--claude);
+  }
+  .decision-q .q-num {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+    text-align: center;
+    background: var(--claude);
+    color: white;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 0.85em;
+    margin-right: 8px;
+  }
+  .decision-q .q-text {
+    font-weight: 700;
+    color: rgb(var(--gray-dark));
+  }
+  .decision-q .q-hint {
+    margin-top: 6px;
+    margin-left: 32px;
+    font-size: 0.88em;
+    color: rgb(var(--gray-dark));
+    line-height: 1.5;
+  }
+
+  /* Promotion arrow box */
+  .promote-box {
+    margin: 1.6em 0;
+    padding: 16px 18px;
+    border-radius: 12px;
+    border: 1.5px dashed rgba(204, 120, 92, 0.55);
+    background: rgba(204, 120, 92, 0.04);
+  }
+  .promote-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 14px;
+  }
+  .promote-cell {
+    padding: 10px 12px;
+    background: white;
+    border-radius: 8px;
+    border-left: 4px solid;
+    font-size: 0.9em;
+  }
+  .promote-cell.from {
+    border-left-color: #6b7280;
+  }
+  .promote-cell.to {
+    border-left-color: var(--accent);
+  }
+  .promote-arrow {
+    font-size: 1.6em;
+    color: var(--claude-dark);
+  }
+  .promote-cell .pc-title {
+    font-weight: 700;
+    font-size: 0.92em;
+    margin-bottom: 4px;
+  }
+  .promote-cell .pc-path {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.78em;
+    color: rgb(var(--gray-dark));
+  }
+
+  .note-flag {
+    background: rgba(96, 115, 159, 0.22);
+    display: inline-block;
+    color: rgb(60, 70, 90);
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 9px;
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+
+  /* Walk pattern viz */
+  .walk-viz {
+    background: rgba(96, 115, 159, 0.06);
+    padding: 1em 1.2em;
+    border-radius: 8px;
+    border: 1px solid rgba(96, 115, 159, 0.18);
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.84em;
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: pre;
+    margin: 1.2em 0;
+    color: rgb(var(--gray-dark));
+  }
+  .walk-viz .visited {
+    color: #059669;
+    font-weight: 700;
+  }
+  .walk-viz .skipped {
+    color: #b45309;
+  }
+  .walk-viz .cwd-marker {
+    color: var(--accent);
+    font-weight: 700;
+    background: rgba(31, 71, 135, 0.1);
+    padding: 0 5px;
+    border-radius: 3px;
+  }
+  .walk-viz .annot {
+    color: rgb(var(--gray));
+    font-style: italic;
+  }
+  .walk-viz .walk-path {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  /* Concatenation + mental overwrite viz */
+  .concat-viz {
+    margin: 1.4em 0;
+    padding: 18px 18px;
+    border-radius: 12px;
+    border: 1px solid rgba(96, 115, 159, 0.18);
+    background: white;
+  }
+  .concat-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 6px;
+  }
+  .concat-file {
+    padding: 10px 14px;
+    border-radius: 8px;
+    border-left: 4px solid;
+    font-size: 0.88em;
+    background: rgba(96, 115, 159, 0.04);
+  }
+  .concat-file.far {
+    border-left-color: rgba(96, 115, 159, 0.7);
+  }
+  .concat-file.near {
+    border-left-color: var(--claude);
+  }
+  .concat-file .cf-label {
+    font-weight: 700;
+    font-size: 0.85em;
+    color: rgb(var(--gray-dark));
+    margin-bottom: 4px;
+  }
+  .concat-file .cf-content {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.9em;
+    color: rgb(var(--gray-dark));
+  }
+  .concat-file.far .cf-label { color: rgb(var(--gray)); }
+  .concat-file.near .cf-label { color: var(--claude-dark); }
+  .concat-arrows {
+    text-align: center;
+    font-size: 1.3em;
+    color: rgb(var(--gray));
+    letter-spacing: 22vw;
+    margin: 4px 0;
+  }
+  .concat-merge {
+    padding: 10px 14px;
+    background: rgba(96, 115, 159, 0.08);
+    border-radius: 8px;
+    text-align: center;
+    font-size: 0.88em;
+    color: rgb(var(--gray-dark));
+    margin: 2px 0;
+  }
+  .concat-merge strong { color: var(--accent); }
+  .concat-down {
+    text-align: center;
+    font-size: 1.5em;
+    color: var(--claude-dark);
+    margin: 2px 0;
+  }
+  .concat-output {
+    padding: 12px 16px;
+    background: rgba(204, 120, 92, 0.08);
+    border-radius: 8px;
+    border-left: 4px solid var(--claude);
+    font-size: 0.92em;
+    color: rgb(var(--gray-dark));
+  }
+  .concat-output .winner {
+    color: var(--claude-dark);
+    font-weight: 700;
+    background: rgba(204, 120, 92, 0.15);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  .concat-output .caption {
+    margin-top: 6px;
+    font-size: 0.82em;
+    color: rgb(var(--gray));
+    font-style: italic;
+  }
+`}</style>
+
+<div class="series-banner">
+📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 일곱 번째 글입니다. 지난 <a href="../permanent-memory-three-channels/">6편 <em>Claude Code 의 Long-term Memory. CLAUDE.md 와 MEMORY.md</em></a> 에서는 long-term memory 의 source 들이 어떻게 한 자리로 합쳐져 LLM 에 도달하는지를 봤어요. 이번 편은 그 위에서 한 발 더 나갑니다. *어디에 두느냐* 의 문제예요.
+</div>
+
+## 같은 rule, 다섯 군데에 살 수 있습니다
+
+[*Long-term Memory*](../permanent-memory-three-channels/) 글에서 본 분류를 잠깐 떠올려 볼게요.
+
+- **CLAUDE.md**. Managed / User / Project / Local 네 scope
+- **<span class="k">.claude/rules/&#42;.md</span>**. Project scope 안의 conditional 변형
+- **MEMORY.md**. 모델이 직접 관리하는 자기 노트
+
+여기서 살짝 불편한 진실이 따라옵니다. *예를 들어 "strict mode 를 쓰자"* 라는 rule 을 적고 싶을 때, 위 다섯 군데 중 어디에 둬도 *기술적으로는 작동* 해요. 그런데 실제로는 자리에 따라 *누구에게 적용되는지*, *언제 발효되는지*, *어떻게 공유되는지* 가 완전히 달라집니다.
+
+이번 글의 주제는 그 결정이에요. 기술 차원이 아니라 *조직 차원*. 실/팀/파트/개인 사이에서 CLAUDE.md 와 MEMORY.md 를 어디에 두어야 할지를 정리합니다.
+
+<div class="callout-accent">
+<strong>💡 이 글에서 *조직 layer* 라고 부르는 것</strong>
+
+회사마다 부르는 이름과 깊이는 달라요. 이 글에서는 <span class="key">실 / 팀 / 파트 (squad) / 개인</span> 네 단계를 표준 어휘로 씁니다. 다른 조직 어휘 (사업부, 그룹, 부서, 셀, 챕터 등) 도 같은 구조에 매핑됩니다. *cardinality* 와 *공유 boundary* 가 다른 layer 들이 stack 처럼 쌓여 있다는 그림이 핵심이에요.
+</div>
+
+## 조직 layer 와 그 boundary
+
+먼저 layer 자체를 한 번 정리하고 갑니다. 각 layer 의 *공유 범위* 가 다르고, *cardinality* (몇 개 단위로 존재하는지) 도 달라요.
+
+<div class="org-stack">
+  <div class="org-row org-div">
+    <div class="org-name">실 / 조직</div>
+    <div class="org-desc">회사 또는 본부 단위. 정책·보안·컴플라이언스 같은 *전 사원 공통* 규칙이 사는 자리.</div>
+    <div class="org-card">한 회사에 1개</div>
+  </div>
+  <div class="org-row org-team">
+    <div class="org-name">팀</div>
+    <div class="org-desc">한 프로젝트 / 한 레포 단위. 코드 스타일·도메인 용어·테스트 정책 같은 *팀이 합의한* 규칙.</div>
+    <div class="org-card">한 실에 여러 팀</div>
+  </div>
+  <div class="org-row org-squad">
+    <div class="org-name">파트 (squad)</div>
+    <div class="org-desc">한 팀 안의 sub-그룹 (또는 monorepo 안의 한 영역). frontend / payments / infra 처럼 *영역별로 다른* 규칙.</div>
+    <div class="org-card">한 팀에 여러 파트</div>
+  </div>
+  <div class="org-row org-indiv">
+    <div class="org-name">개인</div>
+    <div class="org-desc">한 사람의 노트북 / 한 사람의 작업 습관. *나만* 의 응답 톤·도구 선호·임시 메모.</div>
+    <div class="org-card">한 명에 1개</div>
+  </div>
+</div>
+
+이 네 layer 에 마침맞게 매핑되는 *Claude Code 의 memory scope* 가 각각 있어요.
+
+## CLAUDE.md 의 scope, 어느 layer 에 둘까
+
+[*Long-term Memory*](../permanent-memory-three-channels/) 글의 CLAUDE.md 분류를 *조직 layer* 와 한 줄씩 맞춰 볼게요.
+
+<table class="map-table">
+  <thead>
+    <tr>
+      <th>조직 layer</th>
+      <th>적합한 scope</th>
+      <th>위치</th>
+      <th>공유 방법</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="layer-cell layer-div">실 / 조직</td>
+      <td><strong>Managed</strong></td>
+      <td><span class="k">/etc/claude-code/CLAUDE.md</span></td>
+      <td>관리자가 배포 (MDM, 사내 설치 스크립트)</td>
+    </tr>
+    <tr>
+      <td class="layer-cell layer-team">팀</td>
+      <td><strong>Project</strong></td>
+      <td><span class="k">&lt;repo&gt;/CLAUDE.md</span></td>
+      <td>git commit (체크인됨)</td>
+    </tr>
+    <tr>
+      <td class="layer-cell layer-squad">파트 (squad)</td>
+      <td><strong>Project rules</strong> (paths 매칭)</td>
+      <td><span class="k">&lt;repo&gt;/.claude/rules/&#42;.md</span></td>
+      <td>git commit (체크인됨) + paths frontmatter 로 영역 한정</td>
+    </tr>
+    <tr>
+      <td class="layer-cell layer-indiv">개인 (노트북 전역)</td>
+      <td><strong>User</strong></td>
+      <td><span class="k">~/.claude/CLAUDE.md</span></td>
+      <td>없음 (내 노트북에만)</td>
+    </tr>
+    <tr>
+      <td class="layer-cell layer-indiv">개인 (이 repo 한정)</td>
+      <td><strong>Local</strong> <span class="not-rec">⚠ 권장 X</span></td>
+      <td><span class="k">&lt;repo&gt;/CLAUDE.local.md</span></td>
+      <td>없음 (gitignored)</td>
+    </tr>
+  </tbody>
+</table>
+
+각 자리의 의미를 조금만 풀어 볼게요.
+
+### 실/조직 → Managed
+
+회사가 정한 *전 사원 공통* 규칙이 사는 자리. 예를 들어 *"외부 패키지 사용 전 보안팀 승인 필요"*, *"PII 데이터를 prompt 에 포함하지 말 것"* 같은 컴플라이언스 항목.
+
+플랫폼별 고정 경로에 둡니다.
+
+- macOS: <span class="mod">/Library/Application Support/ClaudeCode/CLAUDE.md</span>
+- Linux / WSL: <span class="mod">/etc/claude-code/CLAUDE.md</span>
+- Windows: <span class="mod">C:\Program Files\ClaudeCode\CLAUDE.md</span>
+
+배포 도구로 MDM, Group Policy, Ansible 같은 일반 사내 배포 채널을 그대로 쓰면 돼요. 개별 사용자가 settings 로 *끌 수 없는* 게 핵심이에요. Project / User / Local 의 어떤 settings 로도 Managed CLAUDE.md 의 적용은 막을 수 없어서, 조직 정책의 *anchor* 처럼 작동합니다.
+
+<div class="callout-accent">
+<strong>💡 Managed CLAUDE.md vs Managed settings, 무엇을 어디에?</strong>
+
+조직 전체에 *Claude Code 의 행동* 을 통제하고 싶을 때 두 가지 도구가 있어요. 둘은 성질이 다릅니다.
+
+<table class="map-table">
+  <thead>
+    <tr>
+      <th>도구</th>
+      <th>성질</th>
+      <th>적합한 내용</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Managed CLAUDE.md</strong></td>
+      <td>모델이 *읽고 따르려고 노력* 하는 instructions</td>
+      <td>코드 스타일, 데이터 취급 가이드, 컴플라이언스 reminder 같은 <em>행동 지침</em></td>
+    </tr>
+    <tr>
+      <td><strong>Managed settings</strong></td>
+      <td>harness 가 *기술적으로 강제* 하는 설정</td>
+      <td>특정 tool / command / path 차단 (<span class="mod">permissions.deny</span>), sandbox 강제, API provider 라우팅, 로그인 방식 고정</td>
+    </tr>
+  </tbody>
+</table>
+
+핵심 차이는 *enforcement 의 위치* 예요. settings 는 client 가 모델 행동과 무관하게 차단하지만, CLAUDE.md 는 모델이 *읽고 따르려는* 권고일 뿐 100% 강제력은 없어요. 그래서 *민감 시스템 접근 차단* 같은 hard rule 은 settings 로, *데이터를 다룰 때 PII 마스킹 잊지 말기* 같은 soft rule 은 Managed CLAUDE.md 로 배치하는 게 자연스러워요.
+</div>
+
+### 팀 → Project
+
+한 repo 가 한 팀의 영역이라면, repo 루트의 <span class="k">CLAUDE.md</span> (또는 <span class="k">.claude/CLAUDE.md</span>) 가 *팀이 합의한* 규칙의 정착지예요. 코드 스타일, 도메인 용어, 빌드/테스트 커맨드, 아키텍처 결정, 네이밍 컨벤션 같은 *이 코드베이스에서 일하는 모두에게 적용되는* 내용이 들어갑니다. **git commit 으로 공유되니 변경 히스토리와 리뷰 프로세스가 자연스럽게 따라옵니다.**
+
+**언제 쓸지** 의 감을 잡는 데는 Anthropic 의 공식 가이드가 깔끔해요. *다음 네 신호 중 하나라도 보이면 CLAUDE.md 행* 이라고 보면 됩니다.
+
+- Claude 가 같은 실수를 두 번째로 한다
+- 코드 리뷰에서 *Claude 가 알았어야 할* 코드베이스 관습이 지적된다
+- 같은 정정 / 설명을 두 세션에 걸쳐 또 타이핑하고 있다
+- 새 팀원이 productive 해지려면 같은 컨텍스트가 또 필요할 것 같다
+
+<div class="callout">
+<strong>💡 시작은 <span class="mod">/init</span> 으로</strong>
+
+빈 repo 에서 출발한다면 <span class="mod">/init</span> 커맨드를 한 번 돌리는 게 좋아요. Claude 가 codebase 를 분석해 빌드 커맨드, 테스트 명령, 발견된 컨벤션을 담은 CLAUDE.md 초안을 만들어 줍니다. 이미 CLAUDE.md 가 있다면 *덮어쓰지 않고 개선안만 제안*해요.
+</div>
+
+**크기 관리** 도 신경 써야 할 부분. 공식 가이드는 *한 CLAUDE.md 당 200 줄 이하* 를 권장합니다. 길어지면 token 비용도 늘고 *adherence (모델이 실제로 따르는 정도) 가 떨어져요.* 200 줄을 넘기 시작하면 [*path-scoped rules*](#파트-claude-rules-md--paths) (다음 절) 로 쪼개거나 <span class="mod">@</span>-import 로 분리하는 게 자연스러운 흐름.
+
+<div class="note-box">
+<span class="note-flag">📝 NOTE</span> <strong>AGENTS.md 와 공존</strong>. 이미 *AGENTS.md* (다른 coding agent 들이 읽는 표준) 를 쓰고 있는 repo 라면 CLAUDE.md 안에서 <span class="mod">@AGENTS.md</span> 한 줄로 import 하면 두 도구가 같은 instructions 를 보게 됩니다. 중복 작성 없이 *one source of truth* 가 유지돼요.
+</div>
+
+### 파트 → .claude/rules/&#42;.md + paths
+
+큰 monorepo 에서는 한 repo 안에 여러 파트가 공존해요. *frontend* 와 *payments* 와 *infra* 가 같은 root 에 있을 때, 모든 파트의 rule 을 repo 루트 CLAUDE.md 에 다 적으면 token 도 비싸고 attention 도 분산됩니다. 게다가 *frontend 파트* 의 React 규칙은 *payments 파트* 의 작업엔 무관해요. 반대도 마찬가지.
+
+<div class="callout-accent">
+<strong>🧭 왜 *파트 subfolder 에 CLAUDE.md* 만으론 부족할까</strong>
+
+자연스러운 첫 시도는 *각 파트 subfolder 마다 CLAUDE.md 를 두는 것* 일 거예요. 그런데 [*Long-term Memory*](../permanent-memory-three-channels/) 의 *walk pattern* 을 떠올리면 한계가 보입니다.
+
+Walk 는 **cwd 에서 위로만 올라가요**. cwd 의 *옆* (sibling 디렉토리) 도, *아래* (subfolder) 도 보지 않습니다.
+
+<pre class="walk-viz">
+&lt;repo&gt;/                                         <span class="visited">✓ visited (ancestor)</span>
+├── CLAUDE.md                                    <span class="visited">✓ visited</span>
+│
+├── frontend/                                    <span class="annot">← sibling, walk 가 안 봄</span>
+│   ├── CLAUDE.md                                <span class="skipped">✗ NOT visited</span>
+│   └── components/CLAUDE.md                     <span class="skipped">✗ NOT visited</span>
+│
+├── payments/                                    <span class="cwd-marker">← cwd (walk 시작)</span>
+│   ├── CLAUDE.md                                <span class="visited">✓ visited</span>
+│   ├── deep/                                    <span class="annot">← subfolder, walk 가 안 봄</span>
+│   │   └── CLAUDE.md                            <span class="skipped">✗ NOT visited</span>
+│   └── ...
+│
+└── infra/                                       <span class="annot">← sibling, walk 가 안 봄</span>
+    └── CLAUDE.md                                <span class="skipped">✗ NOT visited</span>
+
+<span class="walk-path">walk 경로:</span> payments/CLAUDE.md → &lt;repo&gt;/CLAUDE.md → ↑ 계속 위로
+</pre>
+
+그래서 <span class="mod">frontend/CLAUDE.md</span> 는 *frontend 안에서 claude-code 를 실행할 때만* 발효되고, *repo 루트에서 frontend 파일을 잠깐 건드리는* 시나리오에선 잡히지 않아요. 같은 6편 실험 2 (visibility 테스트) 가 cwd 위치에 따라 subfolder CLAUDE.md 가 *보였다 안 보였다* 한 결정적 증거였습니다.
+
+**어디서 실행하든 매칭 파일에 자동 attach** 가 필요한 cross-cutting rule 은 <span class="mod">.claude/rules/&#42;.md</span> + <span class="k">paths:</span> 가 맞는 도구예요. <strong>walk 가 못 하는 *옆/아래* 도달을 paths-glob 매칭이 메워주는 셈입니다.</strong>
+</div>
+
+이때 자리잡는 것이 <span class="mod">.claude/rules/&#42;.md</span> 디렉토리예요. 폴더 안의 모든 .md 파일이 recursively 발견되고, frontmatter 의 <span class="k">paths:</span> 필드로 *언제 attach 할지* 를 조건부로 정할 수 있어요.
+
+```markdown
+---
+paths:
+  - "frontend/web-portal/**/*.tsx"
+---
+
+# Frontend 파트의 React 컴포넌트 규칙
+
+- 컴포넌트는 함수형으로 작성, class 는 쓰지 않습니다.
+- 스타일은 styled-components 가 아니라 Tailwind 로.
+```
+
+위 rule 은 Claude 가 <span class="mod">frontend/web-portal/&#42;&#42;/&#42;.tsx</span> 패턴에 매칭되는 파일을 Read / Edit / Write 등으로 *건드릴 때만* messages 에 attach 됩니다. 평소엔 token 을 잡아먹지 않아요.
+
+**glob 패턴 몇 가지**:
+
+<table class="map-table">
+  <thead>
+    <tr>
+      <th>Pattern</th>
+      <th>매칭</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="mod">&#42;&#42;/&#42;.ts</span></td>
+      <td>모든 디렉토리의 TypeScript 파일</td>
+    </tr>
+    <tr>
+      <td><span class="mod">src/&#42;&#42;/&#42;</span></td>
+      <td><span class="mod">src/</span> 아래 모든 파일</td>
+    </tr>
+    <tr>
+      <td><span class="mod">&#42;.md</span></td>
+      <td>프로젝트 루트의 markdown 파일</td>
+    </tr>
+    <tr>
+      <td><span class="mod">src/&#42;&#42;/&#42;.&#123;ts,tsx&#125;</span></td>
+      <td>brace expansion 으로 여러 확장자 동시 매칭</td>
+    </tr>
+  </tbody>
+</table>
+
+같은 패턴을 payments, infra 파트도 자기 영역 (<span class="mod">backend/payments/&#42;&#42;</span>, <span class="mod">infra/terraform/&#42;&#42;</span>) 에 적용하면, **파트별 context isolation 이 자연스럽게 성립**합니다. Frontend 파트의 컨텍스트에 payments domain rule 이 끼어들지 않고, 그 반대도 마찬가지.
+
+<div class="callout-warm">
+<strong>🔧 rule 들을 sub-directory 로 묶을 수도 있어요</strong>
+
+<span class="mod">.claude/rules/</span> 의 모든 <span class="mod">&#42;.md</span> 가 recursively 발견되니, 다음처럼 파트별로 묶어 두는 게 깔끔해요.
+
+```text
+&lt;repo&gt;/.claude/rules/
+├── frontend/
+│   ├── react.md         (paths: frontend/**/*.tsx)
+│   └── tailwind.md      (paths: frontend/**/*.css)
+├── backend/
+│   └── api-design.md    (paths: backend/payments/**/*.py)
+└── shared/
+    └── security.md      (paths: 없음, 항상 로드)
+```
+
+paths 가 *없는* rule (예: <span class="mod">shared/security.md</span>) 은 *항상 로드*. cross-cutting 규칙은 paths 없이 두면 됩니다.
+</div>
+
+<div class="callout-accent">
+<strong>🔗 symlink 로 organization 차원의 rule 공유</strong>
+
+여러 repo 에 *공통으로 적용해야 할 organization 표준* 이 있다면, 한 자리에 두고 각 repo 에 symlink 로 연결하는 패턴도 가능해요. <span class="mod">.claude/rules/</span> 디렉토리가 symlink 를 정상적으로 해석합니다.
+
+```bash
+# organization 표준 보안 가이드를 한 곳에 두고
+~/company-standards/security.md
+
+# 각 repo 의 rules 디렉토리에 link
+ln -s ~/company-standards/security.md \
+      &lt;repo&gt;/.claude/rules/security.md
+```
+
+이렇게 두면 표준 파일을 한 곳에서 업데이트하면 모든 repo 의 Claude Code 가 동시에 새 버전을 보게 됩니다. *Managed scope* 가 *전 사원 단위* 라면, symlink 패턴은 *몇 개 팀 / 몇 개 repo 단위* 의 중간 layer 에 알맞은 도구예요.
+</div>
+
+**사용자 단위 rules 도 있어요.** Project 단위의 <span class="mod">&lt;repo&gt;/.claude/rules/</span> 와 별개로, <span class="mod">&#126;/.claude/rules/</span> 디렉토리도 같은 방식으로 작동합니다. 내 노트북 어디서 작업하든 항상 적용되는 *나만의 rule* 들을 모아 두기 좋아요. 로딩 순서는 *User-level rules 가 먼저*, Project rules 가 나중. 그래서 Project rules 의 우선순위가 더 높습니다.
+
+### 개인 (노트북 전역) → User
+
+내 노트북 전체에 항상 적용하고 싶은 *개인 선호* 는 <span class="k">~/.claude/CLAUDE.md</span> 자리예요. *"응답은 간결하게"*, *"Python 코드에선 항상 type hint 사용"*, *"커밋 메시지는 영어로 쓰기"* 같은 *내 작업 습관*. 다른 사람과 공유되지 않고, repo 가 바뀌어도 따라옵니다.
+
+User scope 의 함정 한 가지. *유혹* 이 생겨요. *모든 걸 다 여기 적자* 하는 유혹. 그런데 *내 작업 습관* 이 아닌 *팀 프로젝트의 규칙* 까지 여기 들어가면 그 규칙은 *나만 알게* 되고, 같은 팀원들은 *왜 이 사람의 Claude 만 이렇게 행동하지?* 라는 미스터리에 부딪힙니다. 팀 / 파트 단위로 공유돼야 할 내용은 *반드시* Project 또는 rules 자리로 옮겨야 해요. *공유가 필요한가?* 라는 질문은 이 글의 결정 framework 에서 다시 한 번 짚습니다.
+
+### 개인 (이 repo 한정) → Local <span class="not-rec">⚠ 권장 X</span>
+
+*이 repo 안에서만* 적용되고 *나만 봐야 하는* 메모 자리. <span class="k">&lt;repo&gt;/CLAUDE.local.md</span> 가 그 자리예요. <span class="mod">.gitignore</span> 에 자동 들어가 체크인되지 않습니다. 기술적으로 잘 작동하지만 **두 가지 이유로 권장되지 않아요.**
+
+<div class="callout">
+
+**(1) worktree 와 잘 안 맞아요.** gitignored 파일은 *그 worktree 에만* 존재합니다. 같은 repo 에 새 worktree 를 만들어 작업하면 CLAUDE.local.md 가 따라오지 않아요. 한 프로젝트의 *내 개인 메모* 가 worktree 마다 따로 사는 모양이 됩니다.
+
+**(2) Anthropic 이 한 번 *deprecation* 까지 검토했던 흔적.** 공식 docs 에서 한동안 *"deprecated"* 로 표기됐다가 되돌려진 시기가 있어요 ([GitHub issue #2394](https://github.com/anthropics/claude-code/issues/2394)). 결국 *별도 파일 scope* 보다는 <span class="mod">@</span>-import 패턴 쪽이 권장 방향임이 드러납니다.
+
+</div>
+
+**대안.** 정말 *나만 봐야 하는 개인 메모* 가 필요하다면, home 디렉토리에 파일을 두고 Project CLAUDE.md 에서 import 하는 게 더 자연스러워요. Anthropic 공식 docs 도 worktree 호환을 이유로 이 패턴을 권장합니다.
+
+```markdown
+# <repo>/CLAUDE.md 끝부분
+@~/.claude/my-project-instructions.md
+```
+
+이렇게 두면 worktree 간 공유가 자연스럽고, 개인 메모도 *내 home 디렉토리에 모두 모인 한 자리* 에서 관리됩니다. 부차적으로 실험 흔적이 누적되면서 *나만 볼 수 있는 dark memory* 가 되어 다른 사람에게 인계가 어려워지는 부담도 줄어들어요.
+
+<div class="callout-warm">
+<strong>📌 한 줄 요약</strong>
+
+<span class="key">Managed = 실</span>, <span class="key">Project = 팀</span>, <span class="key">.claude/rules/ + paths = 파트</span>, <span class="key">User = 개인 (노트북)</span>, <span class="key">Local = 개인 (이 repo, 권장 X)</span>. 이 매핑 한 줄을 머릿속에 두면 어디에 둘지 답이 거의 다 나옵니다.
+</div>
+
+## monorepo 에선 추가로 신경 쓸 게 있어요
+
+여러 팀이 같은 repo 에 공존하는 *monorepo* 환경에선 위 매핑만으로 끝나지 않습니다. 한 가지 새 문제가 생겨요. **다른 팀의 CLAUDE.md 가 내 컨텍스트에 끼어드는** 상황.
+
+[*Long-term Memory*](../permanent-memory-three-channels/) 글에서 본 walk 동작을 떠올려 보면 이유가 명확해요. Claude Code 는 cwd 에서 출발해 *부모 디렉토리로 한 단계씩 올라가며* CLAUDE.md 를 모두 수집합니다. monorepo 의 frontend 파트 폴더에서 시작했다면 그 위의 모든 ancestor (예: <span class="mod">&lt;repo&gt;/CLAUDE.md</span>, <span class="mod">&lt;repo&gt;/frontend/CLAUDE.md</span>) 가 자동으로 들어오는데, 거기에 *infra 팀이 두고 간 무관한 내용* 까지 같이 들어올 수 있어요.
+
+<div class="callout-accent">
+<strong>🛠 <span class="k">claudeMdExcludes</span>. 무관한 ancestor 빼기</strong>
+
+내 작업에 무관한 CLAUDE.md 파일을 *내 머신* 에서만 제외하고 싶을 때 settings 의 <span class="k">claudeMdExcludes</span> 를 씁니다.
+
+```json
+{
+  "claudeMdExcludes": [
+    "**/monorepo/CLAUDE.md",
+    "/home/me/monorepo/other-team/.claude/rules/**"
+  ]
+}
+```
+
+<span class="mod">.claude/settings.local.json</span> (gitignored) 에 두면 *나만의 결정* 이라 다른 팀원에게 영향이 없어요. 절대 경로 glob 매칭이고, settings layer 들 사이에서는 배열이 *merge* 됩니다. **단 Managed CLAUDE.md 는 이 설정으로도 제외할 수 없어요** (조직 정책은 무조건 적용된다는 약속을 지키기 위한 설계).
+</div>
+
+monorepo 의 자연스러운 배치는 보통 이런 모양입니다.
+
+<pre class="walk-viz">
+&lt;monorepo-root&gt;/
+├── CLAUDE.md                          <span class="visited">✓ 항상 로드 (모든 팀에 공통)</span>
+├── .claude/rules/
+│   ├── security.md                    <span class="visited">✓ 항상 로드 (paths 없음, cross-cutting)</span>
+│   └── git-workflow.md                <span class="visited">✓ 항상 로드 (paths 없음)</span>
+│
+├── frontend/
+│   ├── CLAUDE.md                      <span class="annot">↑ walk 에 잡힐 때만 (frontend 안에서 실행 시)</span>
+│   └── .claude/rules/
+│       └── react.md                   <span class="cwd-marker">⚡ paths: frontend/&#42;&#42;/&#42;.tsx (조건부)</span>
+│
+├── backend/payments/
+│   ├── CLAUDE.md                      <span class="annot">↑ walk 에 잡힐 때만</span>
+│   └── .claude/rules/
+│       └── api.md                     <span class="cwd-marker">⚡ paths: backend/payments/&#42;&#42;/&#42;.py</span>
+│
+└── infra/
+    ├── CLAUDE.md                      <span class="annot">↑ walk 에 잡힐 때만</span>
+    └── .claude/rules/
+        └── terraform.md               <span class="cwd-marker">⚡ paths: infra/terraform/&#42;&#42;/&#42;.tf</span>
+</pre>
+
+세 종류의 색이 6편 cheat-sheet 의 세 메커니즘과 1:1 매핑이에요.
+
+- <span class="visited">**초록**</span> · paths 없는 rule + 루트 CLAUDE.md. **모든 사용자에게 항상** 로드.
+- <span class="annot">**기울임**</span> · 서브폴더의 CLAUDE.md. **walk pattern** 에 의해 *그 폴더에서 실행할 때만* 잡힘.
+- <span class="cwd-marker">⚡ paths</span> · **conditional loading**. 매칭 파일을 건드릴 때만 attach.
+
+이 세 메커니즘이 동시에 작동하면서 *각 파트는 자기 컨텍스트만, 공통은 모두에게* 라는 자연스러운 분배가 성립해요.
+
+정리하면 세 가지가 동시에 일어나요.
+
+1. **루트 CLAUDE.md** + cross-cutting rules 는 *모두에게* 적용 (paths 없으니 항상 로드)
+2. **파트 단위 CLAUDE.md** 는 그 파트 폴더에서 실행할 때만 walk 에 잡힘
+3. **paths 가 있는 rules** 는 매칭 파일을 건드릴 때만 attach
+
+`claudeMdExcludes` 는 위 자연스러운 배치가 *잘못 잡히는* 예외 케이스 (예: 옆 파트 폴더로 임시 작업 가는 경우, 무관한 ancestor 가 잡히는 거대 repo) 의 *escape hatch* 예요. 평소엔 안 건드려도 됩니다.
+
+## MEMORY.md 는 다릅니다. 본질적으로 개인 단위
+
+CLAUDE.md 가 *사람이 직접 적는 instructions* 라면, MEMORY.md 는 *모델이 내 대화에서 만든 노트* 예요. 누가 쓰느냐가 다르니 공유 모델도 근본적으로 다릅니다.
+
+[*Long-term Memory*](../permanent-memory-three-channels/) 글에서 본 MEMORY.md 의 *dual injection* 을 떠올려 보면 더 또렷해져요. MEMORY.md 의 *content (index)* 는 Messages Block 에, *policy (어떻게 다뤄야 하는지)* 는 System Block 에 동시에 들어갔어요. 그런데 이번 글의 *협업* 관점에서 보면 둘은 비대칭이에요.
+
+- **policy** (System Block 쪽) → Anthropic 이 빌드한 *공통 정책*. 어느 사용자나 동일.
+- **content** (Messages Block 쪽) → *내 conversation 에서 누적된 개인 노트*. 사용자마다 다름.
+
+policy 는 자동으로 *전 사용자에게 공유* 되지만, content 는 그 반대 극단에 있어요. 본질적으로 *나 한 사람* 의 것입니다.
+
+### 실제로 MEMORY.md 가 어디에 사는지
+
+MEMORY.md 의 실제 위치는 <span class="k">~/.claude/projects/&lt;slug&gt;/memory/</span> 예요. 이 디렉토리는:
+
+- **per-machine**. 내 노트북의 로컬 home 디렉토리. 다른 사람 노트북과 별개. 클라우드 sandbox 환경과도 별개.
+- **per-project**. 프로젝트 (git repo identity) 마다 다른 slug 의 디렉토리. 한 사람도 프로젝트마다 따로 쌓음.
+- **모델이 작성**. 내 conversation 에서 발견한 fact 를 모델이 직접 정책에 따라 누적.
+
+세 특성이 합쳐지면 결론은 분명해요. <span class="key">MEMORY.md 는 본질적으로 나 / 이 노트북 / 이 프로젝트 의 교집합에만 사는 노트입니다.</span> 팀과 공유하는 메커니즘이 기본 제공되지 않아요.
+
+<div class="callout-accent">
+<strong>💡 흥미로운 비대칭: MEMORY.md vs CLAUDE.local.md, 누가 worktree 친화적인가?</strong>
+
+조금 의외인 사실 하나. **MEMORY.md 는 worktree 간 *공유*, CLAUDE.local.md 는 worktree 간 *분리*** 입니다. *개인용* 도구 두 개가 worktree 정책이 정반대예요.
+
+<table class="map-table">
+  <thead>
+    <tr>
+      <th>도구</th>
+      <th>위치 기준</th>
+      <th>worktree 간 공유?</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>MEMORY.md</strong></td>
+      <td>git repo identity 기반의 slug (<span class="mod">&#126;/.claude/projects/&lt;slug&gt;/</span>)</td>
+      <td><span class="yes">✓ YES</span>. 같은 repo 의 모든 worktree 가 한 디렉토리 공유</td>
+    </tr>
+    <tr>
+      <td><strong>CLAUDE.local.md</strong></td>
+      <td>working directory 안의 gitignored 파일</td>
+      <td><span class="no">✗ NO</span>. 만든 그 worktree 에만 존재</td>
+    </tr>
+  </tbody>
+</table>
+
+같은 *개인용* 도구라도 worktree 정책이 정반대인 건, *저장소 위치의 기준* 이 다르기 때문이에요. MEMORY.md 는 git repo 의 identity (모든 worktree 가 공유) 를 기준으로 하고, CLAUDE.local.md 는 *현재 working tree* 의 파일이라 worktree 마다 따로 존재합니다.
+
+이게 앞서 (Local 섹션) 의 *worktree 와 안 맞음* 논지가 deep 한 이유예요. 같은 사용 의도 (*내 개인 메모*) 에서 출발한 도구라도 *어떤 정체성을 기준으로 저장되는지* 가 결정적인 차이를 만듭니다.
+</div>
+
+### 디렉토리 위치를 옮기고 싶다면
+
+기본 위치 <span class="mod">&#126;/.claude/projects/&lt;slug&gt;/memory/</span> 가 마음에 안 들면 user settings 의 <span class="k">autoMemoryDirectory</span> 키로 절대 경로 또는 <span class="mod">&#126;/</span> 시작 경로를 지정할 수 있어요.
+
+```json
+{
+  "autoMemoryDirectory": "~/my-custom-memory-dir"
+}
+```
+
+<div class="note-box">
+<span class="note-flag">⚠ 주의</span> 이 설정은 <strong>policy / user settings 에서만 받아들여집니다</strong>. Project / Local settings 로는 변경할 수 없어요. *clone 된 repo 의 settings 가 사용자의 sensitive 위치로 memory 쓰기를 유도하는 risk* 를 막기 위한 보안 설계입니다 (이런 디테일이 보안 모델의 일관성을 만들어요).
+</div>
+
+### 팀과 공유는 어떻게?
+
+MEMORY.md 의 *content* 가 본질적으로 개인 단위라면, 팀과 공유는 어떻게 해야 할까요? 떠오르는 시도를 차례로 살펴보면 답이 좁혀집니다.
+
+<div class="callout">
+<table class="map-table">
+  <thead>
+    <tr>
+      <th>시도</th>
+      <th>평가</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="k">&#126;/.claude/projects/&lt;slug&gt;/memory/</span> 디렉토리를 git 으로 commit</td>
+      <td><span class="no">❌</span> 디렉토리 위치가 *사용자별 home 경로* 라 commit 자체가 안 맞고, slug 는 cwd 절대 경로 기반이라 팀원마다 달라요.</td>
+    </tr>
+    <tr>
+      <td>symlink / sync 도구로 디렉토리 자체를 공유</td>
+      <td><span class="no">❌</span> 작동은 할 수 있지만 모델이 양쪽에서 동시에 write 하면 충돌. 누구의 memory 인지 모호해짐.</td>
+    </tr>
+    <tr>
+      <td>좋은 memory note 를 골라 CLAUDE.md 로 *promotion*</td>
+      <td><span class="yes">✅</span> <strong>이게 권장 패턴</strong>. 아래 자세히 봅니다.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+### Promotion 패턴. 개인 memory 에서 팀 CLAUDE.md 로
+
+내 MEMORY.md 에서 *팀 전체에 가치 있을* 노트를 발견하면, *복사해서 Project CLAUDE.md 에 옮기는* 흐름이 자연스러워요.
+
+<div class="promote-box">
+  <div class="promote-row">
+    <div class="promote-cell from">
+      <div class="pc-title">개인 memory 노트</div>
+      <div class="pc-path">~/.claude/projects/&lt;slug&gt;/memory/<br/>project_db_migration_quirk.md</div>
+    </div>
+    <div class="promote-arrow">→</div>
+    <div class="promote-cell to">
+      <div class="pc-title">팀 Project CLAUDE.md</div>
+      <div class="pc-path">&lt;repo&gt;/CLAUDE.md<br/>(또는 .claude/rules/db.md)</div>
+    </div>
+  </div>
+</div>
+
+특히 [*Long-term Memory*](../permanent-memory-three-channels/) 에서 본 *type* 분류를 promotion 의 *필터* 로 활용할 수 있어요.
+
+<table class="map-table">
+  <thead>
+    <tr>
+      <th>memory type</th>
+      <th>promotion 적합성</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>project</strong></td>
+      <td><span class="yes">✓ 좋음</span>. 이 프로젝트에 대한 fact 라 팀에 가치 있을 가능성 높음</td>
+    </tr>
+    <tr>
+      <td><strong>reference</strong></td>
+      <td><span class="yes">✓ 좋음</span>. 외부 리소스 위치 (Linear 보드, Grafana dashboard 등) 는 팀 모두에게 유용</td>
+    </tr>
+    <tr>
+      <td><strong>feedback</strong></td>
+      <td>주의. 나에게만 적용되는 *내 작업 선호* 라면 User CLAUDE.md 가 맞고, 팀 코딩 컨벤션이라면 Project CLAUDE.md 로</td>
+    </tr>
+    <tr>
+      <td><strong>user</strong></td>
+      <td><span class="no">✗ 안 맞음</span>. 정의상 *나에 대한* 정보. 팀 CLAUDE.md 에 옮기면 의미가 깨짐</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="note-box">
+<span class="note-flag">📝 NOTE</span> Promotion 은 *복사* 지 *이동* 이 아닙니다. 원본 memory note 는 그대로 두고, 다듬은 내용을 CLAUDE.md 에 새로 적는 흐름이에요. 두 자리가 *서로 다른 lifetime* 을 가지기 때문이에요. memory note 는 내 노트북의 *나의 conversation 흔적*, CLAUDE.md 는 *팀이 명시적으로 합의한 규칙*. 출처가 같아도 maintenance 책임이 다릅니다.
+</div>
+
+## 같은 rule, 어느 자리가 정답일까
+
+다섯 자리를 다 봤으니, 처음의 가정 *"strict mode 를 쓰자"* 라는 rule 을 어디에 둘지 다시 보면 trade-off 가 또렷해져요.
+
+<table class="five-table">
+  <thead>
+    <tr>
+      <th>둘 자리</th>
+      <th>누구에게</th>
+      <th>언제 발효</th>
+      <th>공유</th>
+      <th>token 비용</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="k">~/.claude/CLAUDE.md</span> (User)</td>
+      <td>나만</td>
+      <td>어디서든 항상</td>
+      <td><span class="no">✗</span></td>
+      <td>매 turn 누적</td>
+    </tr>
+    <tr>
+      <td><span class="k">&lt;repo&gt;/CLAUDE.md</span> (Project)</td>
+      <td>repo 사용자 전부</td>
+      <td>repo 안 어디서든</td>
+      <td><span class="yes">✓ git</span></td>
+      <td>매 turn 누적</td>
+    </tr>
+    <tr>
+      <td><span class="k">.claude/rules/&#42;.md</span> + paths (Project rules)</td>
+      <td>repo 사용자 전부 (단, 매칭 파일 건드릴 때만)</td>
+      <td>conditional</td>
+      <td><span class="yes">✓ git</span></td>
+      <td>매칭 시에만</td>
+    </tr>
+    <tr>
+      <td><span class="k">CLAUDE.local.md</span> (Local)</td>
+      <td>나만</td>
+      <td>이 repo 안에서만</td>
+      <td><span class="no">✗ gitignored</span></td>
+      <td>매 turn 누적</td>
+    </tr>
+    <tr>
+      <td>MEMORY.md (memory note)</td>
+      <td>나만</td>
+      <td>모델이 retrieve 할 때만</td>
+      <td><span class="no">✗ 개인 디렉토리</span></td>
+      <td>retrieve 시에만</td>
+    </tr>
+  </tbody>
+</table>
+
+*"strict mode 를 쓰자"* 가 *내 팀 전체* 에 적용되어야 하고 *TypeScript 파일 모두* 에 해당된다면 → <span class="key">Project CLAUDE.md</span> 또는 <span class="key">Project rules + paths</span> 가 정답. 만약 *내 노트북에서만 항상* 적용하고 싶다면 → <span class="key">User CLAUDE.md</span>. 차이는 *영향 범위* 와 *공유 비용* 의 곱이에요.
+
+<div class="callout-warm">
+<strong>⚠ 두 자리에 *동시에* 두면 어떻게 되나?</strong>
+
+자연스럽게 따라오는 질문. *예를 들어 User CLAUDE.md 와 Project CLAUDE.md 둘 다에 "strict mode 사용" 을 적어 두면?* [*Long-term Memory*](../permanent-memory-three-channels/) 글의 두 발견을 묶어서 답이 나옵니다.
+
+**(1) Concatenation, not overwrite.** CLAUDE.md 파일들은 한 자리만 살아남고 나머지가 *덮어쓰여지는* 게 아니에요. 모든 파일이 *순서대로 이어붙어* (concatenation) 컨텍스트에 같이 들어갑니다. 그래서 *두 자리 모두 모델이 인지* 합니다.
+
+**(2) Mental overwrite when conflict.** 값이 *충돌* 하면, 모델은 cwd 에 더 가까운 (= prompt 끝부분에 가까운) 자리를 답으로 골라요. 6편의 실험 1 이 그 증거였어요.
+
+<div class="concat-viz">
+  <div class="concat-row">
+    <div class="concat-file far">
+      <div class="cf-label">~/.claude/CLAUDE.md (User, 멀다)</div>
+      <div class="cf-content">"nickname is CAPTAIN AMERICA"</div>
+    </div>
+    <div class="concat-file near">
+      <div class="cf-label">&lt;repo&gt;/CLAUDE.md (Project, 가깝다)</div>
+      <div class="cf-content">"nickname is IRON MAN"</div>
+    </div>
+  </div>
+  <div class="concat-arrows">↘ ↙</div>
+  <div class="concat-merge">
+    <strong>Concatenation</strong> · 둘 다 prompt 에 이어 붙어 들어감 (모델은 두 fact 모두 인지)
+  </div>
+  <div class="concat-down">↓</div>
+  <div class="concat-output">
+    <strong>Model 응답:</strong> *"두 가지가 있지만 우선순위에 따라 <span class="winner">IRON MAN</span> 이 맞는 것 같아요"*
+    <div class="caption">cwd 에 더 가까운 (= prompt 끝부분에 가까운) Project scope 가 mental overwrite 로 답을 가져감</div>
+  </div>
+</div>
+
+**그래서 결론.** 같은 rule 을 *의도 없이* 여러 자리에 두면 token 도 낭비되고 *어디가 effective 한지* 추적도 어려워져요. *한 자리에만* 두는 게 깔끔합니다. 실수로 둘 다 두었더라도 *진실은 cwd 에 더 가까운 쪽이 이긴다* 만 기억하면 디버깅이 빨라요.
+</div>
+
+## 결정 framework. 네 질문이면 자리가 정해집니다
+
+자리를 고를 때 머리에 넣어두면 좋은 네 질문:
+
+<div class="decision-flow">
+  <div class="decision-q">
+    <span class="q-num">1</span><span class="q-text">누구에게 적용되어야 하나요?</span>
+    <div class="q-hint">나 한 명 (개인) / 팀 전체 / 파트 한정 / 회사 전체. 답이 layer 를 결정합니다.</div>
+  </div>
+  <div class="decision-q">
+    <span class="q-num">2</span><span class="q-text">항상 발효되어야 하나요, 특정 조건에서만인가요?</span>
+    <div class="q-hint">항상이면 CLAUDE.md, 특정 파일/경로에서만이면 <span class="mod">.claude/rules/&#42;.md</span> + paths.</div>
+  </div>
+  <div class="decision-q">
+    <span class="q-num">3</span><span class="q-text">공유가 필요한가요?</span>
+    <div class="q-hint">필요하면 git 으로 체크인되는 자리 (Project / Project rules / Managed). 필요 없으면 User / Local / MEMORY.md.</div>
+  </div>
+  <div class="decision-q">
+    <span class="q-num">4</span><span class="q-text">민감한 정보인가요?</span>
+    <div class="q-hint">민감 정보는 CLAUDE.md 어디에도 두지 말고 secret manager 로. *체크인 누락 걱정* 만으로 Local 을 쓰면 *dark memory* 누적 위험이 더 큽니다.</div>
+  </div>
+</div>
+
+대부분의 rule 은 이 네 질문으로 자리가 한 군데로 좁혀져요. 두 자리 사이에서 갈리면 *더 좁은 범위* 쪽이 보통 정답입니다. *팀 전체에 정말 필요한가?* 라고 다시 묻고, 답이 *아니다* 쪽이면 한 단계 내려서 (Project → rules + paths, User → Local 안 가고 그냥 User) 두면 됩니다.
+
+### 세 케이스로 적용해 보기
+
+추상적으로만 두면 잘 안 잡힙니다. 실제 흔히 만나는 세 케이스에 네 질문을 돌려 볼게요.
+
+<div class="callout">
+<strong>📋 케이스 1. *"PII 데이터를 prompt 에 포함하지 말 것"*</strong>
+
+- Q1 누구에게? → *회사 전 사원*
+- Q2 언제? → *항상*
+- Q3 공유 필요? → *예, 조직 전체*
+- Q4 민감? → 컴플라이언스성, 강제력 어디까지?
+
+답: <span class="key">Managed CLAUDE.md</span>. 회사 전체에 동일 적용, 개인 settings 로 끌 수 없는 anchor. 단 *기술적 차단* 까지 필요하면 (예: 실제 PII 패턴 검출 시 차단) Managed CLAUDE.md *와 함께* Managed settings 의 hook 또는 permissions.deny 로 보완.
+</div>
+
+<div class="callout">
+<strong>📋 케이스 2. *"src/api/** 의 핸들러는 Zod 로 input validation 필수"*</strong>
+
+- Q1 누구에게? → *백엔드 파트 (이 디렉토리 사용자)*
+- Q2 언제? → *해당 디렉토리 파일 건드릴 때만*
+- Q3 공유 필요? → *예, 팀 내*
+- Q4 민감? → 아니오
+
+답: <span class="key">Project rules + paths</span>. <span class="mod">&lt;repo&gt;/.claude/rules/api-validation.md</span> 에 두고 frontmatter 에 <span class="mod">paths: src/api/&#42;&#42;/&#42;.ts</span> 한 줄. token 비용도 절약되고 frontend 작업할 땐 안 끼어들어요.
+</div>
+
+<div class="callout">
+<strong>📋 케이스 3. *"내 응답은 한국어로, 코드 주석은 영어로"*</strong>
+
+- Q1 누구에게? → *나만*
+- Q2 언제? → *항상*
+- Q3 공유 필요? → *아니오*
+- Q4 민감? → 아니오
+
+답: <span class="key">User CLAUDE.md</span> (<span class="mod">&#126;/.claude/CLAUDE.md</span>). 내 노트북 전체에 항상 적용, 다른 사람과 공유 안 됨, repo 가 바뀌어도 따라옴.
+</div>
+
+## 흔한 anti-patterns
+
+지금까지 *올바른 자리* 를 정리했으니, *흔한 잘못된 자리* 도 짧게 짚을게요. 다음 네 가지가 가장 자주 부딪히는 함정입니다.
+
+<div class="callout-warm">
+<strong>🚫 anti-pattern 1. User CLAUDE.md 에 다 몰아넣기</strong>
+
+*내가 작성하는 게 편하니까* 라는 이유로 *팀 규칙* 도 <span class="mod">&#126;/.claude/CLAUDE.md</span> 에 적어 두는 경우. 결과는 두 가지예요. 팀원과 공유되지 않아 *나만 따르는 규칙* 이 되고, *내 노트북에서 다른 프로젝트* 작업할 때도 무관한 규칙이 끼어들어 token 을 낭비합니다.
+
+**옳은 자리**: 팀 규칙이라면 Project CLAUDE.md, 파트 한정이면 rules + paths.
+</div>
+
+<div class="callout-warm">
+<strong>🚫 anti-pattern 2. paths 없이 모든 rule 을 *항상 로드*</strong>
+
+<span class="mod">.claude/rules/</span> 디렉토리를 도입하면서 *모든 rule 을 paths 없이* 두는 경우. token 이 줄지도 않고 (모두 항상 로드), attention 도 분산됩니다. *path-scoped rule* 의 핵심 가치를 놓치는 셈이에요.
+
+**옳은 자리**: 특정 디렉토리 / 파일 타입에만 적용되는 rule 은 <span class="k">paths:</span> frontmatter 로 조건부 로딩. *모두에게 항상* 필요한 cross-cutting rule (보안, git workflow 같은) 만 paths 없이.
+</div>
+
+<div class="callout-warm">
+<strong>🚫 anti-pattern 3. CLAUDE.local.md 누적</strong>
+
+*임시 실험* 메모를 <span class="mod">CLAUDE.local.md</span> 에 쌓아 두다가 잊고, 시간이 지나서 *내가 쓴 게 맞나* 헷갈리는 dark memory 상태. 다른 팀원이 새로 합류해 *내가 한 작업 인계* 할 때 *이 사람만 본 메모* 가 어디 살아 있는지 추적이 어렵습니다.
+
+**옳은 자리**: 정말 *나만 봐야 한다* 면 home 디렉토리에 두고 <span class="mod">@</span>-import (Local 섹션의 대안 참고). 더 자주 보는 패턴은 *원래 임시였던 메모를 다듬어 Project CLAUDE.md 로 promote* 하는 거예요.
+</div>
+
+<div class="callout-warm">
+<strong>🚫 anti-pattern 4. MEMORY.md 디렉토리를 git 으로 commit</strong>
+
+*팀과 공유* 의도로 <span class="mod">&#126;/.claude/projects/&lt;slug&gt;/memory/</span> 자체를 git 으로 commit 하는 시도. 위에서 본 것처럼 디렉토리 위치는 *사용자별 home 경로* 라 commit 자체가 안 맞고, slug 도 cwd 절대 경로 기반이라 *팀원마다 디렉토리 이름이 다릅니다.*
+
+**옳은 자리**: memory note 중 *팀 공유 가치가 있는 것* 만 골라 *내용을 다듬어* CLAUDE.md 또는 rules 로 promotion. *디렉토리 자체* 가 아니라 *content 의 일부* 만.
+</div>
+
+## Take-home
+
+<blockquote>
+<p>Long-term memory 는 <strong>기술적으론 어디에 두든 작동</strong> 합니다. 그러나 *누구에게 적용되는지*, *공유가 되는지*, *언제 발효되는지* 가 자리마다 달라요. <em>같은 rule 이 다섯 군데에 살 수 있다</em> 는 긴장이 이번 글의 출발점이었습니다.</p>
+
+<p><span class="key">조직 layer 한 줄 매핑</span> 만 머리에 두면 대부분 풀립니다. <strong>실은 Managed, 팀은 Project, 파트는 <em>.claude/rules/</em> + paths, 개인 (노트북) 은 User</strong>. Local 은 두 이유로 권장되지 않고 (worktree 비공유 + Anthropic 의 deprecation 검토 흔적), 대안으로 <span class="mod">@&#126;/.claude/...</span> import 패턴이 자연스러워요.</p>
+
+<p>MEMORY.md 는 본질적으로 *나 / 이 노트북 / 이 프로젝트* 의 교집합에 사는 개인 노트라 팀 공유 메커니즘이 기본 제공되지 않아요. 대신 <strong>promotion 패턴</strong> 으로 <em>가치 있는 memory note 만 골라 CLAUDE.md 자리로</em> 옮기면 팀과 공유에 합류합니다.</p>
+
+<p>네 질문으로 좁히는 결정 framework. *누구에게 / 항상 vs 조건부 / 공유 / 민감*. 과 네 가지 anti-pattern (User 에 다 몰기 / paths 없는 rules / Local 누적 / MEMORY 디렉토리 commit) 만 피하면 자리는 거의 자동으로 정해져요.</p>
+
+<p>다음 글에서는 같은 시리즈의 다른 source 인 <em>Skills 와 Slash Commands</em> 로 자리를 옮깁니다. 거기서도 *thin advertise / fat invoke* 라는 같은 협업 구조가 다른 모양으로 나타나요.</p>
+</blockquote>
+
+## References
+
+- [Anthropic 공식 docs. *How Claude remembers your project*](https://code.claude.com/docs/en/memory). CLAUDE.md scope, rules + paths, MEMORY.md storage layout
+- [GitHub issue #2394. *Is CLAUDE.local.md deprecated or not?*](https://github.com/anthropics/claude-code/issues/2394). CLAUDE.local.md 의 deprecation 검토 흔적
+- [GitHub issue #2950. *Imports or CLAUDE.local.md?*](https://github.com/anthropics/claude-code/issues/2950). <span class="mod">@</span>-import 패턴의 한계 (비결정성) 논의
+- 시리즈 [*Claude Code 의 Long-term Memory. CLAUDE.md 와 MEMORY.md*](../permanent-memory-three-channels/). 이번 글의 기반이 된 6편
