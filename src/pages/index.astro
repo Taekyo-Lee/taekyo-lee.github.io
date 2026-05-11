@@ -5,7 +5,7 @@ import Header from '../components/Header.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
 
 const isCompany = import.meta.env.PUBLIC_IS_COMPANY === 'true';
-const greeting = isCompany ? '안녕하세요 AI Native 파트의 블로그입니다' : '안녕하세요, Jet 입니다.';
+const greeting = isCompany ? '안녕하세요 S.LSI 사업부 AI Native 파트의 블로그입니다' : '안녕하세요, Jet 입니다.';
 ---
 
 <!doctype html>
@@ -26,7 +26,7 @@ const greeting = isCompany ? '안녕하세요 AI Native 파트의 블로그입�
 			}
 			{
 				isCompany ? (
-					<p>AI Native 파트입니다. S.SLI 사업부 구성원의 AI Native Development를 돕는 조직입니다.</p>
+					<p>S.LSI 사업부 AI Native 파트입니다. S.SLI 사업부 구성원의 AI Native Development를 돕는 조직입니다.</p>
 				) : (
 					<>
 						<p>
