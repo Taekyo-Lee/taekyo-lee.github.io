@@ -1746,7 +1746,7 @@ Claude Code 는 baseline 으로 본 ReAct agent 의 <span class="key">**확장**
 <div class="surprise">
 <span class="label">⚡ SURPRISE</span> *"내가 쓴 **CLAUDE.md** 는 당연히 system prompt 안에 들어가는 거 아니야?"* 라고 생각하기 쉽죠. 그런데 실제로는 그렇지 않아요.
 
-**CLAUDE.md · MEMORY.md · 오늘 날짜** 처럼 harness 가 끌어오는 컨텍스트는 system prompt 가 아니라, Messages 배열의 **첫 번째 user message** 에 합성으로 prepend 되는 <span class="k">&lt;system-reminder&gt;</span> 블록 안에 들어갑니다. system prompt 자체엔 Anthropic 이 정의한 정적·동적 블록만 담기고, *Anthropic 바깥에서* 들어오는 컨텍스트는 별도 채널 (4번 영역) 로 흐르는 거죠.
+**CLAUDE.md · MEMORY.md · 오늘 날짜** 처럼 harness 가 끌어오는 컨텍스트는 System Block 이 아니라, Messages 배열의 **첫 번째 user message** 에 합성으로 prepend 되는 <span class="k">&lt;system-reminder&gt;</span> 블록 안에 들어갑니다. System Block 자체엔 Anthropic 이 정의한 정적·동적 블록만 담기고, *Anthropic 바깥에서* 들어오는 컨텍스트는 별도 채널 (4번 영역) 로 흐르는 거죠.
 </div>
 
 
