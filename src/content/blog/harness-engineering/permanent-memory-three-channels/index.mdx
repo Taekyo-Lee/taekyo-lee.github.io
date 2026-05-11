@@ -1,5 +1,5 @@
 ---
-title: '영구 기억의 갈래들. CLAUDE.md 와 MEMORY.md'
+title: 'Claude Code 의 Long-term Memory. CLAUDE.md 와 MEMORY.md'
 description: '6 영역 중 4번 (synthetic <system-reminder>) 안에 들어가는 여러 종류의 memory 파일이 어떻게 한 채널로 합쳐져 LLM 에 도달하는지. 그리고 Phase 2 에서 발견된 의외의 분류 규칙들.'
 pubDate: 'May 31 2026'
 category: harness-engineering
@@ -7,6 +7,9 @@ heroImage: '../../../../assets/heroes/hero-harness-engineering.png'
 series: 'context-engineering-of-claude-code'
 seriesOrder: 6
 ---
+
+import { Image } from 'astro:assets';
+import langfuseClaudeMd from './langfuse-claudemd.png';
 
 <style>{`
   .series-banner {
@@ -152,13 +155,114 @@ seriesOrder: 6
     font-size: 0.88em;
     color: var(--claude-dark);
   }
+
+  .img-caption { font-size: 0.85rem; color: rgb(var(--gray)); text-align: center; margin: 0.4em 0 1.6em; line-height: 1.5; }
+  .log-details { margin: 1.6em 0; border: 1px solid rgb(var(--gray-light)); border-radius: 8px; overflow: hidden; }
+  .log-details > summary { cursor: pointer; padding: 0.7em 1em; background: rgba(96, 115, 159, 0.08); font-weight: 700; user-select: none; list-style: none; display: flex; align-items: center; gap: 0.5em; }
+  .log-details > summary::-webkit-details-marker { display: none; }
+  .log-details > summary::before { content: "▶"; font-size: 0.7em; color: rgb(var(--gray)); transition: transform 0.15s ease; }
+  .log-details[open] > summary::before { transform: rotate(90deg); }
+  .log-details > summary:hover { background: rgba(96, 115, 159, 0.14); }
+  .log-details .log-body { max-height: 520px; overflow: auto; background: #1a1a24; padding: 0.6em 0; }
+  .log-details .sb-section { padding: 0.7em 0.95em; border-left: 3px solid; margin: 0; }
+  .log-details .sb-section pre { background: transparent !important; margin: 0.45em 0 0; padding: 0; border-radius: 0; max-height: none; font-size: 0.74rem; line-height: 1.55; color: #d4d4d8; overflow-x: auto; }
+  .log-details .sb-section pre code { font-size: inherit; line-height: inherit; color: inherit; background: transparent; }
+  .log-details .sb-section .sb-tag { display: inline-block; font-size: 0.78em; padding: 2px 9px; border-radius: 4px; font-weight: 700; letter-spacing: 0.04em; }
+  .log-details .sb-1 { background: #1d2030; border-left-color: rgba(150, 170, 200, 0.55); }
+  .log-details .sb-2 { background: #1c2335; border-left-color: rgba(135, 175, 235, 0.7); }
+  .log-details .sb-3 { background: #1a1f2e; border-left-color: rgba(110, 140, 175, 0.55); }
+  .log-details .sb-4 { background: #2a1f1c; border-left-color: rgba(220, 140, 100, 0.8); }
+  .log-details .sb-1 .sb-tag { background: rgba(170, 190, 220, 0.92); color: #14182a; }
+  .log-details .sb-2 .sb-tag { background: rgba(135, 175, 235, 0.95); color: #0f1530; }
+  .log-details .sb-3 .sb-tag { background: rgba(120, 150, 190, 0.85); color: #0f1530; }
+  .log-details .sb-4 .sb-tag { background: rgba(230, 140, 100, 1); color: #2a1208; }
+
+  /* Take-home flow chart: 5 source → 2 slot */
+  .ltm-flow {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 1em;
+    align-items: center;
+    margin: 1.6em 0;
+    padding: 20px 18px;
+    border-radius: 12px;
+    border: 1px solid rgba(96, 115, 159, 0.18);
+    background: linear-gradient(135deg, rgba(31, 71, 135, 0.03), rgba(204, 120, 92, 0.03));
+  }
+  .ltm-col { display: flex; flex-direction: column; gap: 6px; }
+  .ltm-label {
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: rgb(var(--gray-dark));
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+  .ltm-src {
+    background: white;
+    padding: 7px 10px;
+    border: 1px solid rgba(96, 115, 159, 0.25);
+    border-radius: 6px;
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.78em;
+    color: rgb(var(--gray-dark));
+  }
+  .ltm-src.ltm-mm {
+    border: 2px solid rgba(96, 115, 159, 0.55);
+    background: rgba(96, 115, 159, 0.06);
+    color: rgb(var(--gray-dark));
+    font-weight: 700;
+  }
+  .ltm-arrow {
+    font-size: 1.5em;
+    color: var(--claude-dark);
+    text-align: center;
+    padding: 0 6px;
+  }
+  .ltm-dest {
+    background: white;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border-left: 3px solid;
+  }
+  .ltm-dest .ltm-dest-block {
+    font-weight: 700;
+    font-size: 0.88em;
+    margin-bottom: 2px;
+  }
+  .ltm-dest .ltm-dest-slot {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.85em;
+    margin-bottom: 5px;
+  }
+  .ltm-dest .ltm-dest-note {
+    font-size: 0.78em;
+    color: rgb(var(--gray-dark));
+  }
+  .ltm-dest.ltm-dest-msg {
+    border-left-color: var(--claude);
+    background: rgba(204, 120, 92, 0.05);
+  }
+  .ltm-dest.ltm-dest-msg .ltm-dest-slot { color: var(--claude-dark); }
+  .ltm-dest.ltm-dest-sys {
+    border-left-color: var(--accent);
+    background: rgba(31, 71, 135, 0.05);
+  }
+  .ltm-dest.ltm-dest-sys .ltm-dest-slot { color: var(--accent); }
+  @media (max-width: 600px) {
+    .ltm-flow { grid-template-columns: 1fr; gap: 0.6em; }
+    .ltm-arrow { transform: rotate(90deg); }
+  }
 `}</style>
 
 <div class="series-banner">
-📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 여섯 번째 글입니다. 지난 <a href="../git-context/">5편 <em>작은 비밀 한 줄. gitStatus, system prompt 의 trailing block</em></a> 까지가 *System Block* 이었어요. 이번 편부터 자리를 옮겨 *Messages Block* 으로 들어갑니다. 첫 주제는 *합성 <span class="k">&lt;system-reminder&gt;</span>* 안에 들어가는 영구 기억의 갈래들.
+📚 시리즈 <strong>Context Engineering of Claude Code</strong> 의 여섯 번째 글입니다. 지난 <a href="../git-context/">5편 <em>작은 비밀 한 줄. gitStatus, system prompt 의 trailing block</em></a> 까지가 *System Block* 이었어요. 이번 편부터 자리를 옮겨 *Messages Block* 으로 들어갑니다. 첫 주제는 *합성 <span class="k">&lt;system-reminder&gt;</span>* 안에 들어가는 Long-term Memory.
 </div>
 
-## 같은 채널, 여러 갈래의 파일
+## Long-term Memory 전반
+
+### 같은 채널, 여러 memory source
 
 [*Context Architecture*](../claude-code-context-architecture/) 의 마지막에 가장 의외라고 한 부분, 기억 나시나요?
 
@@ -169,17 +273,17 @@ seriesOrder: 6
 [*System Block*](../system-prompt-assembly/) 부터 [*gitStatus*](../git-context/) 까지 다 봤으니, 이번 편이 바로 *Messages Block* 으로 자리를 옮기는 첫 글이에요. 결론부터 말하면. **여러 종류의 메모리 파일이 Messages Block 의 <span class="k">&lt;system-reminder&gt;</span> slot 으로 흘러 들어와요**. 이름은 "claudeMd" 인데, 실제 콘텐츠는 CLAUDE.md 만이 아닙니다.
 
 <div class="note-box">
-<span class="note-flag">📝 NOTE</span> 이 글에서 "다섯 갈래" 라고 정리하는 건 <strong>제가 살펴본 빌드 (v.2.1.88) 기준</strong>이에요. Claude Code 가 빠르게 업데이트되면서 새 채널이 추가될 수 있고, 제가 놓친 갈래가 있을 가능성도 있어요. 숫자 자체보다 <em>한 채널 안에 여러 갈래가 합쳐 들어온다</em> 는 구조에 무게를 두고 읽어 주세요.
+<span class="note-flag">📝 NOTE</span> 이 글에서 "다섯 memory source" 라고 정리하는 건 <strong>제가 살펴본 빌드 (v.2.1.88) 기준</strong>이에요. Claude Code 가 빠르게 업데이트되면서 새 채널이 추가될 수 있고, 제가 놓친 memory source 가 있을 가능성도 있어요. 숫자 자체보다 <em>한 채널 안에 여러 memory source 가 합쳐 들어온다</em> 는 구조에 무게를 두고 읽어 주세요.
 </div>
 
 <div class="memchan">
-  <div class="memchan-title">하나의 채널, 여러 갈래의 파일</div>
+  <div class="memchan-title">하나의 채널, 여러 memory source</div>
   <div class="memchan-files">
     <div class="memchan-file"><span class="mc-type">Managed</span>/etc/claude-code/<br/>CLAUDE.md</div>
     <div class="memchan-file"><span class="mc-type">User</span>&#126;/.claude/<br/>CLAUDE.md</div>
     <div class="memchan-file"><span class="mc-type">Project</span>&lt;repo&gt;/<br/>CLAUDE.md</div>
     <div class="memchan-file"><span class="mc-type">Local</span>&lt;repo&gt;/<br/>CLAUDE.local.md</div>
-    <div class="memchan-file"><span class="mc-type">AutoMem</span>&#126;/.claude/projects/<br/>&lt;slug&gt;/memory/MEMORY.md</div>
+    <div class="memchan-file"><span class="mc-type">MEMORY.md</span>&#126;/.claude/projects/<br/>&lt;slug&gt;/memory/MEMORY.md</div>
   </div>
   <div class="memchan-arrow">↓</div>
   <div class="memchan-channel">
@@ -188,11 +292,11 @@ seriesOrder: 6
   </div>
 </div>
 
-이 갈래들은 각각 누가, 어떤 의도로 쓰느냐가 다릅니다. <span class="term">Managed</span> 는 조직 정책 (관리자가 배포), <span class="term">User</span> 는 내 노트북 전체에 적용되는 내 설정, <span class="term">Project</span> 는 이 레포에 체크인된 팀 공유 규칙, <span class="term">Local</span> 은 이 레포에 한정된 내 비공개 메모, <span class="term">AutoMem</span> 은 모델이 직접 관리하는 자기 노트.
+이 memory source 들은 각각 누가, 어떤 의도로 쓰느냐가 다릅니다. <span class="term">Managed</span> 는 조직 정책 (관리자가 배포), <span class="term">User</span> 는 내 노트북 전체에 적용되는 내 설정, <span class="term">Project</span> 는 이 레포에 체크인된 팀 공유 규칙, <span class="term">Local</span> 은 이 레포에 한정된 내 비공개 메모, <span class="term">MEMORY.md</span> 은 모델이 직접 관리하는 자기 노트.
 
-이 갈래들이 같은 slot 안에 모이지만, 어떤 종류인지를 알려주는 단서가 한 줄씩 붙어요. 모델이 *"이 내용은 누가 쓴 거지?"* 를 구분할 수 있게 하는 장치입니다.
+이 memory source 들이 같은 slot 안에 모이지만, 어떤 종류인지를 알려주는 단서가 한 줄씩 붙어요. 모델이 *"이 내용은 누가 쓴 거지?"* 를 구분할 수 있게 하는 장치입니다.
 
-## description suffix. 갈래를 가르는 한 줄
+### description suffix. 어느 scope 인지 알려주는 한 줄
 
 소스 코드를 살펴보면, <span class="k">getClaudeMds()</span> 가 이 파일들을 한 string 으로 합칠 때 각 파일에 다음과 같은 머리말을 붙입니다.
 
@@ -217,7 +321,7 @@ seriesOrder: 6
       <td><code>(user's private global instructions for all projects)</code></td>
     </tr>
     <tr>
-      <td><span class="term">AutoMem</span></td>
+      <td><span class="term">MEMORY.md</span></td>
       <td><code>(user's auto-memory, persists across conversations)</code></td>
     </tr>
   </tbody>
@@ -225,90 +329,115 @@ seriesOrder: 6
 
 그래서 trace 의 user-message 본문을 grep 으로 살펴봐도 어떤 파일이 어떤 타입으로 분류돼 들어갔는지를 즉시 식별할 수 있어요. 이 suffix 테이블이 trace 디버깅에서 의외로 자주 쓰입니다.
 
-<div class="callout-accent">
-<strong>실제로 trace 에서 보는 모양</strong>
+<Image src={langfuseClaudeMd} alt="Langfuse 의 첫 user message 패널. <system-reminder> 안에 # claudeMd 헤더와 네 개의 Contents of 블록 (User / Project / Local / MEMORY.md) 이 연달아 보이고 마지막에 # currentDate 트레일러가 있다." />
 
-```
-<system-reminder>
-As you answer the user's questions, you can use the following context:
-# claudeMd
-Codebase and user instructions are shown below. ...
+<p class="img-caption">실제 Langfuse trace 에서 펼친 첫 user message. <span class="k">&lt;system-reminder&gt;</span> 안의 <span class="k">#&nbsp;claudeMd</span> 섹션 아래로 네 source 가 같은 포맷으로 차례차례 들어가는 모습이에요.</p>
 
-Contents of /home/jet/.claude/CLAUDE.md (project instructions, checked into the codebase):
-<...본문...>
+<details class="log-details">
+<summary>📜 실제 trace 의 <code># claudeMd</code> 본문 (4 source 별로 분리)</summary>
 
-Contents of /home/jet/repo/CLAUDE.md (project instructions, checked into the codebase):
-<...본문...>
+<div class="log-body">
+<div class="sb-section sb-1">
+<div class="sb-tag">User · ~/.claude/CLAUDE.md</div>
 
-Contents of /home/jet/repo/CLAUDE.local.md (user's private project instructions, not checked in):
-<...본문...>
+````text
+Contents of /home/user/.claude/CLAUDE.md (user's private global instructions for all projects):
 
-Contents of /home/jet/.claude/projects/-home-jet-repo/memory/MEMORY.md (user's auto-memory, persists across conversations):
-<...본문...>
+# Personal Claude Code preferences
 
-# currentDate
-Today's date is 2026-05-10.
-</system-reminder>
-```
+- Prefer concise responses over verbose explanations
+- When writing Python, default to type hints and `pathlib` over `os.path`
+- Save terminal scratchpads to `~/scratch/` not the repo
+````
+
+</div>
+<div class="sb-section sb-2">
+<div class="sb-tag">Project · &lt;repo&gt;/CLAUDE.md</div>
+
+````text
+Contents of /home/user/workspace/claude-context-engineering/CLAUDE.md (project instructions, checked into the codebase):
+
+# claude-context-engineering
+
+Sandbox project for testing Claude Code context-engineering behaviors. Used to generate clean Langfuse traces that demonstrate CLAUDE.md cascade, MEMORY.md injection, and hook flows in isolation from the author's real working repos.
+
+## Conventions
+
+- Python 3.11+
+- pytest for tests
+- Type hints throughout
+- No emojis in source files
+
+## Testing context behavior
+
+Run Claude Code from this directory with Langfuse export configured. The first turn's user message should include a synthesized `<system-reminder>` block containing both this file (Project type) and the local `CLAUDE.local.md` (Local type) if present.
+````
+
+</div>
+<div class="sb-section sb-3">
+<div class="sb-tag">Local · &lt;repo&gt;/CLAUDE.local.md</div>
+
+````text
+Contents of /home/user/workspace/claude-context-engineering/CLAUDE.local.md (user's private project instructions, not checked in):
+
+# Local notes (not committed)
+
+- Use the local Langfuse instance at http://localhost:3000 for trace inspection
+- Skip linting on `scratch/` dir
+- Remember: turn telemetry off before generating screenshots for blog posts that contain personal paths
+````
+
+</div>
+<div class="sb-section sb-4">
+<div class="sb-tag">MEMORY.md · ~/.claude/projects/&lt;slug&gt;/memory/</div>
+
+````text
+Contents of /home/user/.claude/projects/-home-user-workspace-claude-context-engineering/memory/MEMORY.md (user's auto-memory, persists across conversations):
+
+- [Sandbox purpose](sandbox_purpose.md) — 블로그 캡처와 context-engineering 동작 검증용 sandbox
+````
+
+</div>
+</div>
+</details>
+
+본문 앞에는 <span class="k">&lt;system-reminder&gt;</span> envelope (*"As you answer the user's questions..."* preamble) 이 같이 들어가지만, 이번 글의 주제와 직결되는 건 위 네 memory source 라 따로 분리해서 보여드렸습니다.
+
+<div class="note-box">
+<span class="note-flag">📝 NOTE</span> <strong>Managed (<code>/etc/claude-code/CLAUDE.md</code>) 은 이 캡처에 없습니다.</strong> 관리자가 배포하는 시스템 정책 파일이라 sandbox 에 별도로 셋업하지 않았어요. 들어가는 자리와 description suffix 패턴은 나머지 memory source 와 동일 (<code>(user's private global instructions for all projects)</code> 을 공유하니까 trace 에서 User 와 같은 suffix 로 식별됨).
 </div>
 
-## 위로 거슬러 올라가는 walk. cwd → root
+<div class="note-box">
+<span class="note-flag">📝 NOTE</span> <strong>사실 수면 아래 한 memory source 가 더 있어요. 그런데 dead code 입니다.</strong> 소스 안엔 <span class="term">TeamMem</span> 가 또 하나 자리잡고 있어요. suffix 는 <code>(shared team memory, synced across the organization)</code>. 다만 <span class="mod">feature('TEAMMEM')</span> 게이트가 *컴파일 타임에 항상 false* 로 치환되어 기본 환경에선 작동하지 않습니다 (scripts/build/build.ts:95). 그래서 trace 에서 <span class="k">&lt;team-memory-content&gt;</span> 태그가 보인다면 빌드가 잘못된 신호. *"내 빌드에서 dead code 가 잘 죽었나?"* 의 build sanity check 으로도 쓰여요.
+</div>
 
-이 파일들이 어디 있는지를 harness 가 어떻게 알아챌까요. <span class="k">getMemoryFiles()</span> 가 하는 일은 단순합니다. **현재 작업 디렉토리에서 시작해 파일시스템 root 까지 거슬러 올라가며**, 각 단계에서 CLAUDE.md, .claude/CLAUDE.md, <span class="mod">.claude/rules/&#42;.md</span>, CLAUDE.local.md 가 있는지 봅니다.
+## CLAUDE.md
+
+### 디렉토리를 거슬러 올라가는 walk. cwd → root
+
+그러면 이 파일들이 어디에 있는지를 harness 는 어떻게 알아낼까요. <span class="k">getMemoryFiles()</span> 의 동작은 의외로 단순해요. **현재 작업 디렉토리에서 출발해 파일시스템 root 까지 한 단계씩 거슬러 올라가면서**, 매 단계마다 CLAUDE.md, .claude/CLAUDE.md, <span class="mod">.claude/rules/&#42;.md</span>, CLAUDE.local.md 가 있는지 살핍니다.
 
 ```
-cwd:  /home/jet/repo/src/feature
-       ↑
+cwd:  /home/jet/repo/src/feature   ← 시작
+       ↓
        /home/jet/repo/src        ← 여기에도 CLAUDE.md 있나?
-       ↑
+       ↓
        /home/jet/repo            ← 여기는?
-       ↑
+       ↓
        /home/jet                 ← 여기도?
-       ↑
+       ↓
        /                         ← 끝
 ```
 
-이렇게 모은 후 순서를 *root → cwd* 로 뒤집어서 합칩니다. **cwd 에 가까운 파일이 뒤로 가요**. 모델이 prompt 의 끝부분에 더 강하게 집중하는 경향이 있으니까, 가까운 파일에 우선순위를 주는 셈이에요.
+이렇게 위로 다 모은 뒤 순서를 *root → cwd* 로 뒤집어요. **cwd 에 가까운 파일이 뒤쪽에 자리잡는 거죠**. 모델은 prompt 의 끝부분에 더 집중하는 경향이 있어서, 가까운 파일일수록 자연스럽게 더 높은 우선순위가 실립니다.
 
 <div class="note-box">
 <span class="note-flag">📝 NOTE</span> <strong>walk 는 git boundary 를 모릅니다.</strong> <code>/home/jet/repo</code> 에서 시작했다고 해서 <code>/home/jet</code> 에서 멈추지 않아요. 무조건 root 까지 갑니다. 단 <em>nested git worktree</em> (예: <span class="mod">claude -w</span> 로 띄운 worktree) 안에선 walk 는 그대로 root 까지 가지만, load 단계에서 worktree 바깥 main-repo 의 Project-type 파일은 skip — 같은 파일이 두 번 들어가는 걸 방지하는 edge case.
 </div>
 
-## MEMORY.md 만 두 채널을 탑니다
+### <span class="k">#&nbsp;claudeMd</span> 가 비활성화되면 *비워지는 게 아니라 사라집니다*
 
-이 갈래들 중 AutoMem 하나만 *두 채널* 을 동시에 탑니다. 나머지 (Managed/User/Project/Local) 는 모두 그 자체로 콘텐츠일 뿐이지만, MEMORY.md 는 콘텐츠 + 사용 가이드가 짝을 이뤄야 하기 때문이에요.
-
-<div class="callout">
-<strong>MEMORY.md 의 dual injection</strong>
-
-| 무엇을 | 어디로 | 왜 거기로 |
-|---|---|---|
-| MEMORY.md 의 **본문** | <span class="k">&lt;system-reminder&gt;</span> 의 <span class="k">#&nbsp;claudeMd</span> 안 (나머지와 같은 채널) | 모델이 자기 노트의 *내용* 을 읽어야 함 |
-| MEMORY.md 를 *어떻게 쓸지* 의 절차 (auto memory 사용 가이드. 어떤 종류를 언제 어떻게 저장할지) | System Block 의 <span class="k">#&nbsp;auto memory</span> 슬롯 | 절차는 모든 turn 동일하니 cache 가능한 System Block 쪽이 효율적 |
-</div>
-
-이 분리가 잘 된 이유는 *역할이 다르기 때문* 이에요. 메모리에 무엇을 적었는지 (data) 와 메모리를 어떻게 다뤄야 하는지 (policy) 는 변하는 빈도가 달라요. data 는 자주 바뀌고, policy 는 거의 안 바뀜. 그래서 policy 는 cache 가 잘 되는 System Block 쪽에 두고, data 는 매 turn 새로 prepend 되는 Messages Block 쪽에 둔 겁니다.
-
-## 사실 수면 아래 한 갈래가 더 있어요. 그런데 dead code
-
-지금까지 본 갈래들 외에, 소스 안엔 또 한 갈래가 더 자리잡고 있어요. <span class="term">TeamMem</span> 입니다. suffix 는 <code>(shared team memory, synced across the organization)</code>. 다만 기본 환경에선 *작동하지 않아요*. <span class="mod">feature('TEAMMEM')</span> 게이트로 둘러싸여 있는데, 이 함수가 *컴파일 타임에 항상 false* 로 치환되거든요 (scripts/build/build.ts:95).
-
-```ts
-// utils/claudemd.ts 안의 분기
-if (feature('TEAMMEM')) {           // ← bundle 빌드에서 false 상수
-  result.push(teamMemEntry)         // ← 이 줄은 죽은 코드
-}
-```
-
-그래서 기본 환경에서 trace 를 살펴보면 <span class="k">&lt;team-memory-content&gt;</span> 태그를 **절대로** 못 봐요. 만약 보인다면 빌드가 잘못된 거예요. 약간 이상하게 들리지만, 이게 build sanity check 으로도 쓰입니다. *"내 빌드에서 dead code 가 잘 죽었나?"* 의 검증 사례인 셈.
-
-## Phase 2 에서 발견한 것들
-
-이론으론 깔끔하지만, 실제 trace 를 떠 보면 의외의 모서리들이 있어요. 두 가지만 짚고 갑니다.
-
-### 1. <span class="k">#&nbsp;claudeMd</span> 가 비활성화되면 *비워지는 게 아니라 사라집니다*
-
-<span class="mod">CLAUDE_CODE_DISABLE_CLAUDE_MDS=1</span> 로 띄우면 합성 user-message 의 모양이 이렇게 바뀝니다:
+환경변수 <span class="mod">CLAUDE_CODE_DISABLE_CLAUDE_MDS=1</span> 로 띄우면 Messages Block 의 <span class="k">&lt;system-reminder&gt;</span> 부분이 이렇게 바뀝니다:
 
 ```
 <system-reminder>
@@ -331,11 +460,17 @@ Today's date is 2026-05-10.
 </tbody>
 </table>
 
-trace 한 줄 grep 으로 *"왜 CLAUDE.md 가 안 들어갔지?"* 의 원인이 settings 인지 env 인지를 즉시 구분할 수 있어요.
+위 표 덕분에 trace 에서 <span class="k">#&nbsp;claudeMd</span> 부분만 봐도 *"왜 내 CLAUDE.md 가 안 들어갔지?"* 의 원인을 즉시 가려낼 수 있어요. 헤더 자체가 없으면 환경변수 disable, 헤더는 있는데 <span class="k">Contents&nbsp;of</span> 가 비어 있으면 settings.json 의 <span class="mod">claudeMdExcludes</span> (특정 CLAUDE.md 파일을 glob 패턴으로 제외하는 키) 같은 설정 필터 때문.
 
-### 2. <span class="mod">@include</span> 는 host 본문에서 directive 를 *지우지 않아요*
+### <span class="mod">@</span> 로 다른 파일 참조하기
 
-CLAUDE.md 안에서 다른 파일을 끌어올 수 있는 <span class="mod">@include</span> 문법이 있어요:
+<div class="note-box">
+<span class="note-flag">💡 TIP</span> <span class="mod">@</span> 로 다른 파일을 참조하는 건 Claude Code 전반에서 쓰이는 기법이에요. user prompt 에서 <span class="mod">@README.md</span> 로 파일을 첨부하는 그것과 같은 결. CLAUDE.md 에서도 같은 형태로 등장합니다.
+</div>
+
+CLAUDE.md 본문 안에 <span class="mod">@./team-rules.md</span> 같은 한 줄을 적으면 그 파일이 함께 합쳐져 들어가요. CLAUDE.md 가 너무 커지면 일부 규칙을 별도 파일로 떼어 두고 거기서 끌어쓰기 좋아요. 지원되는 경로 형태는 원본 CLAUDE.md 파일 기준 상대 (<span class="mod">@./relative.md</span>), home 기준 (<span class="mod">@~/.claude/shared.md</span>), 그리고 절대 경로 (<span class="mod">@/absolute/path.md</span>).
+
+예시. CLAUDE.md 끝에 한 줄 적어 둔다고 해봅시다:
 
 ```markdown
 ## 추가 컨텍스트
@@ -343,9 +478,11 @@ CLAUDE.md 안에서 다른 파일을 끌어올 수 있는 <span class="mod">@inc
 @./included.md
 ```
 
-기대: directive 를 만나면 included.md 의 내용이 그 자리에 *치환* 되어 들어간다.
+여기서 included.md 는 임의의 markdown 파일명 (예: *team-rules.md*, *shared-style.md*) 의 placeholder 예요.
 
-실제: directive 도 그대로 *남고*, included.md 가 별도의 <span class="k">Contents&nbsp;of&nbsp;...</span> 엔트리로 *추가* 됩니다. 즉 *additive*, not *transformational*.
+**기대**: directive 를 만나면 included.md 의 내용이 그 자리에 *치환* 되어 들어간다.
+
+**실제**: directive 도 그대로 *남고*, included.md 가 별도의 <span class="k">Contents&nbsp;of&nbsp;...</span> 엔트리로 *추가* 됩니다. 즉 *additive*, not *transformational*.
 
 trace 에 들어가는 모양:
 
@@ -357,27 +494,268 @@ Contents of <repo>/CLAUDE.md (project instructions, ...):
 @./included.md           ← directive 그대로 살아 있음
 
 Contents of <repo>/included.md (project instructions, ...):
-<included.md 의 본문>     ← 별도 엔트리로 추가됨
+<included.md 의 본문>     ← 바로 다음 엔트리로 추가됨
 ```
 
-token 비용 측면에서 directive 자체는 작아 (5~10 토큰) 거의 무시할 만하지만, 모델 입장에선 두 번 등장하는 셈이에요. 한 번은 <span class="mod">@./included.md</span> literal 로, 한 번은 expanded 콘텐츠로. 깊은 chain (max depth 5) 일수록 누적됩니다.
+몇 가지 더 짚을 만한 디테일:
+
+- **삽입 위치**: included 파일은 원본 *바로 다음 자리* 에 들어가요. 원본 파일들을 다 모은 뒤 한꺼번에 모아두지 않습니다.
+- **타입 상속**: included.md 는 원본의 type 을 그대로 물려받아요. 예를 들어 원본이 Project 면 included.md 도 Project 로 분류되고, 자체 description suffix 를 새로 받지는 않습니다.
+- **재귀 깊이**: chain 최대 5 단계. cycle 은 <span class="k">processedPaths</span> 가 이미 본 경로를 추적해 방지.
+
+## MEMORY.md
+
+### 두 자리에 동시에 들어가요
+
+CLAUDE.md 와는 달리 MEMORY.md 는 *System Block 과 Messages Block* 에 동시에 들어가요. CLAUDE.md 는 사람이 적어 둔 콘텐츠가 모델에 그대로 도달하면 끝이지만, MEMORY.md 는 모델이 harness 의 built-in tool (Write / Edit / Read) 을 직접 호출해 *쓰고 다루는* 노트라서, 콘텐츠 자체 + *어떻게 사용할지의 가이드* 가 짝으로 필요해요.
+
+<div class="callout">
+<strong>MEMORY.md 의 dual injection</strong>
+
+| 무엇을 | 어디로 | 왜 거기로 |
+|---|---|---|
+| MEMORY.md 의 **본문** | <span class="k">&lt;system-reminder&gt;</span> 의 <span class="k">#&nbsp;claudeMd</span> 안 (나머지와 같은 채널) | 모델이 자기 노트의 *내용* 을 읽어야 함 |
+| MEMORY.md 를 *어떻게 쓸지* 의 절차 (auto memory 사용 가이드. 어떤 종류를 언제 어떻게 저장할지) | System Block 의 <span class="k">#&nbsp;auto memory</span> 슬롯 | 절차는 모든 turn 동일하니 cache 가능한 System Block 쪽이 효율적 |
+</div>
+
+이 분리가 잘 된 이유는 *역할이 다르기 때문* 이에요. 메모리에 무엇을 적었는지 (data) 와 메모리를 어떻게 다뤄야 하는지 (policy) 는 변하는 빈도가 달라요. data 는 자주 바뀌고, policy 는 거의 안 바뀜. 그래서 policy 는 cache 가 잘 되는 System Block 쪽에 두고, data 는 매 turn 새로 prepend 되는 Messages Block 쪽에 둔 겁니다.
+
+### MEMORY.md 와 memory 노트
+
+조금 더 들어가면, Messages Block 으로 흘러 들어오는 *MEMORY.md* 는 사실 메모리 자체가 아니에요. 실제 메모리 내용은 같은 디렉토리의 **memory 노트** 들에 자리잡고, MEMORY.md 는 그 파일들로 가는 한 줄짜리 pointer 모음입니다. 다시 말해 *구체적 memory 들의 index 역할* 만 하는 셈이에요.
+
+실제 메모리 디렉토리의 한 예:
+
+```
+~/.claude/projects/<slug>/memory/
+├── MEMORY.md                              ← 자동 주입
+├── user_setup.md                          ← 사용자 환경 셋업
+├── feedback_act_dont_reconfirm.md         ← 재확인 자제, 바로 실행
+├── feedback_terse_responses.md            ← 간결한 응답 선호
+├── project_hooks_parity.md                ← Hook 동작 점검 노트
+├── project_release_status.md              ← 릴리스 상태 추적
+├── project_langfuse_input.md              ← Langfuse Input 패널 관찰
+├── project_interactive_fix.md             ← Interactive 모드 수정 기록
+├── project_interactive_hang.md            ← Interactive hang 디버깅
+└── project_vscode_freeze_fix.md           ← VSCode freeze 해결법
+```
+
+각 memory 노트의 *타입* 은 파일명이 아니라 frontmatter 의 <span class="k">type:</span> 필드로 결정됩니다. 4 가지 (user / feedback / project / reference) 가 정의되어 있고, 각각 *언제 저장하고 어떻게 활용할지* 의 policy 가 다르게 붙어 있어요 (아래 verification 의 <span class="k">#&nbsp;auto&nbsp;memory</span> 블록 안 *Types of memory* 섹션에 타입별로 <span class="k">when_to_save</span> / <span class="k">how_to_use</span> / <span class="k">body_structure</span> / <span class="k">examples</span> 가 정의됨). 즉 type 은 단순 라벨이 아니라 *그 메모리에 적용되는 reasoning rule* 의 키.
+
+예를 들어 위 dir tree 의 feedback_act_dont_reconfirm.md 의 frontmatter:
+
+```yaml
+---
+name: Don't reconfirm an action the user has already asked for
+description: When the user issues a clear directive ("do X", "wire it in", "go"), execute it; don't end with "want me to proceed?"
+type: feedback
+---
+```
+
+분류 기준은 <span class="mod">type: feedback</span> 한 줄이에요. 파일명은 사람이 보기 좋은 라벨일 뿐, 모델은 frontmatter 의 <span class="k">type</span> 만 보고 분류합니다.
+
+trace 의 <span class="k">#&nbsp;claudeMd</span> 에 자동으로 들어가는 건 *MEMORY.md 한 파일뿐*. 나머지 memory 노트들은 모델이 필요할 때 built-in tool 인 Read / Grep 으로 직접 불러서 봐요. 매 turn 가벼운 MEMORY.md 한 줄로 *"이런 메모가 있다"* 만 알리고, 관련 있는 토픽만 retrieval 로 풀어가는 패턴이에요.
+
+다시 말해 Claude Code 의 long-term memory 시스템은 **세 layer** 로 분리돼 있어요. *policy* (System Block, cache 가능), *MEMORY.md* (Messages Block, per-turn 자동 주입), *memory 노트* (on-demand retrieval). CLAUDE.md 가 *모든 내용을 매 turn 다 prepend* 하는 무거운 모델이라면, MEMORY.md 는 *policy 와 pointer 만 항상, 본 내용은 필요할 때만* 의 더 정제된 모델이에요.
+
+### 실제 trace 에서 본 두 자리
+
+실제로 한 turn 의 trace 를 캡처해 보면 *두 자리에 동시에 들어간다* 가 한눈에 보여요. 그리고 *MEMORY.md 만 자동, memory 노트 는 retrieval* 도 같이 검증됩니다.
+
+<span class="key">System Block 의 동적 슬롯</span> (<span class="k">gen_ai.system_instructions</span> 패널에서 보임). memory 의 *어떻게 다뤄야 하는지* 가 여기 들어가요.
+
+<details class="log-details">
+<summary>📜 실제 trace 의 <code># auto memory</code> 블록 전문</summary>
+
+<div class="log-body">
+<div class="sb-section sb-1">
+<div class="sb-tag">설명 + Why</div>
+
+````text
+# auto memory
+
+You have a persistent, file-based memory system at `/home/user/.claude/projects/-home-user-workspace-claude-context-engineering/memory/`. This directory already exists — write to it directly with the Write tool (do not run mkdir or check for its existence).
+
+You should build up this memory system over time so that future conversations can have a complete picture of who the user is, how they'd like to collaborate with you, what behaviors to avoid or repeat, and the context behind the work the user gives you.
+
+If the user explicitly asks you to remember something, save it immediately as whichever type fits best. If they ask you to forget something, find and remove the relevant entry.
+````
+
+</div>
+<div class="sb-section sb-2">
+<div class="sb-tag">Types of memory (4 종류)</div>
+
+````text
+## Types of memory
+
+There are several discrete types of memory that you can store in your memory system:
+
+<types>
+<type>
+    <name>user</name>
+    <description>Contain information about the user's role, goals, responsibilities, and knowledge. Great user memories help you tailor your future behavior to the user's preferences and perspective. Your goal in reading and writing these memories is to build up an understanding of who the user is and how you can be most helpful to them specifically. For example, you should collaborate with a senior software engineer differently than a student who is coding for the very first time. Keep in mind, that the aim here is to be helpful to the user. Avoid writing memories about the user that could be viewed as a negative judgement or that are not relevant to the work you're trying to accomplish together.</description>
+    <when_to_save>When you learn any details about the user's role, preferences, responsibilities, or knowledge</when_to_save>
+    <how_to_use>When your work should be informed by the user's profile or perspective. For example, if the user is asking you to explain a part of the code, you should answer that question in a way that is tailored to the specific details that they will find most valuable or that helps them build their mental model in relation to domain knowledge they already have.</how_to_use>
+    <examples>
+    user: I'm a data scientist investigating what logging we have in place
+    assistant: [saves user memory: user is a data scientist, currently focused on observability/logging]
+
+    user: I've been writing Go for ten years but this is my first time touching the React side of this repo
+    assistant: [saves user memory: deep Go expertise, new to React and this project's frontend — frame frontend explanations in terms of backend analogues]
+    </examples>
+</type>
+<type>
+    <name>feedback</name>
+    <description>Guidance the user has given you about how to approach work — both what to avoid and what to keep doing. These are a very important type of memory to read and write as they allow you to remain coherent and responsive to the way you should approach work in the project. Record from failure AND success: if you only save corrections, you will avoid past mistakes but drift away from approaches the user has already validated, and may grow overly cautious.</description>
+    <when_to_save>Any time the user corrects your approach ("no not that", "don't", "stop doing X") OR confirms a non-obvious approach worked ("yes exactly", "perfect, keep doing that", accepting an unusual choice without pushback). Corrections are easy to notice; confirmations are quieter — watch for them. In both cases, save what is applicable to future conversations, especially if surprising or not obvious from the code. Include *why* so you can judge edge cases later.</when_to_save>
+    <how_to_use>Let these memories guide your behavior so that the user does not need to offer the same guidance twice.</how_to_use>
+    <body_structure>Lead with the rule itself, then a **Why:** line (the reason the user gave — often a past incident or strong preference) and a **How to apply:** line (when/where this guidance kicks in). Knowing *why* lets you judge edge cases instead of blindly following the rule.</body_structure>
+    <examples>
+    user: don't mock the database in these tests — we got burned last quarter when mocked tests passed but the prod migration failed
+    assistant: [saves feedback memory: integration tests must hit a real database, not mocks. Reason: prior incident where mock/prod divergence masked a broken migration]
+    </examples>
+</type>
+<type>
+    <name>project</name>
+    <description>Information that you learn about ongoing work, goals, initiatives, bugs, or incidents within the project that is not otherwise derivable from the code or git history. Project memories help you understand the broader context and motivation behind the work the user is doing within this working directory.</description>
+    <when_to_save>When you learn who is doing what, why, or by when. These states change relatively quickly so try to keep your understanding of this up to date. Always convert relative dates in user messages to absolute dates when saving (e.g., "Thursday" → "2026-03-05"), so the memory remains interpretable after time passes.</when_to_save>
+    <how_to_use>Use these memories to more fully understand the details and nuance behind the user's request and make better informed suggestions.</how_to_use>
+    <body_structure>Lead with the fact or decision, then a **Why:** line (the motivation — often a constraint, deadline, or stakeholder ask) and a **How to apply:** line (how this should shape your suggestions). Project memories decay fast, so the why helps future-you judge whether the memory is still load-bearing.</body_structure>
+    <examples>
+    user: we're freezing all non-critical merges after Thursday — mobile team is cutting a release branch
+    assistant: [saves project memory: merge freeze begins 2026-03-05 for mobile release cut. Flag any non-critical PR work scheduled after that date]
+    </examples>
+</type>
+<type>
+    <name>reference</name>
+    <description>Stores pointers to where information can be found in external systems. These memories allow you to remember where to look to find up-to-date information outside of the project directory.</description>
+    <when_to_save>When you learn about resources in external systems and their purpose. For example, that bugs are tracked in a specific project in Linear or that feedback can be found in a specific Slack channel.</when_to_save>
+    <how_to_use>When the user references an external system or information that may be in an external system.</how_to_use>
+    <examples>
+    user: check the Linear project "INGEST" if you want context on these tickets, that's where we track all pipeline bugs
+    assistant: [saves reference memory: pipeline bugs are tracked in Linear project "INGEST"]
+    </examples>
+</type>
+</types>
+````
+
+</div>
+<div class="sb-section sb-3">
+<div class="sb-tag">What NOT to save + How to save</div>
+
+````text
+## What NOT to save in memory
+
+- Code patterns, conventions, architecture, file paths, or project structure — these can be derived by reading the current project state.
+- Git history, recent changes, or who-changed-what — `git log` / `git blame` are authoritative.
+- Debugging solutions or fix recipes — the fix is in the code; the commit message has the context.
+- Anything already documented in CLAUDE.md files.
+- Ephemeral task details: in-progress work, temporary state, current conversation context.
+
+These exclusions apply even when the user explicitly asks to save. If they ask you to save a PR list or activity summary, ask what was *surprising* or *non-obvious* about it — that is the part worth keeping.
+
+## How to save memories
+
+Saving a memory is a two-step process:
+
+**Step 1** — write the memory to its own file (e.g., `user_role.md`, `feedback_testing.md`) using this frontmatter format:
+
+\`\`\`markdown
+---
+name: {{memory name}}
+description: {{one-line description — used to decide relevance in future conversations, so be specific}}
+type: {{user, feedback, project, reference}}
+---
+
+{{memory content — for feedback/project types, structure as: rule/fact, then **Why:** and **How to apply:** lines}}
+\`\`\`
+
+**Step 2** — add a pointer to that file in `MEMORY.md`. `MEMORY.md` is an index, not a memory — each entry should be one line, under ~150 characters: `- [Title](file.md) — one-line hook`. It has no frontmatter. Never write memory content directly into `MEMORY.md`.
+
+- `MEMORY.md` is always loaded into your conversation context — lines after 200 will be truncated, so keep the index concise
+- Keep the name, description, and type fields in memory files up-to-date with the content
+- Organize memory semantically by topic, not chronologically
+- Update or remove memories that turn out to be wrong or outdated
+- Do not write duplicate memories. First check if there is an existing memory you can update before writing a new one.
+````
+
+</div>
+<div class="sb-section sb-4">
+<div class="sb-tag">When to access + Before recommending + Memory vs persistence</div>
+
+````text
+## When to access memories
+- When memories seem relevant, or the user references prior-conversation work.
+- You MUST access memory when the user explicitly asks you to check, recall, or remember.
+- If the user says to *ignore* or *not use* memory: proceed as if MEMORY.md were empty. Do not apply remembered facts, cite, compare against, or mention memory content.
+- Memory records can become stale over time. Use memory as context for what was true at a given point in time. Before answering the user or building assumptions based solely on information in memory records, verify that the memory is still correct and up-to-date by reading the current state of the files or resources. If a recalled memory conflicts with current information, trust what you observe now — and update or remove the stale memory rather than acting on it.
+
+## Before recommending from memory
+
+A memory that names a specific function, file, or flag is a claim that it existed *when the memory was written*. It may have been renamed, removed, or never merged. Before recommending it:
+
+- If the memory names a file path: check the file exists.
+- If the memory names a function or flag: grep for it.
+- If the user is about to act on your recommendation (not just asking about history), verify first.
+
+"The memory says X exists" is not the same as "X exists now."
+
+A memory that summarizes repo state (activity logs, architecture snapshots) is frozen in time. If the user asks about *recent* or *current* state, prefer `git log` or reading the code over recalling the snapshot.
+
+## Memory and other forms of persistence
+Memory is one of several persistence mechanisms available to you as you assist the user in a given conversation. The distinction is often that memory can be recalled in future conversations and should not be used for persisting information that is only useful within the scope of the current conversation.
+- When to use or update a plan instead of memory: If you are about to start a non-trivial implementation task and would like to reach alignment with the user on your approach you should use a Plan rather than saving this information to memory.
+- When to use or update tasks instead of memory: When you need to break your work in current conversation into discrete steps or keep track of your progress use tasks instead of saving to memory. Tasks are great for persisting information about the work that needs to be done in the current conversation, but memory should be reserved for information that will be useful in future conversations.
+````
+
+</div>
+</div>
+</details>
+
+<span class="key">Messages Block 의 <span class="k">&lt;system-reminder&gt;</span> 슬롯</span>. 앞서 *전반적인 영구기억* 섹션의 trace 캡처에서 본 <span class="k">#&nbsp;claudeMd</span> 안 네 번째 entry (MEMORY.md) 자리예요. 거기엔 *MEMORY.md 한 줄짜리 pointer* 만 들어갑니다:
+
+```
+Contents of /home/user/.claude/projects/-home-user-workspace-claude-context-engineering/memory/MEMORY.md (user's auto-memory, persists across conversations):
+
+- [Sandbox purpose](sandbox_purpose.md) — 블로그 캡처와 context-engineering 동작 검증용 sandbox
+```
+
+명확히 표기하면:
+
+- **MEMORY.md** = 위 dump 의 *한 파일* (한 줄짜리 pointer 목록, 즉 *구체적 memory 들의 index 역할*). 매 turn 자동으로 Messages Block 의 <span class="k">#&nbsp;claudeMd</span> 안에 들어옵니다.
+- **memory 노트** = sandbox_purpose.md 같은 *별도 파일들* (sandbox 디렉토리에 함께 자리잡지만 별개 파일). **이 파일들의 본문은 trace 어디에도 등장하지 않습니다.** 모델이 필요할 때 built-in tool 인 Read / Grep 으로 직접 열어볼 뿐.
+
 
 ## Take-home
 
 이 글의 정리:
 
 <blockquote>
-<p><span class="k">#&nbsp;claudeMd</span> 라는 한 채널 안에 여러 갈래의 영구 기억 (제가 본 빌드 v.2.1.88 기준 Managed · User · Project · Local · AutoMem) 이 같은 모양으로 합쳐져 들어옵니다. 다른 건 description suffix 한 줄.</p>
-<p>MEMORY.md 만 <em>content</em> 와 <em>policy</em> 가 분리되어 두 채널을 탑니다. content 는 다른 갈래들과 같은 Messages Block 쪽, policy 는 cache 잘 되는 System Block 쪽.</p>
-<p>trace 를 디버깅할 땐 description suffix 를 grep 의 첫 단서로 써 보세요. 어떤 파일이 어떤 타입으로 분류됐는지가 거기서 다 드러나요.</p>
+<p>Claude Code 의 long-term memory 는 여러 source 에서 흘러 들어와요. 모두 Messages Block 의 <span class="k">#&nbsp;claudeMd</span> 한 슬롯으로 합쳐져 모델에 도달하고, 어느 source 에서 왔는지는 description suffix 한 줄로 구분됩니다.</p>
+<p>예외는 MEMORY.md 하나. <em>content</em> 와 <em>policy</em> 가 분리되어 System Block 과 Messages Block 에 동시에 들어가요. content (실제 메모) 는 다른 source 들과 같은 Messages Block 쪽, policy (어떻게 다뤄야 하는지) 는 cache 잘 되는 System Block 쪽. 그리고 MEMORY.md 자체는 *index 역할* 만 하고, 실제 memory 노트는 모델이 필요할 때 retrieval 로 가져갑니다.</p>
 </blockquote>
 
-다음 글은 *Messages Block* 의 또 다른 자리. 사용자가 *명시 호출* 로 발동시키는 자산을 봅니다. <span class="term">Skills</span> 와 <span class="term">Slash Commands</span> 가 주제예요. [*Settings 와 MCP*](../settings-and-mcp/) 에서 본 *thin advertise / fat invoke* 패턴이 본격적으로 풀리는 자리.
-
-## References
-
-- 본문에서 인용한 코드 라인: utils/claudemd.ts:790 (<span class="k">getMemoryFiles</span>), :1153 (<span class="k">getClaudeMds</span>), :547 (<span class="k">isClaudeMdExcluded</span>), :343 (<span class="k">parseMemoryFileContent</span>)
-- MEMORY.md dual injection: memdir/memdir.ts:419 (<span class="k">loadMemoryPrompt</span>. Site A), utils/claudemd.ts:980-992 (Site B)
-- <span class="k">prependUserContext</span>: utils/api.ts:449-474
-- TEAMMEM compile-time stripping: scripts/build/build.ts:95
-- Phase 2 검증 trace 들 (Langfuse, 내부 trace dump 색인): slot 5 (CLAUDE.md), slot 6 (MEMORY.md), slot 13 (TEAMMEM dead code 확인)
+<div class="ltm-flow">
+  <div class="ltm-col">
+    <div class="ltm-label">5 sources</div>
+    <div class="ltm-src">Managed CLAUDE.md</div>
+    <div class="ltm-src">User CLAUDE.md</div>
+    <div class="ltm-src">Project CLAUDE.md</div>
+    <div class="ltm-src">Local CLAUDE.local.md</div>
+    <div class="ltm-src ltm-mm">MEMORY.md ★</div>
+  </div>
+  <div class="ltm-arrow">→</div>
+  <div class="ltm-col">
+    <div class="ltm-label">2 slots</div>
+    <div class="ltm-dest ltm-dest-sys">
+      <div class="ltm-dest-block">System Block</div>
+      <div class="ltm-dest-slot">#&nbsp;auto&nbsp;memory</div>
+      <div class="ltm-dest-note">★ MEMORY.md 만 (policy)</div>
+    </div>
+    <div class="ltm-dest ltm-dest-msg">
+      <div class="ltm-dest-block">Messages Block</div>
+      <div class="ltm-dest-slot">#&nbsp;claudeMd</div>
+      <div class="ltm-dest-note">5 sources 모두 합쳐짐 (content)</div>
+    </div>
+  </div>
+</div>
