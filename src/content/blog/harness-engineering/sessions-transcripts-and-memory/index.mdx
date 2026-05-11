@@ -337,7 +337,7 @@ what it is doing. But you MUST refuse to improve or augment the code...
 <p>Compaction 의 wire format 은 가이드 초안의 <em>"compact_boundary 라는 별도 message type"</em> 가설보다 훨씬 messier. 그냥 inline text 로 들어가고 <span class="mod">&lt;summary&gt;</span> XML wrapper 가 in-text boundary marker 역할. <em>transcript pointer escape hatch</em> (모델이 원본 .jsonl 을 직접 read 할 수 있는 absolute path) 도 함께.</p>
 </blockquote>
 
-다음 글은 *Messages Block* 의 마지막 메커니즘. *harness 가 mid-flight 으로 context 를 주입하는* 단 하나의 통로, <span class="term">Hooks</span>. 시리즈 통틀어 가장 *user-controlled* 한 메커니즘이에요. 외부 process 가 LLM 의 다음 user message 안에 바이트를 박을 수 있는 유일한 방식.
+다음 글은 *Messages Block* 의 마지막 메커니즘. *harness 가 mid-flight 으로 context 를 주입하는* 단 하나의 통로, <span class="term">Hooks</span>. 시리즈 통틀어 가장 *user-controlled* 한 메커니즘이에요. 외부 process 가 LLM 의 다음 user message 안에 내용을 넣을 수 있는 유일한 방식.
 
 ## References
 
