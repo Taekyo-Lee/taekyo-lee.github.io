@@ -407,22 +407,22 @@ Recent commits:
 <div class="four-effects">
   <div class="fx fx-static">
     <span class="fx-num">효과 1</span>
-    <div class="fx-effect"><strong>intro line 다시 쓰기</strong>. <span class="k">getSimpleIntroSection(outputStyleConfig)</span> 가 config 받아서 persona 첫 줄을 swap. 기본 <em>"You are Claude Code..."</em> → Explanatory 시 <em>"You are an interactive CLI tool..."</em></div>
+    <div class="fx-effect"><strong>intro 한 줄이 바뀝니다</strong>. 기본 <em>"You are Claude Code..."</em> → Explanatory 시 <em>"You are an interactive CLI tool..."</em></div>
     <span class="fx-where">slot 1<br/>(정적!)</span>
   </div>
   <div class="fx fx-static">
     <span class="fx-num">효과 2</span>
-    <div class="fx-effect"><strong><span class="k">#&nbsp;Doing&nbsp;tasks</span> 통째 제거</strong> (<span class="mod">keepCodingInstructions: false</span> 일 때). ~1KB 의 코딩 가이드라인 한 블록이 사라짐. Explanatory 의 default 동작</div>
+    <div class="fx-effect"><strong><span class="k">#&nbsp;Doing&nbsp;tasks</span> 블록이 통째로 빠집니다</strong>. ~1KB 의 코딩 가이드라인 한 블록이 사라짐. Explanatory 의 기본 동작</div>
     <span class="fx-where">slot 3<br/>(정적!)</span>
   </div>
   <div class="fx fx-dynamic">
     <span class="fx-num">효과 3</span>
-    <div class="fx-effect"><strong><span class="k">#&nbsp;Output&nbsp;Style:&nbsp;&lt;name&gt;</span> 헤더 + 본문</strong> 추가. config 의 prompt 필드가 통째로 들어감. style 작성자가 쓴 markdown body</div>
+    <div class="fx-effect"><strong><span class="k">#&nbsp;Output&nbsp;Style:&nbsp;&lt;name&gt;</span> 헤더와 본문이 추가됩니다</strong>. style 작성자가 쓴 markdown body 가 그대로 들어감</div>
     <span class="fx-where">slot 13<br/>(동적)</span>
   </div>
   <div class="fx fx-dynamic">
     <span class="fx-num">효과 4</span>
-    <div class="fx-effect"><strong>style-specific sub-block</strong> (예: Explanatory 의 <span class="k">#&nbsp;Explanatory&nbsp;Style&nbsp;Active</span> / <span class="k">##&nbsp;Insights</span>). 모델에게 <em>★ Insight ─────…</em> 형태의 framed aside 를 emit 하라고 지시</div>
+    <div class="fx-effect"><strong>그 본문 안의 지시가 출력 패턴을 바꿉니다</strong>. 예: Explanatory 는 답변 사이에 <em>★ Insight ─…</em> 같은 부가 설명을 끼워 넣게 됨</div>
     <span class="fx-where">slot 13<br/>(동적, 본문 안)</span>
   </div>
 </div>
@@ -578,7 +578,7 @@ instead of `/tmp` or other system temp directories:
 
 ### ToolSearch: 무거운 tool 정의를 미루는 mode
 
-기본 동작이에요. MCP tool 의 schema 는 *처음부터 한꺼번에 등록되지 않고*, <span class="k">ToolSearch</span> 라는 도구 하나만 turn 0 부터 등록돼요. 매 turn 에는 *tool 이름과 짧은 description 만* (전체 schema 가 아니라) 담은 attachment 한 덩어리가 흘러 들어옵니다. 모델이 *특정 tool 이 필요할 것 같다* 싶으면 그때 <span class="k">ToolSearch</span> 를 호출해서 그 tool 의 schema 를 그 turn 안에 받아요.
+기본 동작이에요. MCP tool 의 schema 는 *처음부터 한꺼번에 등록되지 않고*, <span class="k">ToolSearch</span> 라는 도구 하나만 turn 0 부터 등록돼요. 매 turn 에는 *tool 이름들만* (description 도, 전체 schema 도 없이) 한 줄씩 담은 attachment 가 흘러 들어옵니다. 모델이 *특정 tool 이 필요할 것 같다* 싶으면 그때 <span class="k">ToolSearch</span> 를 호출해서 그 tool 의 schema 를 그 turn 안에 받아요.
 
 끄고 싶다면 환경변수 <span class="mod">ENABLE_TOOL_SEARCH=false</span> 로 *standard mode* 강제. 그러면 모든 MCP tool 의 schema 가 turn 0 부터 한꺼번에 등록되는 옛 동작.
 
@@ -602,7 +602,7 @@ mcp__everything__get-env
 ... (총 15 개 mcp__everything__*)
 ````
 
-<span class="key">**MCP tool 들이 turn 0 의 schema 에 안 들어가고, 이름·짧은 description 만 advertise**</span>. defer 가 default 동작인 게 trace 차원에서 확인돼요.
+<span class="key">**MCP tool 들이 turn 0 의 schema 에 안 들어가고, 이름만 advertise**</span>. defer 가 default 동작인 게 trace 차원에서 확인돼요.
 
 흥미로운 보너스. deferred pool 에는 MCP 외에도 *Claude Code 자신의 자주 안 쓰일 만한 내부 tool* (NotebookEdit, WebFetch, WebSearch, EnterPlanMode 류, Task* 6 종 등) 도 같이 들어 있어요. *MCP 전용 메커니즘* 이 아니라 *cache 비용을 줄이기 위한 일반 패턴* 임을 보여줘요.
 
@@ -611,9 +611,14 @@ mcp__everything__get-env
 <div class="surprise">
 <span class="label">⚡ SURPRISE</span>
 
-위 evidence 의 deferred attachment 를 다시 보면, *tool 이름 한 줄씩만* 들어가 있어요. **description 도 없고, parameter schema 도 없음**. 모델은 이름만 보고 *"이 tool 이 내가 지금 필요한 도구인가?"* 를 판단해야 합니다. 호출 가치 있다 싶으면 그제야 ToolSearch 로 schema 를 받아 와요.
+위 evidence 의 deferred attachment 를 다시 보면, *tool 이름 한 줄씩만* 들어가 있어요. **description 도 없고, parameter schema 도 없음**. 매 turn 모델이 보는 건 *"이런 이름의 deferred tool 들이 있다"* 라는 사실 자체뿐이에요.
 
-직관적으론 *"이름만 보고 어떻게 잘 골라?"* 싶지만, 두 가지가 받쳐 줍니다. 이름 자체가 정보를 담고 있고 (예: <span class="mod">mcp__github__create_pr</span>, <span class="mod">mcp__playwright__browser_navigate</span> 처럼 *서버명 + 동사구* 형태), ToolSearch 를 *keyword 검색* 처럼 써서 후보를 탐색할 수도 있어요 (<span class="mod">browser</span> 같은 키워드로 브라우저 관련 도구 추리기).
+그래도 모델은 ToolSearch 의 두 query 모드로 도구를 찾을 수 있어요:
+
+- *direct fetch*. <span class="mod">select:&lt;name1&gt;,&lt;name2&gt;</span> 처럼 리스트에서 명료한 이름이 보이면 콕 집어 schema 받기
+- *keyword 검색*. <span class="mod">&lt;keyword&gt;</span> 형태로 유저 task 에서 뽑은 키워드로 후보 추리기
+
+Anthropic platform docs 에 따르면 keyword 검색은 *name · description · argument name · argument description* 모두를 인덱스로 두고 매칭해요. 즉 이름이 *do_action* 처럼 모호해도 description 의 *"Send a message to Slack channel"* 같은 텍스트로 잡힐 수 있어요. *"이름이 안 좋으면 모델 시야에서 사라진다"* 가 아니라, *"이름이 좋으면 한 단계에 잡히고, 약하면 description 까지 가야 잡힌다"* 가 더 정확.
 
 이 *얇게 알리고, 호출 시에만 자세히* 패턴은 뒤에 다룰 Skills 의 토큰 절약 방식과 같은 디자인이에요.
 </div>
@@ -621,14 +626,15 @@ mcp__everything__get-env
 <div class="surprise">
 <span class="label">💡 PRO TIP</span>
 
-**MCP server 작성자는 tool 이름과 description 을 *서로 다른 역할로* 정성껏 짜야 해요.**
+**MCP server 작성자는 이름과 description 둘 다 정성껏 짜야 해요.** 둘 다 ToolSearch 의 매칭·ranking 신호이기 때문이에요.
 
-defer mode 의 호출 사이클은 두 단계로 나뉘어요:
+ToolSearch 의 keyword 검색이 인덱스로 두는 네 자리 (Anthropic platform docs):
 
-- **이름** = <span class="key">발견성</span>. <span class="k">&lt;available-deferred-tools&gt;</span> 리스트엔 이름만 보이니까, 이름이 모호하면 모델이 *"이 tool 이 필요할 수도 있겠다"* 라는 의심조차 안 함 → 검색 시도 자체가 없음
-- **description** = <span class="key">검색 적중</span>. 모델이 keyword 로 ToolSearch 를 호출하면 내부적으로 *name + description + searchHint* 모두에서 매칭. 이름이 약해도 description 에 좋은 keyword 가 있으면 잡힐 수 있음
+1. <span class="key">tool 이름</span>. 가장 *눈에 띄는* 자리. 리스트 scan 단계에서 모델이 <span class="mod">select:&lt;name&gt;</span> 으로 바로 펴 보게 만드는 신호이자, keyword 검색에서도 강한 ranking 기여
+2. <span class="key">description</span>. 이름이 약할 때 키워드를 끌어오는 자리. *"Send a message to Slack channel"* 같은 본문이 *slack · send · message* hit 을 만듦
+3. <span class="key">argument name</span> · <span class="key">argument description</span>. 인자명·인자 설명도 인덱스. description 이 짧을 때 backup
 
-즉 두 가지 다 잘 짜야 *발견되고 + 호출되는* 사이클이 돌아가요.
+이름이 모호해도 *완전히 invisible* 한 건 아니에요. description 만으로도 잡히긴 합니다. 다만 description-only 매칭은 ranking 에서 다른 후보에 밀릴 수 있어서, 양쪽 다 잘 짜는 게 안전.
 
 | 좋은 이름 | 나쁜 이름 |
 |---|---|
@@ -636,6 +642,8 @@ defer mode 의 호출 사이클은 두 단계로 나뉘어요:
 | 짧고 명료한 *동사구* + 카테고리 prefix | 모호한 일반어 |
 
 이름 prefix 로 카테고리 힌트를 담으면 더 좋아요 (<span class="mod">browser_&#42;</span>, <span class="mod">file_&#42;</span>, <span class="mod">git_&#42;</span>). 모델이 *"브라우저 관련 도구 있나?"* 같은 keyword 검색 시도할 때 정확히 잡힘.
+
+추가로 Claude Code 는 MCP tool 을 등록할 때 자동으로 <span class="mod">mcp__&lt;server&gt;__&lt;tool&gt;</span> prefix 를 붙여요. 작성자가 *do_action* 으로 짜도 *mcp__github__do_action* 으로 등록되어 *서버명 hint* 가 한 겹 더 들어가는 셈.
 
 </div>
 
