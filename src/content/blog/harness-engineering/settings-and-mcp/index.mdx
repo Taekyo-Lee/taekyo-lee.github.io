@@ -112,6 +112,22 @@ seriesOrder: 4
   }
   .site-card .sc-name { font-weight: 700; margin-bottom: 4px; }
   .site-card .sc-desc { font-size: 0.86em; color: rgb(var(--gray-dark)); line-height: 1.5; }
+  .site-card .sc-block {
+    background: white;
+    display: inline-block;
+    font-size: 0.7em;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 3px 9px;
+    border-radius: 4px;
+    margin-left: 4px;
+    margin-bottom: 8px;
+    vertical-align: top;
+    border: 1px solid;
+  }
+  .site-card .sc-block.sb-system { color: var(--accent); border-color: var(--accent); }
+  .site-card .sc-block.sb-tools { color: #059669; border-color: #059669; }
+  .site-card .sc-block.sb-messages { color: var(--claude-dark); border-color: var(--claude-dark); }
 
   .cascade {
     background: rgba(96, 115, 159, 0.06);
@@ -522,20 +538,31 @@ instead of `/tmp` or other system temp directories:
 
 <div class="three-sites">
   <div class="site-card">
-    <span class="sc-tag">채널 A</span>
+    <span class="sc-tag">채널 A</span><span class="sc-block sb-tools">Tools Block</span>
     <div class="sc-name">tool 정의</div>
     <div class="sc-desc">서버의 모든 tool 이 매 turn Tools 배열에 추가. 이름은 <span class="mod">mcp__&lt;server&gt;__&lt;tool&gt;</span> 형태로 prefix 가 붙어요 (서버끼리 같은 이름 충돌 방지).</div>
   </div>
   <div class="site-card">
-    <span class="sc-tag">채널 B</span>
+    <span class="sc-tag">채널 B</span><span class="sc-block sb-system">System Block</span>
     <div class="sc-name">서버 instructions</div>
     <div class="sc-desc">서버가 자체 instructions 텍스트를 노출하면, system prompt 동적 slot 14 (<span class="k">#&nbsp;MCP&nbsp;Server&nbsp;Instructions</span>) 에 들어감. 대부분 서버는 안 가짐.</div>
   </div>
   <div class="site-card">
-    <span class="sc-tag">채널 C</span>
+    <span class="sc-tag">채널 C</span><span class="sc-block sb-messages">Messages Block</span>
     <div class="sc-name">@-mentioned resource</div>
     <div class="sc-desc">사용자가 <span class="mod">@mcp:server:resource-id</span> 라고 쳤을 때만 fetch 되어 user message 안에 inline.</div>
   </div>
+</div>
+
+<div class="callout-warm">
+🔮 <strong>복선 (6편에서 명시적으로 정리)</strong>
+
+세 채널이 *세 Block 에 하나씩* 매핑되는 게 우연은 아니에요. 한 단계 더 들어가면 *두 측면* 으로 묶입니다.
+
+- 채널 A (tool 정의) + 채널 B (서버 instructions) → *LLM 이 **agent 운영** 을 결정할 때 쓰는 정보* (<span class="key">Harness Engineering</span> 측면)
+- 채널 C (@-mentioned resource) → *LLM 이 **응답 생성** 을 결정할 때 쓰는 정보* (<span class="key">Context Engineering</span> 측면)
+
+같은 MCP 서버 라도 *어떤 결정에 쓰일지* 에 따라 자리가 갈리는 거예요. 이 분기 기준의 본격적 정리는 [*6편 Long-term Memory*](../permanent-memory-three-channels/) 에서.
 </div>
 
 세 채널 중 *제일 무거운 건 채널 A* (tool 정의) 예요. 큰 MCP 서버 (수십~100 개의 tool 을 가진) 가 연결되면 매 turn 수만 토큰이 캐시 prefix 에 추가될 수 있어요. 그래서 Claude Code 는 처음부터 *defer* (필요할 때만 schema 를 받기) 를 default 로 채택했고, 그 메커니즘이 *ToolSearch* 입니다.
