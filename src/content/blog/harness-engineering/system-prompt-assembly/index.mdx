@@ -846,6 +846,17 @@ sections 8-21 은 **유저 / 세션 / turn 에 따라** 달라질 수 있어요.
 한 줄짜리라 token 부담은 무시할 정도지만, fleet 전체로 보면 의미 있게 누적되는 자리예요.
 </div>
 
+<div class="callout-accent">
+🧐 <strong>왜 slot 8 (<code>session_guidance</code>) 과 slot 9 (<code>memory</code>) 도 dynamic 인가</strong>
+
+표의 콘텐츠 칸만 보면 *"# Session-specific guidance"* 와 *"# auto memory"* 둘 다 *generic 한 procedural 텍스트* 처럼 보여요. 그래서 *"이게 왜 cache 못 받는 동적 자리지?"* 가 자연스러운 의문. 정답은 <strong>안에 user/project-specific 데이터가 embed 된다</strong> 입니다.
+
+- <strong>slot 9 <code>memory</code></strong> — procedural template 자체는 모든 사용자가 거의 같지만, 그 안에 <em>memory 디렉토리 절대경로</em> 가 박혀요. 예: <span class="mod">You have a persistent, file-based memory system at /home/&lt;user&gt;/.claude/projects/&lt;slug&gt;/memory/...</span>. 경로의 <span class="k">&lt;user&gt;</span> 는 사용자마다 다르고, <span class="k">&lt;slug&gt;</span> 는 cwd 인코딩이라 프로젝트마다 다름. 그래서 두 사용자가 같은 빌드를 써도 slot 9 byte-text 가 일치하지 않아요.
+- <strong>slot 8 <code>session_guidance</code></strong> — generic instruction (TaskCreate, parallel call 등) 뒤에 <em>이 세션에 load 된 subagent / skill / user-defined 슬래시 커맨드 카탈로그</em> 가 따라붙어요. 사용자마다 <span class="mod">.claude/agents/</span>, <span class="mod">.claude/skills/</span>, <span class="mod">.claude/output-styles/</span> 셋업이 달라 그 자리 텍스트가 달라짐.
+
+즉 *template 은 static 처럼 보여도 안에 user/project 변수가 들어가 instantiate* 되는 자리. cross-user cache prefix 에 못 들어가니 <code>SYSTEM_PROMPT_DYNAMIC_BOUNDARY</code> 아래 dynamic 자리로 빠집니다.
+</div>
+
 ## Take-home
 
 이 글의 정리:
