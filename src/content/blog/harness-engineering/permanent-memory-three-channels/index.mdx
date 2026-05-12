@@ -830,7 +830,7 @@ description: API layer 의 규칙
 - Payments 파트 → <span class="mod">&lt;monorepo&gt;/backend/payments/&#42;&#42;</span>
 - Infra 파트 → <span class="mod">&lt;monorepo&gt;/infra/terraform/&#42;&#42;</span>
 
-각 파트가 자기 영역에 <span class="k">paths:</span> 로 묶인 <span class="mod">.claude/rules/CLAUDE.md</span> 를 두면 세 가지 이점이 자연스럽게 따라와요:
+각 파트가 자기 영역에 <span class="k">paths:</span> 로 묶인 <span class="mod">.claude/rules/&lt;topic&gt;.md</span> 를 두면 세 가지 이점이 자연스럽게 따라와요 (파일명은 자유. <span class="mod">*.md</span> 면 모두 로드. 예: <span class="mod">frontend-style.md</span>, <span class="mod">payments-policy.md</span>):
 
 - 모든 rules 를 *항상* 로드하지 않아요. token 비용 누적과 무관 instruction 의 attention 분산 방지
 - 작업 컨텍스트에 매칭되는 rule 만 *그때그때* attach → token-efficient + relevance ↑
