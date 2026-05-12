@@ -101,13 +101,14 @@ seriesOrder: 4
   }
   .site-card .sc-tag {
     background: rgba(35, 55, 255, 0.12);
-    display: inline-block;
+    display: block;
+    width: fit-content;
     font-size: 0.7em;
     font-weight: 700;
     letter-spacing: 0.12em;
     padding: 3px 9px;
     border-radius: 4px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     color: var(--accent);
   }
   .site-card .sc-name { font-weight: 700; margin-bottom: 4px; }
@@ -120,7 +121,6 @@ seriesOrder: 4
     letter-spacing: 0.08em;
     padding: 3px 9px;
     border-radius: 4px;
-    margin-left: 4px;
     margin-bottom: 8px;
     vertical-align: top;
     border: 1px solid;
@@ -128,6 +128,15 @@ seriesOrder: 4
   .site-card .sc-block.sb-system { color: var(--accent); border-color: var(--accent); }
   .site-card .sc-block.sb-tools { color: #059669; border-color: #059669; }
   .site-card .sc-block.sb-messages { color: var(--claude-dark); border-color: var(--claude-dark); }
+  .site-card .sc-block-pair {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .site-card .sc-block-pair .sc-block {
+    margin-bottom: 0;
+  }
 
   .cascade {
     background: rgba(96, 115, 159, 0.06);
@@ -538,9 +547,9 @@ instead of `/tmp` or other system temp directories:
 
 <div class="three-sites">
   <div class="site-card">
-    <span class="sc-tag">채널 A</span><span class="sc-block sb-tools">Tools Block</span>
+    <span class="sc-tag">채널 A</span><span class="sc-block-pair"><span class="sc-block sb-messages">Messages Block</span><span class="sc-block sb-tools">Tools Block</span></span>
     <div class="sc-name">tool 정의</div>
-    <div class="sc-desc">서버의 모든 tool 이 매 turn Tools 배열에 추가. 이름은 <span class="mod">mcp__&lt;server&gt;__&lt;tool&gt;</span> 형태로 prefix 가 붙어요 (서버끼리 같은 이름 충돌 방지).</div>
+    <div class="sc-desc">기본 동작 (<em>defer mode</em>) 에선 매 turn user message 의 <span class="mod">&lt;available-deferred-tools&gt;</span> 자리에 *이름* 만 advertise. 모델이 schema 가 필요해지면 <span class="k">ToolSearch</span> 호출 시에만 <em>그 turn</em> 의 Tools 배열에 schema 가 등록돼요. 이름은 <span class="mod">mcp__&lt;server&gt;__&lt;tool&gt;</span> prefix 형태 (서버끼리 같은 이름 충돌 방지). 자세한 메커니즘은 아래 sub-section.</div>
   </div>
   <div class="site-card">
     <span class="sc-tag">채널 B</span><span class="sc-block sb-system">System Block</span>
@@ -557,7 +566,7 @@ instead of `/tmp` or other system temp directories:
 <div class="callout-warm">
 🔮 <strong>복선 (6편에서 명시적으로 정리)</strong>
 
-세 채널이 *세 Block 에 하나씩* 매핑되는 게 우연은 아니에요. 한 단계 더 들어가면 *두 측면* 으로 묶입니다.
+세 채널의 Block 분포 (A 가 Messages + Tools 양다리, B 는 System, C 는 Messages) 를 한 단계 더 들여다보면 *두 측면* 으로 깔끔하게 묶여요.
 
 - 채널 A (tool 정의) + 채널 B (서버 instructions) → *LLM 이 **agent 운영** 을 결정할 때 쓰는 정보* (<span class="key">Harness Engineering</span> 측면)
 - 채널 C (@-mentioned resource) → *LLM 이 **응답 생성** 을 결정할 때 쓰는 정보* (<span class="key">Context Engineering</span> 측면)
