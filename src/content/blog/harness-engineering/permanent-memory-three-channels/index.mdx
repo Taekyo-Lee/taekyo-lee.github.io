@@ -1179,6 +1179,68 @@ originSessionId: deed6c86-57da-4d7e-a01b-f7c36d6c37f0
 </div>
 
 
+## 시리즈를 관통하는 한 가지. *Harness 가 다루는 정보* vs *LLM 이 다루는 정보*
+
+[*2편 Claude Code 의 Context Architecture*](../claude-code-context-architecture/) 에서 복선으로 남겨뒀던 질문이 있어요.
+
+<blockquote>
+<p><em>변할 수 있는 (dynamic) 컨텐츠라도 어떤 건 <strong>System Block</strong> 에, 어떤 건 <strong>Messages Block</strong> 에 들어가요. 분기가 생기는 이유는?</em></p>
+</blockquote>
+
+여기까지 시리즈를 따라온 사람이라면 답이 어렴풋이 보일 거예요. 한 줄로:
+
+<blockquote>
+<p><strong>System Block dynamic 에는 <em>LLM 이 <span class="key">Harness Engineering</span> 측면의 결정에 쓸 정보</em> 가, Messages Block reminder 에는 <em>LLM 이 <span class="key">Context Engineering</span> 측면의 결정에 쓸 정보</em> 가 자리잡아요.</strong></p>
+</blockquote>
+
+<strong>LLM 이 brain 이고, harness 는 brain 의 명령을 받아 실행하는 손발</strong> 이에요. tool 을 호출할지, memory 를 저장할지, 다음 단계를 어디로 갈지 다 LLM 의 결정이고, harness 는 그 결정을 *실행* 합니다. *LLM 이 결정하기 위해 필요한 정보* 라는 건 같지만, **agent 운영에 관한 결정** 이면 *Harness Engineering* 측면, **응답 생성에 관한 결정** 이면 *Context Engineering* 측면입니다.
+
+### System Block dynamic = harness 가 셋업한 *운영 환경*
+
+[*3편 Claude Code 의 System Block*](../system-prompt-assembly/) 의 dynamic slot 들 (8-21) 을 다시 보면:
+
+- *slot 8 session_guidance*: 이 세션에 켜진 도구 안내
+- *slot 9 memory procedure*: 메모리 관리의 taxonomy + when-to-save
+- *slot 11 env_info*: cwd, platform, shell, model
+- *slot 12 language / 13 output_style*: 응답 스타일 config
+- *slot 14 mcp_instructions*: 연결된 MCP 서버 instructions
+- *slot 21 gitStatus*: 작업 디렉토리 snapshot
+
+대체로 *"harness 가 이 세션을 이렇게 셋업했어. LLM 너는 이 환경 안에서 동작해."* 라는 셋업 메시지예요. <span class="key">LLM 이 agent 운영을 결정할 때 쓰는 정보</span> 들.
+
+### Messages Block reminder = LLM 의 *reasoning 재료*
+
+반면 매 turn 합성되는 Messages Block 의 <span class="k">&lt;system-reminder&gt;</span> 슬롯에는:
+
+- CLAUDE.md content: 사용자가 적은 instructions · context
+- MEMORY.md content (memory note index): retrieval 의 출발점
+- 오늘 날짜: 시간 reasoning 의 fact
+- hook output, @-file content: LLM 이 직접 다룰 컨텐츠
+- skill 정의: LLM 이 invoke 판단할 도구 카탈로그
+
+대체로 *"LLM 너가 직접 읽고 reasoning 에 쓸 재료야"* 라는 컨텐츠. <span class="key">LLM 이 응답 생성을 결정할 때 쓰는 정보</span> 들.
+
+### MEMORY.md 의 dual injection 이 *결정적 confirmation*
+
+이 분기 기준을 가장 깔끔하게 보여주는 사례가 이 글의 주제인 <span class="key">MEMORY.md</span> 입니다. 같은 source 안의 두 종류 정보가 *책임 경계* 에 따라 자동으로 두 자리로 갈라져요.
+
+- *procedure* (어떻게 다룰지) → <strong>harness 의 메모리 운영 정책</strong> → System Block
+- *content* (memory note index) → <strong>LLM 이 retrieval 출발점으로 삼을 컨텐츠</strong> → Messages Block
+
+한 source 의 두 종류 정보가 두 자리로 갈라지는 게 어색해 보였지만, 분기 기준이 *책임 경계* 라고 보면 **갈라지지 않을 수 없는** 구조였어요.
+
+### 1편으로 되돌아오기. *Context Engineering ⊂ Harness Engineering*
+
+이 분기가 [*1편 Harness Engineering과 Context Engineering*](../harness-vs-context-engineering/) 의 두 단어를 *구조 차원* 에서 다시 만나게 합니다.
+
+- <strong>Harness Engineering</strong>: 이 세션을 어떻게 셋업할지 (settings · env · MCP · output style · memory 정책 등의 결정)
+- <strong>Context Engineering</strong>: 그 셋업이 *매 turn LLM 에 어떤 reasoning 재료를 건네줄지* 큐레이션
+
+Context Engineering 은 Harness Engineering 이 *결정한 채널 (Messages Block)* 에 *무엇이 흐를지* 를 다루는 <strong>하위 활동</strong> 이에요. harness 의 셋업이 바뀌면 ([*4편 Settings 와 MCP*](../settings-and-mcp/) 의 <span class="k">customSystemPrompt</span> 로 slot 1-20 통째로 갈아끼우는 예시처럼) Context Engineering 의 무대 자체가 달라져요.
+
+이 분기 구조는 <span class="key">Context Engineering ⊂ Harness Engineering</span> 이라는 *주류 시각* (1편의 Anthropic / Osmani framing) 을 구조적으로 서포팅합니다. 반대 framing (*Harness ⊂ Context*) 도 통용되지만, 이번 글의 dual-channel 분기는 전자를 받쳐주는 증거예요. 시리즈의 thesis 가 여기서 한 자리로 모입니다.
+
+
 ## Take-home
 
 이 글의 정리:
@@ -1186,5 +1248,6 @@ originSessionId: deed6c86-57da-4d7e-a01b-f7c36d6c37f0
 <blockquote>
 <p>Claude Code 의 long-term memory 는 여러 source 에서 흘러 들어와요. <strong>모두 Messages Block 으로 합쳐져</strong> 모델에 도달하고, 어느 source 에서 왔는지는 <strong>description suffix 한 줄</strong> 로 구분됩니다.</p>
 <p><span class="key">예외는 MEMORY.md 하나</span>. <em>content</em> 와 <em>policy</em> 가 분리되어 <strong>System Block 과 Messages Block 에 동시에</strong> 들어가요. content (memory note index) 는 다른 source 들과 같은 Messages Block 쪽, policy (어떻게 다뤄야 하는지) 는 cache 잘 되는 System Block 쪽. <strong>MEMORY.md 자체는 <em>index 역할</em> 만</strong> 하고, 실제 memory 노트는 모델이 필요할 때 <strong>retrieval</strong> 로 가져갑니다.</p>
+<p>그리고 더 큰 그림. *두 영역 다 결국 LLM 이 받아서 결정에 쓰는 정보* 인데, <strong>System Block dynamic</strong> 자리에 들어가는 건 <em>agent 운영에 관한 결정</em> (Harness Engineering 측면), <strong>Messages Block reminder</strong> 자리에 들어가는 건 <em>응답 생성에 관한 결정</em> (Context Engineering 측면) 에 쓰이는 정보입니다. MEMORY.md 가 두 자리에 동시에 들어간 건 우연이 아니라 *그 분기의 가장 깔끔한 사례* 였어요. <span class="key">Context Engineering 은 Harness Engineering 의 부분집합</span> 이라는 시리즈 thesis 가 이 자리에서 모입니다.</p>
 </blockquote>
 
