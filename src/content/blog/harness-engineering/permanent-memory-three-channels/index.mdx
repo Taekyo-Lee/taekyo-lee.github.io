@@ -1250,4 +1250,3 @@ Context Engineering 은 Harness Engineering 이 *결정한 채널 (Messages Bloc
 <p><span class="key">예외는 MEMORY.md 하나</span>. <em>content</em> 와 <em>policy</em> 가 분리되어 <strong>System Block 과 Messages Block 에 동시에</strong> 들어가요. content (memory note index) 는 다른 source 들과 같은 Messages Block 쪽, policy (어떻게 다뤄야 하는지) 는 cache 잘 되는 System Block 쪽. <strong>MEMORY.md 자체는 <em>index 역할</em> 만</strong> 하고, 실제 memory 노트는 모델이 필요할 때 <strong>retrieval</strong> 로 가져갑니다.</p>
 <p>그리고 더 큰 그림. *두 영역 다 결국 LLM 이 받아서 결정에 쓰는 정보* 인데, <strong>System Block dynamic</strong> 자리에 들어가는 건 <em>agent 운영에 관한 결정</em> (Harness Engineering 측면), <strong>Messages Block reminder</strong> 자리에 들어가는 건 <em>응답 생성에 관한 결정</em> (Context Engineering 측면) 에 쓰이는 정보입니다. MEMORY.md 가 두 자리에 동시에 들어간 건 우연이 아니라 *그 분기의 가장 깔끔한 사례* 였어요. <span class="key">Context Engineering 은 Harness Engineering 의 부분집합</span> 이라는 시리즈 thesis 가 이 자리에서 모입니다.</p>
 </blockquote>
-
