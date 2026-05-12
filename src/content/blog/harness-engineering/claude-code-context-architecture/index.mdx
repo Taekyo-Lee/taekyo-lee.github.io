@@ -1695,14 +1695,14 @@ Claude Code 는 baseline 으로 본 ReAct agent 의 <span class="key">**확장**
         <span class="af-callout-ref-num system">1</span>
         <div class="af-callout-ref-text">
           <span class="af-callout-ref-label">Static system blocks</span>
-          <span class="af-callout-ref-desc">매 턴 동일한 정적 부분 (intro · 작업 규칙 · tone 등)</span>
+          <span class="af-callout-ref-desc">같은 버전의 Claude Code 를 쓰는 모든 사용자에게 공통적으로 들어가는 부분 (intro · 작업 규칙 · tone 등)</span>
         </div>
       </li>
       <li class="af-callout-ref-item">
         <span class="af-callout-ref-num system">2</span>
         <div class="af-callout-ref-text">
           <span class="af-callout-ref-label">Dynamic system blocks</span>
-          <span class="af-callout-ref-desc">매 턴 달라지는 동적 부분 (환경 정보 · 언어 · 출력 스타일 등)</span>
+          <span class="af-callout-ref-desc">사용자 · 세션 · 턴 등에 따라 달라질 수 있는 부분 (환경 정보 · 언어 · 출력 스타일 등)</span>
         </div>
       </li>
       <li class="af-callout-ref-item">
@@ -1716,7 +1716,7 @@ Claude Code 는 baseline 으로 본 ReAct agent 의 <span class="key">**확장**
         <span class="af-callout-ref-num messages">4</span>
         <div class="af-callout-ref-text">
           <span class="af-callout-ref-label">Synthetic <code>&lt;system-reminder&gt;</code> blocks</span>
-          <span class="af-callout-ref-desc"><strong style={{ color: '#d97706' }}>CLAUDE.md</strong>, <strong style={{ color: '#d97706' }}>long-term memories</strong>, <strong style={{ color: '#d97706' }}>Skill definitions</strong>, <strong style={{ color: '#d97706' }}>오늘 날짜</strong> 등을 담아 매 턴 맨 앞에 자동 삽입되는 합성 user message. 시스템 프롬프트 <em>밖</em> 의 주요 컨텍스트.</span>
+          <span class="af-callout-ref-desc"><strong style={{ color: '#d97706' }}>CLAUDE.md</strong>, <strong style={{ color: '#d97706' }}>long-term memory</strong>, <strong style={{ color: '#d97706' }}>Skill definitions</strong>, <strong style={{ color: '#d97706' }}>오늘 날짜</strong> 등 <em>모델이 직접 읽고 reasoning 에 쓸 컨텐츠</em> 가 담기는 채널. 매 턴 맨 앞에 자동 삽입되는 합성 user message 로, 시스템 프롬프트 <em>밖</em> 에 별도로 흐르는 자리예요.</span>
         </div>
       </li>
       <li class="af-callout-ref-item">
@@ -1748,6 +1748,19 @@ Claude Code 는 baseline 으로 본 ReAct agent 의 <span class="key">**확장**
 
 **CLAUDE.md · MEMORY.md · 오늘 날짜** 처럼 harness 가 끌어오는 컨텍스트는 System Block 이 아니라, Messages 배열의 **첫 번째 user message** 에 합성으로 prepend 되는 <span class="k">&lt;system-reminder&gt;</span> 블록 안에 들어갑니다. System Block 자체엔 Anthropic 이 정의한 정적·동적 블록만 담기고, *Anthropic 바깥에서* 들어오는 컨텍스트는 별도 채널 (4번 영역) 로 흐르는 거죠.
 </div>
+
+
+## 미리 짚어둘 복선 한 줄
+
+위 surprise 는 더 큰 패턴의 한 조각이에요. *변할 수 있는 (dynamic)* 컨텐츠라도 어떤 건 <span class="key">2번 영역</span> (System Block 의 dynamic system blocks) 에 들어가고, 어떤 건 <span class="key">4번 영역</span> (Messages Block 의 합성 reminder) 에 들어가는 *분기* 가 있습니다. 둘 다 *변할 수 있다* 는 공통점이 있는데도요.
+
+지금 단계에선 답을 미뤄두고 한 줄 hint 만 남겨두려고 해요. 시리즈가 진행되며 구체 사례들 (Settings · MCP · gitStatus · CLAUDE.md · MEMORY.md) 을 본 뒤, *6편 Long-term Memory* 에서 명시적으로 답을 정리합니다.
+
+<blockquote>
+<p><strong>2번 영역</strong> 에는 <em>LLM 이 <span class="key">Harness Engineering</span> 측면의 결정에 쓸 정보</em> 가, <strong>4번 영역</strong> 에는 <em>LLM 이 <span class="key">Context Engineering</span> 측면의 결정에 쓸 정보</em> 가 자리잡아요.</p>
+</blockquote>
+
+[*1편 Harness Engineering과 Context Engineering*](../harness-vs-context-engineering/) 의 두 단어가 *구조 차원* 에서 다시 만나는 지점이고, 시리즈 전체를 관통하는 thesis 의 출발점입니다.
 
 
 ## Take-home
