@@ -1,8 +1,25 @@
 ---
 const isCompany = import.meta.env.PUBLIC_IS_COMPANY === 'true';
+const companyDiscussionsUrl =
+	'https://github.samsungds.net/aiagent/ai-native-development-blog/discussions';
 ---
 
-{!isCompany && (
+{isCompany ? (
+	<section class="giscus-wrap" aria-label="Comments">
+		<h2 class="giscus-heading">댓글</h2>
+		<p class="company-note">
+			사내 환경에서는 댓글이 GitHub Discussions 에서 진행됩니다.
+		</p>
+		<a
+			class="company-link"
+			href={companyDiscussionsUrl}
+			target="_blank"
+			rel="noopener noreferrer"
+		>
+			GitHub Discussions 에서 의견 남기기 →
+		</a>
+	</section>
+) : (
 	<section class="giscus-wrap" aria-label="Comments">
 		<h2 class="giscus-heading">댓글</h2>
 		<script
@@ -34,5 +51,24 @@ const isCompany = import.meta.env.PUBLIC_IS_COMPANY === 'true';
 		margin: 0 0 1em 0;
 		font-size: 1.25em;
 		color: rgb(var(--black));
+	}
+	.company-note {
+		margin: 0 0 1em 0;
+		color: rgb(var(--gray-dark));
+		font-size: 0.95em;
+	}
+	.company-link {
+		display: inline-block;
+		padding: 0.6em 1.2em;
+		background: rgba(31, 71, 135, 0.06);
+		border: 1px solid rgba(31, 71, 135, 0.18);
+		border-radius: 8px;
+		color: var(--accent);
+		text-decoration: none;
+		font-weight: 600;
+		transition: background 0.2s;
+	}
+	.company-link:hover {
+		background: rgba(31, 71, 135, 0.12);
 	}
 </style>
