@@ -1,45 +1,31 @@
 ---
 const isCompany = import.meta.env.PUBLIC_IS_COMPANY === 'true';
-const companyDiscussionsUrl =
-	'https://github.samsungds.net/aiagent/ai-native-development-blog/discussions';
 ---
 
-{isCompany ? (
-	<section class="giscus-wrap" aria-label="Comments">
-		<h2 class="giscus-heading">댓글</h2>
-		<p class="company-note">
-			사내 환경에서는 댓글이 GitHub Discussions 에서 진행됩니다.
-		</p>
-		<a
-			class="company-link"
-			href={companyDiscussionsUrl}
-			target="_blank"
-			rel="noopener noreferrer"
-		>
-			GitHub Discussions 에서 의견 남기기 →
-		</a>
-	</section>
-) : (
-	<section class="giscus-wrap" aria-label="Comments">
-		<h2 class="giscus-heading">댓글</h2>
-		<script
-			src="https://giscus.app/client.js"
-			data-repo="Taekyo-Lee/taekyo-lee.github.io"
-			data-repo-id="R_kgDOSE0K-w"
-			data-category="Announcements"
-			data-category-id="DIC_kwDOSE0K-84C8HnA"
-			data-mapping="pathname"
-			data-strict="0"
-			data-reactions-enabled="1"
-			data-emit-metadata="0"
-			data-input-position="bottom"
-			data-theme="preferred_color_scheme"
-			data-lang="ko"
-			crossorigin="anonymous"
-			async
-		/>
-	</section>
-)}
+<section class="giscus-wrap" aria-label="Comments">
+	<h2 class="giscus-heading">댓글</h2>
+	{isCompany && (
+		<div class="company-warning" role="note">
+			<strong>⚠ 안내</strong>: 댓글은 사내 GitHub (github.samsungds.net) 이 아닌 <strong>public GitHub (github.com)</strong> 을 통해 운영됩니다. 사내 보안에 관련된 내용은 작성 시 조심해 주세요.
+		</div>
+	)}
+	<script
+		src="https://giscus.app/client.js"
+		data-repo="Taekyo-Lee/taekyo-lee.github.io"
+		data-repo-id="R_kgDOSE0K-w"
+		data-category="Announcements"
+		data-category-id="DIC_kwDOSE0K-84C8HnA"
+		data-mapping="pathname"
+		data-strict="0"
+		data-reactions-enabled="1"
+		data-emit-metadata="0"
+		data-input-position="bottom"
+		data-theme="preferred_color_scheme"
+		data-lang="ko"
+		crossorigin="anonymous"
+		async
+	/>
+</section>
 
 <style>
 	.giscus-wrap {
@@ -52,23 +38,17 @@ const companyDiscussionsUrl =
 		font-size: 1.25em;
 		color: rgb(var(--black));
 	}
-	.company-note {
-		margin: 0 0 1em 0;
-		color: rgb(var(--gray-dark));
-		font-size: 0.95em;
-	}
-	.company-link {
-		display: inline-block;
-		padding: 0.6em 1.2em;
-		background: rgba(31, 71, 135, 0.06);
-		border: 1px solid rgba(31, 71, 135, 0.18);
+	.company-warning {
+		margin: 0 0 1.5em 0;
+		padding: 12px 16px;
 		border-radius: 8px;
-		color: var(--accent);
-		text-decoration: none;
-		font-weight: 600;
-		transition: background 0.2s;
+		background: rgba(204, 120, 92, 0.06);
+		border-left: 4px solid var(--claude);
+		color: rgb(var(--gray-dark));
+		font-size: 0.92em;
+		line-height: 1.55;
 	}
-	.company-link:hover {
-		background: rgba(31, 71, 135, 0.12);
+	.company-warning strong {
+		color: var(--claude-dark);
 	}
 </style>
