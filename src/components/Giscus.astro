@@ -6,7 +6,7 @@ const isCompany = import.meta.env.PUBLIC_IS_COMPANY === 'true';
 	<h2 class="giscus-heading">댓글</h2>
 	{isCompany && (
 		<div class="company-warning" role="note">
-			<strong>⚠ 안내</strong>: 댓글은 사내 GitHub (github.samsungds.net) 이 아닌 <strong>public GitHub (github.com)</strong> 을 통해 운영됩니다. 사내 보안에 관련된 내용은 작성 시 조심해 주세요.
+			<strong>⚠ 안내</strong>: 댓글은 사내 GitHub (github.samsungds.net) 이 아닌 <strong>public GitHub (github.com)</strong> 을 통해 운영됩니다. 사내 SSO 로그인이 아닌 <strong>개인 GitHub 계정</strong> 으로 로그인됩니다. 사내 보안에 관련된 내용은 작성 시 조심해 주세요.
 		</div>
 	)}
 	<script
