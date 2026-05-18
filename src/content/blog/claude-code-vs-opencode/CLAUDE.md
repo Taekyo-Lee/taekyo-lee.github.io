@@ -12,7 +12,9 @@
 |---|---|---|
 | 콘텐츠 (raw 리서치 + plan) | `~/workspace/ai-blog-contents-source/03-Claude-vs-OpenCode/` | 각 글의 출발점 |
 | 코드 (OpenCode 소스) | `~/workspace/opencode-fork/` | 함수 위치, 라인 번호, mechanism 검증 |
-| 공식 웹 | https://opencode.ai/ (docs: https://opencode.ai/docs/) | 기능 / 컨벤션 / 권장 사용법 공식 reference |
+| 코드 (Claude Code 소스) | `~/workspace/claude-code-fork/` | 평행 매핑 시 Claude Code 쪽 fact 검증 |
+| 공식 웹 (OpenCode) | https://opencode.ai/ (docs: https://opencode.ai/docs/) | 기능 / 컨벤션 / 권장 사용법 공식 reference |
+| 공식 웹 (Claude Code) | https://code.claude.com/docs/ | 평행 매핑 시 Claude Code 쪽 공식 reference |
 
 **파일 ↔ 글 매핑**:
 
