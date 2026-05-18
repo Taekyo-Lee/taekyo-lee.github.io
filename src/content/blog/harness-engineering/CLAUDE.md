@@ -6,7 +6,7 @@
 
 ## 0. Source of truth
 
-이 시리즈의 콘텐츠는 `~/workspace/claude-code-fork/docs/context-engineering/` 의 markdown 파일들을 **source of truth** 로 합니다. 각 .md 가 한 토픽을 깊이 정리해 둔 reference 이고, 시리즈의 각 글은 거기서 출발해 블로그 voice 로 재작성됩니다.
+이 시리즈의 콘텐츠는 `~/workspace/ai-blog-contents-source/02-Harness-Engineering-Claude-Code/context-engineering/` 의 markdown 파일들을 **source of truth** 로 합니다. 각 .md 가 한 토픽을 깊이 정리해 둔 reference 이고, 시리즈의 각 글은 거기서 출발해 블로그 voice 로 재작성됩니다.
 
 **파일 ↔ 시리즈 글 매핑**:
 
@@ -39,7 +39,7 @@
 
 | 경로 | 용도 |
 |---|---|
-| `~/workspace/claude-code-fork/docs/context-engineering/` | Source of truth docs (위 매핑 표 참고) |
+| `~/workspace/ai-blog-contents-source/02-Harness-Engineering-Claude-Code/context-engineering/` | Source of truth docs (위 매핑 표 참고) |
 | `~/workspace/claude-code-fork/` | Claude Code fork 소스 코드 (§3 코드 grep 검증에 사용) |
 | `~/workspace/claude-context-engineering/` | 테스트 sandbox (dummy project) |
 
@@ -63,7 +63,7 @@
 
 **Why**: 시리즈 audience 는 일반 Claude Code 사용자입니다. fork 흔적이 들어가면 잘못된 정보 (universal 처럼 표기된 fork-specific fact) 또는 무관한 노이즈가 됩니다.
 
-**Source 참조 시 주의**: 저자의 local 경로 `~/workspace/claude-code-fork/docs/context-engineering/` 가 fact 검증의 reference 로 쓰일 수 있지만, 거기 `[FORK]` 표기된 단락은 시리즈에 옮기지 말 것. 새 글 작성 또는 기존 글 review 후 `grep -i fork` 로 잔흔 확인.
+**Source 참조 시 주의**: 저자의 local 경로 `~/workspace/ai-blog-contents-source/02-Harness-Engineering-Claude-Code/context-engineering/` 가 fact 검증의 reference 로 쓰일 수 있지만, 거기 `[FORK]` 표기된 단락은 시리즈에 옮기지 말 것. 새 글 작성 또는 기존 글 review 후 `grep -i fork` 로 잔흔 확인.
 
 ---
 
