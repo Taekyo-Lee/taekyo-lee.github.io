@@ -1,0 +1,646 @@
+---
+title: 'OpenCode 의 AGENTS.md'
+description: 'OpenCode 가 AGENTS.md / CLAUDE.md / opencode.json instructions 세 source 를 어떻게 찾아 한 자리로 합쳐 모델에 넘기는지. 그 구현 안에 자리잡은 다섯 가지 anchor 를 따라갑니다.'
+pubDate: 'May 18 2026'
+category: claude-code-vs-opencode
+heroImage: '../../../../assets/heroes/hero-claude-code-vs-opencode.png'
+---
+
+<style>{`
+  .k {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    color: #1f4787;
+    font-size: 0.94em;
+  }
+
+  .note-flag {
+    background: rgba(96, 115, 159, 0.22);
+    display: inline-block;
+    color: rgb(60, 70, 90);
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 9px;
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+
+  .anchor-tag {
+    display: inline-block;
+    background: var(--claude);
+    color: white;
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 9px;
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+
+  .src-flow {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    margin: 2em 0;
+    padding: 22px 18px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(31, 71, 135, 0.03), rgba(204, 120, 92, 0.03));
+    border: 1px solid rgba(96, 115, 159, 0.18);
+  }
+  .src-title {
+    text-align: center;
+    font-size: 0.78em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: rgb(var(--gray-dark));
+    margin-bottom: 14px;
+  }
+  .src-boxes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 6px;
+    align-items: stretch;
+  }
+  .src-box {
+    background: white;
+    padding: 12px 14px;
+    border: 1px solid rgba(96, 115, 159, 0.25);
+    border-radius: 8px;
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.78em;
+    color: rgb(var(--gray-dark));
+    line-height: 1.55;
+  }
+  .src-box .src-name {
+    display: block;
+    font-size: 1.1em;
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
+    text-align: center;
+    padding-bottom: 7px;
+    border-bottom: 1px solid rgba(96, 115, 159, 0.18);
+  }
+  .src-box .src-entry {
+    margin: 4px 0;
+  }
+  .src-box .src-note {
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    font-size: 0.85em;
+    color: rgb(var(--gray));
+    margin-top: 6px;
+  }
+  .src-arrows {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .src-arrow {
+    text-align: center;
+    color: var(--claude-dark);
+    font-size: 1.4em;
+    margin: 6px 0;
+  }
+  .src-merge {
+    background: rgba(31, 71, 135, 0.08);
+    padding: 12px 18px;
+    border: 2px solid var(--accent);
+    border-radius: 10px;
+    text-align: center;
+    line-height: 1.55;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 0 18% 8px;
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.92em;
+  }
+  .src-merge-down {
+    text-align: center;
+    color: var(--claude-dark);
+    font-size: 1.4em;
+    margin: 0 0 4px;
+  }
+  .src-channel {
+    background: rgba(204, 120, 92, 0.10);
+    padding: 14px 18px;
+    border: 2px solid var(--claude);
+    border-radius: 10px;
+    text-align: center;
+    line-height: 1.55;
+  }
+  .src-channel-name {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    color: var(--claude-dark);
+    font-weight: 700;
+    font-size: 0.95em;
+  }
+  .src-channel-desc {
+    font-size: 0.85em;
+    color: rgb(var(--gray-dark));
+    margin-top: 4px;
+  }
+
+  .walk-diagram {
+    background: rgba(96, 115, 159, 0.06);
+    color: rgb(var(--gray-dark));
+    padding: 1em 1.2em;
+    border-radius: 8px;
+    border: 1px solid rgba(96, 115, 159, 0.18);
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 0.88em;
+    line-height: 1.6;
+    overflow-x: auto;
+    margin: 1.4em 0;
+    white-space: pre;
+  }
+  .walk-diagram .cwd-tag {
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .walk-diagram .hit {
+    color: var(--claude-dark);
+    font-weight: 700;
+  }
+  .walk-diagram .skipped {
+    color: rgb(var(--gray));
+    text-decoration: line-through;
+  }
+
+  .anchor-stack {
+    margin: 1.6em 0;
+  }
+  .anchor-row {
+    display: grid;
+    grid-template-columns: 48px 1fr;
+    gap: 14px;
+    padding: 12px 14px;
+    border-left: 3px solid var(--claude);
+    background: rgba(204, 120, 92, 0.05);
+    border-radius: 0 8px 8px 0;
+    margin-bottom: 10px;
+    line-height: 1.6;
+  }
+  .anchor-num {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    color: var(--claude-dark);
+    font-weight: 700;
+    font-size: 1.1em;
+    text-align: center;
+    padding-top: 2px;
+  }
+  .anchor-body {
+    font-size: 0.95em;
+  }
+  .anchor-body strong { color: rgb(var(--black)); }
+
+  .src-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.4em 0;
+    font-size: 0.92em;
+    line-height: 1.55;
+  }
+  .src-table th, .src-table td {
+    padding: 0.55em 0.8em;
+    border-bottom: 1px solid rgb(var(--gray-light));
+    text-align: left;
+    vertical-align: top;
+  }
+  .src-table th {
+    background: rgba(96, 115, 159, 0.12);
+    font-weight: 700;
+  }
+  .src-table code {
+    font-size: 0.88em;
+    color: var(--claude-dark);
+  }
+
+  .reader-bridge {
+    background: rgba(35, 55, 255, 0.05);
+    border-left: 3px solid var(--accent);
+    padding: 0.85em 1.15em;
+    margin: 1.8em 0;
+    border-radius: 0 8px 8px 0;
+    font-size: 0.95em;
+    line-height: 1.65;
+  }
+`}</style>
+
+<span class="term">OpenCode</span> 라는 도구가 있어요. *sst/opencode*. 터미널에서 도는 AI coding 에이전트로, Claude Code 와 같은 자리를 노리는 오픈 소스 CLI 입니다. vendor 중립을 표방해서 Anthropic, OpenAI 같은 여러 model provider 를 골라 붙일 수 있어요.
+
+여기까지가 외관입니다. 안에 들어가 보면, 이 도구가 instruction 파일을 어떻게 찾고, 합치고, 모델에 넘기는지에서 의외의 디자인 결정들이 보여요. 단일 헤더, <span class="k">findUp</span> 의 파일명 단위 break, Claude Code 의 메모리 파일을 default 로 fallback 하는 결정, Read tool 의 응답에 instruction 을 따라 붙이는 부가 채널, 그리고 *자율 memory 시스템의 부재* 까지.
+
+이 글은 그 다섯 가지 anchor 를 따라가는 글입니다. <span class="key">평행 시점에서 도움이 될 글</span>이 하나 있어요. [*Claude Code 의 Long-term Memory*](../permanent-memory-three-channels/) 를 먼저 봤거나 동등한 지식이 있다면, *같은 자리에 다른 도구는 무엇을 두었는가* 라는 시각으로 읽힙니다. 그 외 사전 지식은 없어도 괜찮아요.
+
+<div class="note-box">
+<span class="note-flag">📌 조사 시점</span> 2026-05-18, sst/opencode <span class="mod">dev</span> 브랜치 기준입니다. 모든 코드 인용은 <span class="mod">packages/opencode/src/session/instruction.ts</span> 의 같은 시점 라인 번호이고, 이후 본문에서는 짧게 <span class="mod">instruction.ts:N</span> 으로 적어요.
+</div>
+
+## 세 source 가 instruction 으로 흘러 들어와요
+
+한 번의 모델 호출을 준비할 때 OpenCode 는 instruction 을 세 곳에서 모아옵니다.
+
+<div class="src-flow">
+  <div class="src-title">OpenCode 의 instruction sources (instruction.ts:108-150)</div>
+  <div class="src-boxes">
+    <div class="src-box">
+      <span class="src-name">Global</span>
+      <div class="src-entry">&#126;/.config/opencode/AGENTS.md</div>
+      <div class="src-entry">&#126;/.claude/CLAUDE.md</div>
+      <div class="src-note">둘 중 첫 매치 한 개만</div>
+    </div>
+    <div class="src-box">
+      <span class="src-name">Project up-walk</span>
+      <div class="src-entry">cwd → worktree root</div>
+      <div class="src-entry">AGENTS.md / CLAUDE.md / CONTEXT.md</div>
+      <div class="src-note">첫 매치 파일명의 모든 ancestor</div>
+    </div>
+    <div class="src-box">
+      <span class="src-name">opencode.json</span>
+      <div class="src-entry">instructions 배열</div>
+      <div class="src-entry">파일 · glob · 원격 URL</div>
+      <div class="src-note">매칭은 모두 합류</div>
+    </div>
+  </div>
+  <div class="src-arrows">
+    <div class="src-arrow">↓</div>
+    <div class="src-arrow">↓</div>
+    <div class="src-arrow">↓</div>
+  </div>
+  <div class="src-merge">paths: Set&lt;string&gt;</div>
+  <div class="src-merge-down">↓</div>
+  <div class="src-channel">
+    <div class="src-channel-name">system block</div>
+    <div class="src-channel-desc">매 turn 재빌드되어 모델 호출의 system 파라미터로 prepend</div>
+  </div>
+</div>
+
+세 source 가 모이는 그릇은 하나예요. <span class="k">Set&lt;string&gt;</span> 입니다 (<span class="mod">instruction.ts:111</span>). 경로 중복은 자동으로 제거되고, 어느 source 에서 왔는지의 *구분 자체는 보존되지 않습니다*. 모은 뒤에는 각 path 의 파일 내용을 읽어 system block 에 prepend 해요 (<span class="mod">instruction.ts:152-166</span>).
+
+세 source 는 각자 정해진 우선순위에 따라 합류합니다. 하나씩 봅니다.
+
+### Global. 둘 중 첫 매치 하나만
+
+전역 후보는 둘이에요.
+
+```ts
+const globalFiles = [
+  path.join(global.config, "AGENTS.md"),                            // ~/.config/opencode/AGENTS.md
+  ...(!flags.disableClaudeCodePrompt
+    ? [path.join(global.home, ".claude", "CLAUDE.md")]              // ~/.claude/CLAUDE.md
+    : []),
+]
+```
+
+<span class="mod">instruction.ts:62-65</span>. 그리고 통합 단계에서:
+
+```ts
+for (const file of globalFiles) {
+  if (yield* fs.existsSafe(file)) {
+    paths.add(path.resolve(file))
+    break    // ← 첫 매치만 잡고 멈춤
+  }
+}
+```
+
+<span class="mod">instruction.ts:113-118</span>. <span class="key">전역에선 단 하나만 들어옵니다</span>. <span class="mod">&#126;/.config/opencode/AGENTS.md</span> 가 있으면 그것만, 없으면 <span class="mod">&#126;/.claude/CLAUDE.md</span> 가 들어가요.
+
+여기서 두 번째 후보가 흥미롭습니다. <span class="key">Claude Code 의 user-global 메모리 파일을 OpenCode 가 default 로 읽어요.</span> 별도 마이그레이션 없이, 별도 설정 없이, *opt-out* 만 있고 *opt-in* 이 default 인 상태로 (negation 인 <span class="k">!flags.disableClaudeCodePrompt</span> 가 그 결정의 한 줄 표현).
+
+<div class="callout-warm">
+<strong><span class="anchor-tag">ANCHOR 1</span><span class="mod">&#126;/.claude/CLAUDE.md</span> 를 fallback 으로 끼워 넣는다는 것</strong>
+
+<span class="mod">&#126;/.claude</span> 는 vendor-neutral 한 컨벤션이 아니에요. 한 특정 vendor 의 메모리 디렉토리예요. 그걸 OpenCode 가 default 후보로 읽는다는 건, 어떤 의미에선 *Claude Code 의 user-global 메모리 위치를 OS-level convention 으로 인정한* 결정에 가깝습니다.
+
+opt-out 은 있어요. <span class="mod">OPENCODE_DISABLE_CLAUDE_CODE_PROMPT</span> env 를 켜면 <span class="k">flags.disableClaudeCodePrompt</span> 가 true 가 되어 후보 리스트에서 빠집니다. 하지만 *default 가 "켜져 있음"* 이라는 게 핵심이에요.
+
+반대 방향은 비대칭적이에요. Claude Code 가 AGENTS.md 를 자동 로딩하지는 않아요. 양쪽 다 자유로운 *서로 호환* 이 아니라, OpenCode 만 한쪽 방향으로 손을 내민 모양새. 표준 (agents.md) 의 consumer 가 비표준 (CLAUDE.md) 을 default 로 받쳐주는, 약간 *unusual 한 cooperation* 입니다.
+</div>
+
+### Project up-walk. 디렉토리를 거슬러 올라가며 찾아요
+
+전역 다음은 프로젝트입니다. 작업 디렉토리에서 worktree root 까지 한 단계씩 거슬러 올라가며 파일을 찾아요.
+
+```ts
+if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG) {
+  for (const file of instructionFiles) {
+    const matches = yield* fs.findUp(file, ctx.directory, ctx.worktree)
+    if (matches.length > 0) {
+      matches.forEach((item) => paths.add(path.resolve(item)))
+      break    // ← 같은 walk 안에서, 첫 매치된 파일명 이후로는 더 안 봄
+    }
+  }
+}
+```
+
+<span class="mod">instruction.ts:121-130</span>. 후보 파일명의 순서는 정해져 있어요.
+
+```ts
+const files = (disableClaudeCodePrompt: boolean) => [
+  "AGENTS.md",
+  ...(disableClaudeCodePrompt ? [] : ["CLAUDE.md"]),
+  "CONTEXT.md",   // deprecated
+]
+```
+
+<span class="mod">instruction.ts:14-18</span>. <span class="k">CONTEXT.md</span> 는 deprecated. 코드 안에 주석으로 그렇게 표시돼 있고 legacy 호환을 위해 후보 자리에 남아 있을 뿐이에요.
+
+walk 자체의 단방향성과, 그 안의 *파일명 단위 break* 에는 §3 에서 따로 깊이 들어갑니다.
+
+### opencode.json instructions. glob 도 받고 원격 URL 도 받아요
+
+세 번째는 설정 파일이에요. 프로젝트 root 의 <span class="mod">opencode.json</span> 에 instructions 배열을 두면, 그 안의 모든 항목이 합류 후보가 됩니다.
+
+```jsonc
+{
+  "instructions": [
+    "docs/guidelines.md",                  // 상대 경로
+    "/etc/team-rules.md",                  // 절대 경로
+    "~/personal-rules.md",                 // 홈 경로
+    ".cursor/rules/*.md",                  // glob
+    "https://example.com/shared-rules.md"  // 원격 URL (5초 timeout)
+  ]
+}
+```
+
+처리 흐름은 이래요.
+
+<table class="src-table">
+  <thead>
+    <tr>
+      <th>입력 형태</th>
+      <th>어떻게 풀리는가</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>절대 경로</td>
+      <td><span class="k">fs.glob(basename, &#123; cwd: dirname, absolute: true, include: "file" &#125;)</span></td>
+    </tr>
+    <tr>
+      <td>상대 경로</td>
+      <td>내부 <span class="k">relative()</span> helper 가 <span class="k">fs.globUp()</span> 호출</td>
+    </tr>
+    <tr>
+      <td><span class="mod">&#126;/</span> 시작</td>
+      <td>홈 경로로 확장 후 위 두 경로 중 하나로 처리</td>
+    </tr>
+    <tr>
+      <td><span class="mod">http(s)://</span></td>
+      <td>별도 fetch, 5초 timeout (<span class="k">Effect.timeout(5000)</span>)</td>
+    </tr>
+  </tbody>
+</table>
+
+라인 출처는 <span class="mod">instruction.ts:132-147</span> 의 path 통합과 <span class="mod">instruction.ts:155-157</span> 의 원격 fetch. 모든 매칭은 같은 <span class="k">paths</span> Set 에 합류해요. <span class="key">조건부 attach 는 없습니다</span>. glob 이 있으니 *어떤 파일을 매칭할지* 는 자유롭게 정해도, *언제 attach 할지* 는 항상 "매 turn 항상". 즉 glob 은 *어떤 파일을 매칭할지* 의 패턴이지, *어떤 상황에서 켤지* 의 조건이 아니에요.
+
+이게 글 안에서 가장 자주 오해되는 지점일 것 같아요. *Claude 가 어떤 파일을 read 할 때 자동으로 따라 붙는* 같은 조건부 동작은 opencode.json instructions 의 영역이 아닙니다. (그건 §5 의 <span class="k">resolve()</span> 가 별도 채널로 해주는 일이에요.)
+
+## 세 source 가 한 자리로 합쳐져요
+
+세 source 가 모인 <span class="k">paths</span> Set 은 그대로 *읽기 단계* 로 넘어가요.
+
+```ts
+const files = yield* Effect.forEach(Array.from(paths), read, { concurrency: 8 })
+const remote = yield* Effect.forEach(urls, fetch, { concurrency: 4 })
+
+return [
+  ...Array.from(paths).flatMap((item, i) =>
+    files[i] ? [`Instructions from: ${item}\n${files[i]}`] : []
+  ),
+  ...urls.flatMap((item, i) =>
+    remote[i] ? [`Instructions from: ${item}\n${remote[i]}`] : []
+  ),
+]
+```
+
+<span class="mod">instruction.ts:152-166</span>. 결과는 string 배열이고, 그 각 element 는 동일한 모양을 가져요.
+
+```
+Instructions from: /home/jet/.config/opencode/AGENTS.md
+<파일 본문>
+```
+
+```
+Instructions from: /home/jet/repo/frontend/AGENTS.md
+<파일 본문>
+```
+
+```
+Instructions from: https://example.com/shared-rules.md
+<원격 fetch 본문>
+```
+
+<div class="callout-warm">
+<strong><span class="anchor-tag">ANCHOR 2</span><span class="k">Instructions from: &lt;path&gt;</span>. 단일 헤더로 모든 source 를 동일하게 표기</strong>
+
+scope 별 label 도, suffix 도 없어요. 모델이 *어떤 source 에서 왔는지* 구분하려면 path 의 모양을 봐야 합니다. <span class="mod">&#126;/.config/opencode/AGENTS.md</span> 는 전역, <span class="mod">&lt;repo&gt;/AGENTS.md</span> 는 프로젝트 root, <span class="mod">&lt;repo&gt;/frontend/AGENTS.md</span> 는 subfolder. 이런 식의 *경로 모양* 추정 외에 별다른 단서는 헤더에 없어요.
+
+가벼운 디자인 결정처럼 보이지만 trace 디버깅에서 차이가 생깁니다. *이 instruction 은 누가 적은 거지?* 의 질문에 답하려면 path 를 한 번 더 reasoning 해야 해요. 평면적인 header 가 만드는 일종의 *attribution flatness* 입니다.
+</div>
+
+이 string 배열은 prompt 단계에서 <span class="k">[env, ...instructions, skills]</span> 의 순서로 system 파라미터에 합쳐져 매 turn 모델 호출에 들어가요. 이전 turn 의 캐시를 유지하기 위해 *재빌드는 매 turn* 하되 *내용 자체는 안정적*. 사람이 손 안 대면 같은 turn 사이엔 변하지 않아요.
+
+## findUp. 이름이 같은 첫 매치에서 멈춰요
+
+세 source 중 가장 깊이 들여다볼 가치가 있는 게 *project up-walk* 예요. 단순해 보이지만 break 위치가 의외라서 footgun 이 될 수 있어요.
+
+`findUp` 의 호출 자체는 단순합니다.
+
+```ts
+for (const file of instructionFiles) {
+  const matches = yield* fs.findUp(file, ctx.directory, ctx.worktree)
+  if (matches.length > 0) {
+    matches.forEach((item) => paths.add(path.resolve(item)))
+    break
+  }
+}
+```
+
+여기서 두 가지가 일어나요.
+
+- **Cascade**: <span class="k">findUp</span> 이 발견한 *모든 ancestor 매치* 가 paths Set 에 추가됩니다. cwd 가 <span class="mod">/a/b/c</span> 이고 <span class="mod">/a/b/AGENTS.md</span> + <span class="mod">/a/AGENTS.md</span> 가 둘 다 있으면 둘 다 합류해요.
+- **Filename-level break**: <span class="k">if (matches.length &gt; 0)</span> 의 break 가 *파일명 단위* 에서 일어납니다. <span class="mod">AGENTS.md</span> 가 어떤 ancestor 에서든 한 번 매치되면, 같은 walk 의 다음 파일명 (<span class="mod">CLAUDE.md</span>) 은 검색하지 않아요. 코드 주석도 명시: *"The first project-level match wins so we don't stack AGENTS.md/CLAUDE.md from every ancestor."* (<span class="mod">instruction.ts:120</span>)
+
+말로만 보면 어색하니 시나리오를 그려봅니다. cwd 가 <span class="mod">/a/b/c</span> 이고 디렉토리 트리에 이렇게 파일이 깔려 있다고 해 봐요.
+
+<pre class="walk-diagram">
+       /a/b/c                          <span class="cwd-tag">← cwd, walk 시작</span>
+       /a/b/AGENTS.md                  <span class="hit">→ paths.add</span>
+       /a/b/CLAUDE.md                  <span class="skipped">검색되지 않음 (filename break)</span>
+       /a/AGENTS.md                    <span class="hit">→ paths.add</span>
+       /a/CLAUDE.md                    <span class="skipped">검색되지 않음 (filename break)</span>
+       /                               walk 끝
+</pre>
+
+결과적으로 <span class="key">AGENTS.md 가 한 번이라도 매치되면 같은 walk 안의 CLAUDE.md 는 *전부* 무시</span> 됩니다. AGENTS.md 만 cascade 로 모두 들어오고, CLAUDE.md 는 후보 자리에서 빠져요.
+
+<div class="callout-warm">
+<strong><span class="anchor-tag">ANCHOR 3</span>같은 ancestor chain 에 두 파일이 같이 있으면 AGENTS.md 만 살아남아요</strong>
+
+특히 monorepo 에서 의외의 결과를 만들 수 있어요. 어떤 Team 이 자기 폴더에 *그 Team 의 AGENTS.md* 를 새로 만들고, 그 상위 공통 폴더에 Organization 차원의 CLAUDE.md 가 있는 상황을 떠올려 봅니다. AGENTS.md 가 한 번 매치되면, walk 는 그 시점에 filename 단위로 break 해요. 위에 있던 공통 CLAUDE.md 는 instruction 으로 들어가지 *않습니다*.
+
+해결책은 둘 중 하나. Team 의 파일을 AGENTS.md 가 아니라 CLAUDE.md 로 통일하든가, Organization 공통 파일도 AGENTS.md 로 옮겨서 cascade 안에 들어오게 하든가. *같은 ancestor chain 에 두 종류를 섞어 두면 위쪽이 묻혀요.*
+</div>
+
+Walk 자체의 단방향성은 sister blog 의 *실험 2 (visibility)* 와 같은 모양으로 작동합니다. <span class="k">findUp</span> 은 명시적으로 *위로만* traversal 해요 (<span class="mod">instruction.ts:122-130</span>).
+
+- **cwd 의 아래 (subfolder)** 의 AGENTS.md 는 자동 로딩되지 않습니다. cwd 자체가 그 subfolder 또는 더 아래일 때만 보여요.
+- **cwd 의 옆 (sibling 디렉토리)** 의 AGENTS.md 도 안 보여요. 같은 단방향성의 결과.
+- 단, *Read tool 로 그 subfolder 안 파일을 읽으면* 별도 메커니즘 (§5 의 <span class="k">resolve()</span>) 으로 사후 attach 가 가능합니다. 그게 OpenCode 만의 흥미로운 디자인이에요.
+
+<div class="reader-bridge">
+요약하면, walk 의 cascade 는 *AGENTS.md 끼리 위로 쌓이는 흐름* 만 만들어요. *다른 파일명* 끼리는 섞이지 않고, *옆 디렉토리* 와도 섞이지 않습니다.
+</div>
+
+## opencode.json instructions. glob 은 있지만 *조건부* 는 아니에요
+
+§1 끝부분에서 짧게 언급한 지점을 한 번 더 펼쳐 둡니다.
+
+opencode.json 의 instructions 배열은 *어떤 파일을 매칭할지* 를 자유롭게 정할 수 있어요. 상대 / 절대 / 홈 / glob / 원격 URL 모두 받아요. 그런데 매칭된 파일은 모두 *항상* 합류합니다. <span class="key">매칭이 곧 attach</span>. 별도 조건이 끼어들 자리가 없어요.
+
+이게 평행 시점에서 한 군데와 대비됩니다. Claude Code 의 <span class="mod">.claude/rules/&#42;.md</span> 는 frontmatter 의 <span class="k">paths:</span> 로 *모델이 그 paths 패턴에 매칭되는 파일을 건드릴 때만* attach 됐어요 ([sister blog 의 *conditional matching* 섹션](../permanent-memory-three-channels/)). 즉 *어떤 파일을 매칭할지* 가 아니라 *어떤 상황에서 attach 될지* 의 조건이었습니다.
+
+OpenCode 는 후자가 없어요. instructions 의 glob 은 *파일 매칭* 의 도구이지 *상황 조건* 의 도구가 아닙니다. 모든 instruction 이 매 turn *항상* attach 돼요 (<span class="mod">instruction.ts:132-147</span> 에 조건 분기 없음).
+
+함의 한 가지. token-aware monorepo 운영을 정확하게 하려면 *어떤 instruction 을 어떤 상황에 attach 할지* 를 사람이 직접 잘라야 합니다. opencode.json 의 instructions 자체로는 한꺼번에 전부 켜거나 한꺼번에 전부 끄거나 둘 중 하나예요. 폴더 단위 단위 cascade 와 (§3) Read tool walk-up (§5) 이 그 결손을 부분적으로 메워주지만, *조건부 rule* 그 자체는 없어요.
+
+## 자동 로딩 막기. env var 두 개
+
+source 단위로 자동 로딩을 끌 수 있는 옵션은 둘이에요.
+
+<table class="src-table">
+  <thead>
+    <tr>
+      <th>Env var</th>
+      <th>효과</th>
+      <th>출처</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="mod">OPENCODE_DISABLE_PROJECT_CONFIG</span></td>
+      <td>Project up-walk 와 opencode.json instructions 전체 비활성화. global 만 작동.</td>
+      <td><span class="mod">instruction.ts:79, 121</span></td>
+    </tr>
+    <tr>
+      <td><span class="mod">OPENCODE_DISABLE_CLAUDE_CODE_PROMPT</span></td>
+      <td>CLAUDE.md 후보를 project / global 양쪽에서 제거. AGENTS.md 만 봄.</td>
+      <td><span class="mod">instruction.ts:16, 64, 66</span></td>
+    </tr>
+  </tbody>
+</table>
+
+*특정 파일* 만 골라서 빼는 방법은 없어요. exclude 의 grain 이 *source 단위* 거나 *파일명 단위* 거기서 멈춥니다.
+
+옆 사례와 잠깐 비교하면, Claude Code 에는 <span class="k">claudeMdExcludes</span> 가 있어서 glob 패턴으로 *특정 경로* 만 자동 로딩에서 빼는 방식이 가능했어요 ([sister blog 의 *claudeMdExcludes* 섹션](../permanent-memory-three-channels/)). OpenCode 에는 같은 곳에 해당하는 메커니즘이 없습니다. 사람이 *.gitignore* 로 빼거나, *opencode.json 의 instructions 에서 빼거나*, walk 가 닿지 않는 디렉토리에 옮겨두거나, env var 로 source 자체를 끄는 식으로 처리해야 해요.
+
+## Native `@` import 은 없어요
+
+Claude Code 의 <span class="mod">@./relative.md</span> / <span class="mod">@&#126;/path.md</span> / <span class="mod">@/abs.md</span> 같은 native import directive 가 OpenCode 의 instruction loader 에는 없어요. <span class="mod">instruction.ts</span> 어디에도 <span class="mod">@</span> 파싱 코드가 자리잡지 않습니다.
+
+대신 같은 일은 *opencode.json 의 instructions 배열* 이 해줘요. 본문 안에서 *include 한 것처럼* 보이게 하는 건 아니지만, *외부 파일을 instruction 으로 끌어오는 결과* 자체는 같이 얻을 수 있어요. <span class="mod">docs/team-rules.md</span> 가 root AGENTS.md 와 같이 attach 되길 원하면 instructions 배열에 한 줄 더 적으면 됩니다.
+
+부수적인 차이는 두 가지.
+
+- *호출 grain* 이 달라요. <span class="mod">@</span> 는 인스트럭션 본문 *그 자리* 에서 호출하는 느낌이지만, instructions 배열은 *프로젝트 설정* 차원의 선언이에요.
+- *재귀* 가 없어요. Claude Code 의 <span class="mod">@</span> 는 5 단계 깊이의 chain import 를 받습니다. OpenCode 의 instructions 는 *외부 파일을 한 번 더 끌어오기* 만 해요. include 의 include 같은 자리는 없어요.
+
+OpenCode 의 공식 문서도 모델에게 *외부 파일을 참조할 때 `@path` 표기를 쓰도록 유도* 하는 prompt-engineering 권장은 있어요 ([opencode.ai/docs/rules/](https://opencode.ai/docs/rules/) 의 "Referencing External Files"). 그런데 그건 *loader 가 resolve 해주는 directive* 가 아니에요. 모델이 그 표기를 *읽었을 때* Read tool 로 그 파일을 열 수 있게 만드는, 모델 측의 컨벤션이에요.
+
+## resolve(). Read tool 의 응답이 instruction 을 따라옵니다
+
+walk 의 단방향성 때문에 *cwd 아래 디렉토리의 AGENTS.md* 는 세션 시작 시점에 자동 로딩되지 않아요. 그런데 사실 OpenCode 는 그 결손을 *런타임의 Read tool* 로 메워줍니다. 이게 다섯 anchor 중 가장 잘 알려지지 않은 디자인이에요.
+
+```ts
+const resolve = Effect.fn("Instruction.resolve")(function* (
+  messages: MessageV2.WithParts[],
+  filepath: string,
+  messageID: MessageID,
+) {
+  const sys = yield* systemPaths()
+  const already = extract(messages)
+  const results: { filepath: string; content: string }[] = []
+  const s = yield* InstanceState.get(state)
+  const root = path.resolve(yield* InstanceState.directory)
+
+  const target = path.resolve(filepath)
+  let current = path.dirname(target)
+
+  while (current.startsWith(root) && current !== root) {
+    const found = yield* find(current)
+    if (!found || found === target || sys.has(found) || already.has(found)) {
+      current = path.dirname(current)
+      continue
+    }
+    /* per-message claim 체크 */
+    set.add(found)
+    const content = yield* read(found)
+    if (content) {
+      results.push({
+        filepath: found,
+        content: `Instructions from: ${found}\n${content}`
+      })
+    }
+    current = path.dirname(current)
+  }
+  return results
+})
+```
+
+<span class="mod">instruction.ts:176-217</span>. 동작은 이래요.
+
+- Read tool 이 *어떤 파일을 읽을 때마다* 호출됩니다.
+- 그 파일의 dirname 부터 worktree root 까지 *위로* walk.
+- 각 디렉토리에서 <span class="k">find()</span> 로 첫 instruction 파일 (AGENTS.md > CLAUDE.md > CONTEXT.md) 발견하면, 이미 systemPaths 에 들어갔거나 이미 이번 message 에서 attach 됐거나 target 자체이면 skip. 그 외엔 attach.
+- per-message claim 으로 같은 message 안에서 같은 instruction 은 한 번만 attach. 메시지 헤더 단위로 중복을 막아요.
+
+그리고 attach 된 instruction 은 Read tool 응답의 *메타데이터* 로 전달돼요 (<span class="mod">instruction.ts:207-211</span>, <span class="k">loaded</span> field). 즉 모델은 *어떤 파일을 읽었다* 는 사실 + *그 위에 자리잡은 instruction* 을 같이 받게 됩니다.
+
+<div class="callout-warm">
+<strong><span class="anchor-tag">ANCHOR 4</span>Read tool 의 응답이 instruction 을 따라서 데려와요</strong>
+
+이 메커니즘이 walk 의 단방향성을 *완화* 합니다. cwd 가 repo root 라서 <span class="mod">frontend/AGENTS.md</span> 가 처음에 attach 되지 않았더라도, 모델이 <span class="mod">frontend/Button.tsx</span> 를 읽는 순간 그 디렉토리의 AGENTS.md 가 응답 안으로 따라 들어옵니다. instruction loader 가 *세션 시작 시 한 번* 으로 끝나지 않고, *tool call 별로* 부가 채널을 유지해요.
+
+장점은 분명해요. *컨텍스트의 가까움* (locality) 을 모델 행동에 반영해 줍니다. 모델이 일하는 자리의 instruction 이 자동으로 따라와요.
+
+비용도 있어요. 디렉토리마다 AGENTS.md 를 두면 깊은 탐색 세션에서 token 사용이 빠르게 누적됩니다. per-message claim 이 *같은 message 내 중복* 은 막지만 *메시지 간 누적* 은 막지 않아요. 깊은 디렉토리 trace 에서 instruction 이 반복 등장하는 모양이 trace 에 자주 보입니다.
+</div>
+
+## 자율 memory 시스템 부재. 모든 instruction 은 사람이 씁니다
+
+마지막으로 OpenCode 에 *없는 것* 한 가지가 있어요. <span class="key">모델이 직접 운영하는 long-term memory 시스템</span> 이 부재합니다.
+
+OpenCode 공식 문서 ([opencode.ai/docs/](https://opencode.ai/docs/)) 의 사이드바를 훑어 보면 *memory*, *context*, *session*, *compact*, *summary* 같은 항목이 없어요. /memory 같은 슬래시 명령도 부재 ([opencode.ai/docs/commands/](https://opencode.ai/docs/commands/) 의 built-in 명령 목록). instruction.ts 안에도 *모델이 자기 메모리를 적게 하는 procedure* 는 자리잡지 않아요. 모든 instruction 은 *사람이 적은 파일* 이고, 모델은 그걸 *읽기만* 합니다.
+
+이게 부재인지 미완인지는 글의 관점 차원의 질문이에요. 두 가지 읽기가 있어요.
+
+- *philosophical commitment 의 표명*: AGENTS.md spec 의 정신 (*"just standard Markdown"*) 과 정합적인 결정. 모든 instruction 은 사람이 큐레이트하고, 모델은 컨텍스트를 *해석* 만 합니다. 모델 측 자율 메모리 운영이 끼어들지 않아요.
+- *시간 차이의 일시적 공백*: Claude Code 도 처음엔 자율 memory 시스템이 없었어요. 점진 추가됐고, 지금은 사이드바에 명확한 항목으로 자리잡았어요. OpenCode 도 비슷한 경로를 따를지 모릅니다.
+
+본문에서는 이 둘 중 어느 쪽이 맞는지 결론을 내리지 않을게요. 다만 *명시되지 않은 선택* 자체가 흥미로운 신호라는 건 짚어 둡니다. *이 도구는 사람이 모든 컨텍스트를 직접 큐레이트한다* 는 가정이 OpenCode 의 instruction loader 에 *깔려 있어요* (instruction.ts 의 모든 함수가 *읽기만* 하고 *쓰지 않음*).
+
+<div class="callout-warm">
+<strong><span class="anchor-tag">ANCHOR 5</span>자율 memory 시스템의 부재</strong>
+
+instruction loader 가 *읽기 전용* 으로 설계됐다는 게 핵심이에요. <span class="k">systemPaths()</span> 도 <span class="k">resolve()</span> 도 *기존 파일을 발견하고 attach* 할 뿐, *새 파일을 만들어 둔다* 같은 동작은 없어요. 메모리 노트의 자동 생성, MEMORY.md 같은 index 의 자동 유지, 모델의 자기 노트 작성 같은 자리가 비어 있습니다.
+
+이 부재는 도구의 결손이 아니라 *디자인 선언* 으로 읽혀요. 적어도 현재 시점에서는요.
+</div>
+
+## Take-home
+
+이 글의 정리.
+
+<blockquote>
+<p>OpenCode 의 instruction loader 는 단순합니다. 세 source (전역 / 프로젝트 up-walk / opencode.json instructions) 가 한 <strong><span class="k">paths: Set&lt;string&gt;</span></strong> 으로 합쳐지고, 각 path 가 동일한 헤더 <strong><span class="k">Instructions from: &lt;path&gt;</span></strong> 로 prepend 되어 매 turn system block 에 들어가요. scope label 도, suffix 도, 본문 안 <span class="mod">@</span> import 도 없어요.</p>
+<p>그 단순함 위에 다섯 anchor 가 자리잡아요. <strong>(1)</strong> <span class="mod">&#126;/.claude/CLAUDE.md</span> 를 default 로 fallback 으로 읽는 cross-vendor 결정. <strong>(2)</strong> <span class="k">Instructions from: &lt;path&gt;</span> 단일 헤더가 만드는 *attribution flatness*. <strong>(3)</strong> <span class="k">findUp</span> 의 *파일명 단위 break*. AGENTS.md 가 한 번 매치되면 같은 walk 의 CLAUDE.md 는 모두 묻혀요. <strong>(4)</strong> Read tool 응답이 instruction 을 따라 attach 하는 <span class="k">resolve()</span> 의 부가 채널. <strong>(5)</strong> 자율 memory 시스템의 부재. 모든 instruction 은 사람이 씁니다.</p>
+<p>다섯 anchor 중 1·3 은 의외의 디자인 결정 (어디든 한쪽으로 향하는 선택), 2·4 는 메커니즘의 모양 (header 평면성 + Read tool 응답의 부가 채널), 5 는 *부재 그 자체* 가 디자인 선언으로 읽히는 자리예요. AGENTS.md 공식 spec (*"just standard Markdown"*) 의 비어있음을 OpenCode 가 어떤 채움 (또는 비움) 으로 풀었는지가 이 다섯 자리에 농축돼 있습니다.</p>
+</blockquote>
