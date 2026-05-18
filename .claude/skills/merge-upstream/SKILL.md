@@ -3,11 +3,12 @@ name: merge-upstream
 description: >
   Merge the upstream (public GitHub) branch into the local main branch of this
   company-side blog repo. Use this skill whenever the user wants to sync,
-  merge, pull, or update from upstream, or mentions bringing in changes from
-  the public repo, or says anything like "merge upstream", "sync from
-  upstream", "pull upstream changes", or "update from public repo". Also
-  trigger when the user mentions the company blog being out of date with the
-  public blog, or wanting to reflect upstream updates.
+  merge, pull, or update from upstream, or mentions bringing in changes from the
+  public repo, or says anything like "merge upstream", "sync from upstream",
+  "pull upstream changes", or "update from public repo". Also trigger when the
+  user mentions the company blog being out of date with the public blog, or
+  wanting to reflect upstream updates. IMPORTANT: This skill only works in the
+  COMPANY environment — it must not run on HOME or DEVELOPMENT machines.
 ---
 
 # Merge Upstream Workflow
@@ -15,6 +16,36 @@ description: >
 This skill syncs the company-side blog repo with the public upstream repo,
 handling the known merge conflicts that arise from the dual-deployment
 architecture.
+
+## Environment Guard
+
+This skill is designed exclusively for the COMPANY environment, where the blog
+repo points to the internal GitHub Enterprise (`github.samsungds.net`). Running
+it on HOME or DEVELOPMENT machines would be incorrect — those environments push
+directly to the public repo and never merge from upstream.
+
+**Before doing anything else**, check the environment by reading the `.env`
+file in the project root:
+
+```bash
+grep A2G_LOCATION .env
+```
+
+Alternatively, read the `.env` file directly and look for the `A2G_LOCATION`
+line. The value is set there (not as a shell environment variable).
+
+- If the value is `COMPANY`, `CORP`, or `PRODUCTION` → proceed with the
+  workflow below.
+- If the value is anything else (e.g., `HOME`, `DEVELOPMENT`, or the key is
+  missing) → **stop immediately** and inform the user:
+
+> This skill can only run in the COMPANY environment (where the repo points to
+> the internal GitHub Enterprise). The current environment (`A2G_LOCATION=<value>`)
+> is not a company environment. If you're on a company machine, check that
+> `A2G_LOCATION` is set correctly in `.env`. If you're on a HOME or DEVELOPMENT
+> machine, you don't need this skill — push directly to the public repo instead.
+
+Do not proceed past this check unless the environment matches.
 
 ## Remote Setup
 
@@ -155,11 +186,34 @@ git log --oneline -5
 
 Present the results to the user.
 
-### 7. DO NOT PUSH
+### 7. Start Local Runner and Push to Origin
 
-The user pushes manually. Remind them:
+On the company GitHub Enterprise, GitHub Actions does not work server-side.
+Instead, a self-hosted runner in `actions-runner/` must be running locally to
+pick up workflow jobs. Pushing to `origin main` triggers a workflow dispatch,
+and the local runner executes it.
 
-> Merge complete. When ready, push with `git push` (or `git push origin main`).
+**Start the local runner in the background first**, then push:
+
+```bash
+# Start the self-hosted runner in the background
+cd actions-runner && nohup ./run.sh > /dev/null 2>&1 &
+cd ..
+
+# Push to origin (triggers the workflow; the local runner picks it up)
+git push origin main
+```
+
+The runner stays alive as a background process listening for jobs. If it was
+already running, starting another instance will fail with a session conflict
+— that's fine, the existing runner will handle the job.
+
+After pushing, inform the user:
+
+> Merge complete and pushed to origin. The local Actions runner should pick up
+> the workflow job. Check the GitHub Enterprise Actions tab to verify the
+> deployment. The runner stays running in the background (idle when no jobs are
+> queued — negligible resource cost). Stop it manually with `kill` when desired.
 
 ## Error Handling
 
