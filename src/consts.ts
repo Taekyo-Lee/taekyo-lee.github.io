@@ -1,7 +1,8 @@
 // Place any global data in this file.
 // You can import this data from anywhere in your site by using the `import` keyword.
 
-export const SITE_TITLE = "Guru Cat's AI";
+const isCompany = import.meta.env.PUBLIC_IS_COMPANY === 'true';
+export const SITE_TITLE = isCompany ? 'AI Native 파트 Blog' : "Guru Cat's AI";
 export const SITE_DESCRIPTION = 'RF Engineer 출신 AI Engineer의 기록';
 
 // Header/Footer GitHub icon visibility. Flip to true to expose.
